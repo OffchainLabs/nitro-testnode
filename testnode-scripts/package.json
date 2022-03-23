@@ -1,0 +1,16 @@
+{
+  "name": "nitro_test",
+  "version": "1.0.0",
+  "description": "testing environment Arbitrum Nitro",
+  "main": "index.js",
+  "author": "Offchain Labs, Inc.",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@types/node": "^17.0.22",
+    "ethers": "^5.6.1",
+    "path": "^0.12.7",
+    "yargs": "^17.4.0"
+  },
+  "private": true,
+  "devDependencies": {}
+}
