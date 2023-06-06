@@ -308,8 +308,8 @@ services:
     command: --conf.file /config/validation_node_config.json
     entrypoint: /usr/local/bin/nitro-val
 
-  testnode-scripts:
-    build: testnode-scripts/
+  scripts:
+    build: scripts/
     volumes:
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
@@ -324,12 +324,12 @@ services:
     entrypoint: bin/relay
     command: --node.feed.output.port 9652 --node.feed.input.url ws://sequencer:9652
 
-  testnode-tokenbridge:
+  tokenbridge:
     depends_on:
       - geth
       - sequencer
     pid: host
-    build: testnode-tokenbridge/
+    build: tokenbridge/
     environment:
       - ARB_URL=http://sequencer:8547
       - ETH_URL=http://geth:8545
