@@ -17,7 +17,7 @@ fi
 
 if [[ $# -gt 0 ]] && [[ $1 == "script" ]]; then
     shift
-    docker-compose run testnode-scripts "$@"
+    docker-compose run scripts "$@"
     exit $?
 fi
 
@@ -202,9 +202,9 @@ if $force_build; then
       docker build blockscout -t blockscout -f blockscout/docker/Dockerfile
     fi
   fi
-  LOCAL_BUILD_NODES=testnode-scripts
+  LOCAL_BUILD_NODES=scripts
   if $tokenbridge; then
-    LOCAL_BUILD_NODES="$LOCAL_BUILD_NODES testnode-tokenbridge"
+    LOCAL_BUILD_NODES="$LOCAL_BUILD_NODES tokenbridge"
   fi
   docker-compose build --no-rm $LOCAL_BUILD_NODES
 fi
@@ -228,7 +228,7 @@ else
 fi
 
 if $force_build; then
-    docker-compose build --no-rm $NODES testnode-scripts
+    docker-compose build --no-rm $NODES scripts
 fi
 
 if $force_init; then
@@ -245,17 +245,17 @@ if $force_init; then
     fi
 
     echo == Generating l1 keys
-    docker-compose run testnode-scripts write-accounts
+    docker-compose run scripts write-accounts
     docker-compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
     docker-compose run --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
     docker-compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
 
     if $consensusclient; then
       echo == Writing configs
-      docker-compose run testnode-scripts write-geth-genesis-config
+      docker-compose run scripts write-geth-genesis-config
 
       echo == Writing configs
-      docker-compose run testnode-scripts write-prysm-config
+      docker-compose run scripts write-prysm-config
 
       echo == Initializing go-ethereum genesis configuration
       docker-compose run geth init --datadir /datadir/ /config/geth_genesis.json
@@ -274,33 +274,35 @@ if $force_init; then
     fi
 
     echo == Funding validator and sequencer
-    docker-compose run testnode-scripts send-l1 --ethamount 1000 --to validator --wait
-    docker-compose run testnode-scripts send-l1 --ethamount 1000 --to sequencer --wait
+    docker-compose run scripts send-l1 --ethamount 1000 --to validator --wait
+    docker-compose run scripts send-l1 --ethamount 1000 --to sequencer --wait
 
     echo == create l1 traffic
-    docker-compose run testnode-scripts send-l1 --ethamount 1000 --to user_l1user --wait
-    docker-compose run testnode-scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 500 > /dev/null &
+    docker-compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
+    docker-compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 500 > /dev/null &
 
+    echo == Writing l2 chain config
+    docker-compose run scripts write-l2-chain-config
 
     echo == Deploying L2
-    sequenceraddress=`docker-compose run testnode-scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
+    sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
 
     docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid
 
     echo == Writing configs
-    docker-compose run testnode-scripts write-config
+    docker-compose run scripts write-config
 
     echo == Initializing redis
-    docker-compose run testnode-scripts redis-init --redundancy $redundantsequencers
+    docker-compose run scripts redis-init --redundancy $redundantsequencers
 
     echo == Funding l2 funnel
     docker-compose up -d $INITIAL_SEQ_NODES
-    docker-compose run testnode-scripts bridge-funds --ethamount 100000 --wait
+    docker-compose run scripts bridge-funds --ethamount 100000 --wait
 
     if $tokenbridge; then
         echo == Deploying token bridge
-        docker-compose run -e ARB_KEY=$devprivkey -e ETH_KEY=$devprivkey testnode-tokenbridge gen:network
-        docker-compose run --entrypoint sh testnode-tokenbridge -c "cat localNetwork.json"
+        docker-compose run -e ARB_KEY=$devprivkey -e ETH_KEY=$devprivkey tokenbridge gen:network
+        docker-compose run --entrypoint sh tokenbridge -c "cat localNetwork.json"
         echo
     fi
 fi
