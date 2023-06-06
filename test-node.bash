@@ -203,7 +203,15 @@ fi
 if $force_build; then
   echo == Building..
   if $dev_build_nitro; then
-    docker build . -t nitro-node-dev --target nitro-node-dev
+    if ! [ -n "${NITRO_SRC+set}" ]; then
+        NITRO_SRC=`dirname $PWD`
+    fi
+    if ! grep ^FROM "${NITRO_SRC}/Dockerfile" | grep nitro-node 2>&1 > /dev/null; then
+        echo nitro source not found in "$NITRO_SRC"
+        echo execute from a sub-directory of nitro or use NITRO_SRC environment variable
+        exit 1
+    fi
+    docker build "$NITRO_SRC" -t nitro-node-dev --target nitro-node-dev
   fi
   if $dev_build_blockscout; then
     if $blockscout; then
