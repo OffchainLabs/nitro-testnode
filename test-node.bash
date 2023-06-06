@@ -21,7 +21,7 @@ if [[ $# -gt 0 ]] && [[ $1 == "script" ]]; then
     exit $?
 fi
 
-num_volumes=`docker volume ls --filter label=com.docker.compose.project=nitro -q | wc -l`
+num_volumes=`docker volume ls --filter label=com.docker.compose.project=nitro-testnode -q | wc -l`
 
 if [[ $num_volumes -eq 0 ]]; then
     force_init=true
@@ -234,12 +234,12 @@ fi
 if $force_init; then
     echo == Removing old data..
     docker-compose down
-    leftoverContainers=`docker container ls -a --filter label=com.docker.compose.project=nitro -q | xargs echo`
+    leftoverContainers=`docker container ls -a --filter label=com.docker.compose.project=nitro-testnode -q | xargs echo`
     if [ `echo $leftoverContainers | wc -w` -gt 0 ]; then
         docker rm $leftoverContainers
     fi
-    docker volume prune -f --filter label=com.docker.compose.project=nitro
-    leftoverVolumes=`docker volume ls --filter label=com.docker.compose.project=nitro -q | xargs echo`
+    docker volume prune -f --filter label=com.docker.compose.project=nitro-testnode
+    leftoverVolumes=`docker volume ls --filter label=com.docker.compose.project=nitro-testnode -q | xargs echo`
     if [ `echo $leftoverVolumes | wc -w` -gt 0 ]; then
         docker volume rm $leftoverVolumes
     fi
