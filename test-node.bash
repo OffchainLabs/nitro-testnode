@@ -281,9 +281,6 @@ if $force_init; then
     docker-compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
     docker-compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 500 > /dev/null &
 
-    echo == Writing l2 chain config
-    docker-compose run scripts write-l2-chain-config
-
     echo == Deploying L2
     sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
 
