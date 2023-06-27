@@ -82,14 +82,14 @@ export function namedAddress(
 
 export const namedAccountHelpString =
   "Valid account names:\n" +
-  "funnel | sequencer | validator - known keys\n" +
-  "user_[Alphanumeric]            - key will be generated from username\n" +
-  "threaduser_[Alphanumeric]      - same as user_[Alphanumeric]_thread_[thread-id]\n" +
-  "key_0x[full private key]       - user with specified private key";
-"\n" +
+  "  funnel | sequencer | validator - known keys\n" +
+  "  user_[Alphanumeric]            - key will be generated from username\n" +
+  "  threaduser_[Alphanumeric]      - same as user_[Alphanumeric]_thread_[thread-id]\n" +
+  "  key_0x[full private key]       - user with specified private key\n" +
+  "\n" +
   "Valid addresses: any account name, or\n" +
-  "address_0x[full eth address]\n" +
-  "random";
+  "  address_0x[full eth address]\n" +
+  "  random";
 
 async function handlePrintAddress(argv: any, threadId: number) {
   console.log(namedAddress(argv.account, threadId));
