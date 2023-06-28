@@ -13,13 +13,13 @@ All must be installed in PATH.
 
 ## Usage
 
-### Using latest nitro release
+### Using latest nitro release (recommended)
 
 Check out the release branch of the repository.
 > Notice: release branch may be force-pushed at any time.
 
 ```bash
-git clone -b release https://github.com/OffchainLabs/nitro-testnode.git
+git clone -b release --recurse-submodules https://github.com/OffchainLabs/nitro-testnode.git
 cd nitro-testnode
 ```
 
@@ -40,7 +40,7 @@ git clone --recurse-submodules https://github.com/OffchainLabs/nitro.git
 cd nitro/nitro-testnode
 ```
 
-Initialize the node in dev-mode
+Initialize the node in dev-mode (this will build the docker images from source)
 
 ```bash
 ./test-node.bash --init --dev
