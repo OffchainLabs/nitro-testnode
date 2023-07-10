@@ -39,6 +39,7 @@ consensusclient=false
 redundantsequencers=0
 dev_build_nitro=false
 dev_build_blockscout=false
+erc20rollup=false
 batchposters=1
 devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
@@ -98,6 +99,10 @@ while [[ $# -gt 0 ]]; do
             detach=true
             shift
             ;;
+        --erc20-rollup)
+            erc20rollup=true
+            shift
+            ;;
         --batchposters)
             batchposters=$2
             if ! [[ $batchposters =~ [0-3] ]] ; then
@@ -131,6 +136,7 @@ while [[ $# -gt 0 ]]; do
             echo --init:            remove all data, rebuild, deploy new rollup
             echo --pos:             l1 is a proof-of-stake chain \(using prysm for consensus\)
             echo --validate:        heavy computation, validating all blocks in WASM
+            echo --erc20rollup:     deploys rollup in erc20 mode where token is used as L2 native currency
             echo --batchposters:    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach:          detach from nodes after running them
@@ -281,10 +287,15 @@ if $force_init; then
     docker-compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
     docker-compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 500 > /dev/null &
 
-    echo == Deploying L2
     sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
-
-    docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid
+    deployL2Command="docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid"
+    if $erc20rollup; then
+        echo == Deploying custom fee token
+        nativeTokenAddress=`docker-compose run testnode-scripts create-erc20 --deployerKey $devprivkey --mintTo user_l1user | tail -n 1 | awk '{ print $NF }'`
+        deployL2Command+=" --nativeERC20TokenAddress $nativeTokenAddress"
+    fi
+    echo == Deploying L2
+    eval $deployL2Command
 
     echo == Writing configs
     docker-compose run scripts write-config
@@ -294,7 +305,9 @@ if $force_init; then
 
     echo == Funding l2 funnel
     docker-compose up -d $INITIAL_SEQ_NODES
-    docker-compose run scripts bridge-funds --ethamount 100000 --wait
+    if ! $erc20rollup; then
+        docker-compose run scripts bridge-funds --ethamount 100000 --wait
+    fi
 
     if $tokenbridge; then
         echo == Deploying token bridge
