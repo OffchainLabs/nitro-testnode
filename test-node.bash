@@ -311,7 +311,7 @@ if $force_init; then
     deployL2Command="docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json"
     if $customFeeToken; then
         echo == Deploying custom fee token
-        nativeTokenAddress=`docker-compose run testnode-scripts create-erc20 --deployerKey $devprivkey --mintTo user_l1user | tail -n 1 | awk '{ print $NF }'`
+        nativeTokenAddress=`docker-compose run scripts create-erc20 --deployerKey $devprivkey --mintTo user_l1user | tail -n 1 | awk '{ print $NF }'`
         deployL2Command+=" --nativeERC20TokenAddress $nativeTokenAddress"
     fi
     echo == Deploying L2
