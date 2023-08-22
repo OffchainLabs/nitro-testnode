@@ -30,6 +30,7 @@ async function main() {
     .options(stressOptions)
     .command(bridgeFundsCommand)
     .command(bridgeToL3Command)
+    .command(createERC20Command)
     .command(sendL1Command)
     .command(sendL2Command)
     .command(sendL3Command)
