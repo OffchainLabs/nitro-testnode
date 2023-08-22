@@ -11,6 +11,7 @@ import {
 import {
   bridgeFundsCommand,
   bridgeToL3Command,
+  createERC20Command,
   sendL1Command,
   sendL2Command,
   sendL3Command,
