@@ -2,6 +2,7 @@ import { runStress } from "./stress";
 import { ContractFactory, ethers, Wallet } from "ethers";
 import * as consts from "./consts";
 import { namedAccount, namedAddress } from "./accounts";
+import * as ERC20PresetFixedSupplyArtifact from "@openzeppelin/contracts/build/contracts/ERC20PresetFixedSupply.json";
 import * as fs from "fs";
 const path = require("path");
 
