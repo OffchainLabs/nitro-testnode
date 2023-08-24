@@ -118,6 +118,7 @@ services:
       - --chain-config-file=/config/prysm.yaml
       - --rpc-host=0.0.0.0
       - --grpc-gateway-host=0.0.0.0
+      - --grpc-gateway-port=3600
       - --chain-id=32382
       - --execution-endpoint=http://geth:8551
       - --accept-terms-of-use
@@ -129,7 +130,7 @@ services:
         condition: service_completed_successfully
     ports:
       - "127.0.0.1:5000:5000"
-      - "127.0.0.1:3500:3500"
+      - "127.0.0.1:3600:3600"
     volumes:
       - "consensus:/consensus"
       - "config:/config"
