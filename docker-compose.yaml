@@ -78,10 +78,6 @@ services:
       - --authrpc.jwtsecret=/config/jwt.hex
       - --nodiscover
       - --syncmode=full
-      - --dev
-      - --dev.period=1
-      - --mine
-      - --miner.etherbase=0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E
       - --gcmode=archive
 
   # Creates a genesis state for the beacon chain using a YAML configuration file and
@@ -121,6 +117,7 @@ services:
       - --grpc-gateway-port=3600
       - --chain-id=32382
       - --execution-endpoint=http://geth:8551
+      - --suggested-fee-recipient=0x1000000000000000000000000000000000000000 
       - --accept-terms-of-use
       - --jwt-secret=/config/jwt.hex
     depends_on:
