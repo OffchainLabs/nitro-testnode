@@ -273,14 +273,14 @@ if $force_init; then
       echo == Writing configs
       docker-compose run scripts write-prysm-config
 
+      echo == Creating prysm genesis
+      docker-compose up create_beacon_chain_genesis
+
       echo == Initializing go-ethereum genesis configuration
       docker-compose run geth init --datadir /datadir/ /config/geth_genesis.json
 
       echo == Starting geth
       docker-compose up -d geth
-
-      echo == Creating prysm genesis
-      docker-compose up create_beacon_chain_genesis
 
       echo == Running prysm
       docker-compose up -d prysm_beacon_chain

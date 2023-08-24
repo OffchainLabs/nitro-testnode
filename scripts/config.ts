@@ -13,20 +13,30 @@ PRESET_BASE: interop
 GENESIS_FORK_VERSION: 0x20000089
 
 # Altair
-ALTAIR_FORK_EPOCH: 1
+ALTAIR_FORK_EPOCH: 0
 ALTAIR_FORK_VERSION: 0x20000090
 
 # Merge
-BELLATRIX_FORK_EPOCH: 2
+BELLATRIX_FORK_EPOCH: 0
 BELLATRIX_FORK_VERSION: 0x20000091
-TERMINAL_TOTAL_DIFFICULTY: 50
+TERMINAL_TOTAL_DIFFICULTY: 0
+
+# Capella
+CAPELLA_FORK_EPOCH: 0
+CAPELLA_FORK_VERSION: 0x20000092
+MAX_WITHDRAWALS_PER_PAYLOAD: 16
+
+DENEB_FORK_EPOCH: 2
+DENEB_FORK_VERSION: 0x20000093
+
 
 # Time parameters
-SECONDS_PER_SLOT: 12
+SECONDS_PER_SLOT: 6
 SLOTS_PER_EPOCH: 6
 
 # Deposit contract
 DEPOSIT_CONTRACT_ADDRESS: 0x4242424242424242424242424242424242424242
+
     `
     fs.writeFileSync(path.join(consts.configpath, "prysm.yaml"), prysm)
 }
@@ -36,29 +46,29 @@ function writeGethGenesisConfig(argv: any) {
     {
         "config": {
             "ChainName": "l1_chain",
-                "chainId": 32382,
-                "consensus": "clique",
-                "homesteadBlock": 0,
-                "daoForkSupport": true,
-                "eip150Block": 0,
-                "eip150Hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-                "eip155Block": 0,
-                "eip158Block": 0,
-                "byzantiumBlock": 0,
-                "constantinopleBlock": 0,
-                "petersburgBlock": 0,
-                "istanbulBlock": 0,
-                "muirGlacierBlock": 0,
-                "berlinBlock": 0,
-                "londonBlock": 0,
-                "terminalBlockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-                "arrowGlacierBlock": 0,
-                "grayGlacierBlock": 0,
-                "clique": {
-                "period": 5,
-                    "epoch": 30000
-            },
-            "terminalTotalDifficulty": 50
+            "chainId": 32382,
+            "homesteadBlock": 0,
+            "daoForkSupport": true,
+            "eip150Block": 0,
+            "eip150Hash": 
+    "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "eip155Block": 0,
+            "eip158Block": 0,
+            "byzantiumBlock": 0,
+            "constantinopleBlock": 0,
+            "petersburgBlock": 0,
+            "istanbulBlock": 0,
+            "muirGlacierBlock": 0,
+            "berlinBlock": 0,
+            "londonBlock": 0,
+            "terminalBlockHash": 
+    "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "arrowGlacierBlock": 0,
+            "grayGlacierBlock": 0,
+            "shanghaiTime": 1691701126,
+            "cancunTime": 1691701198,
+            "terminalTotalDifficulty": 0,
+            "terminalTotalDifficultyPassed": true
         },
         "difficulty": "1",
         "extradata": "0x00000000000000000000000000000000000000000000000000000000000000003f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E0B0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",

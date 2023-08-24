@@ -48,7 +48,7 @@ services:
       - "127.0.0.1:6379:6379"
 
   geth:
-    image: ethereum/client-go:v1.10.23
+    image: ethpandaops/geth:dencun-devnet-8-946a2da
     ports:
       - "127.0.0.1:8545:8545"
       - "127.0.0.1:8551:8551"
@@ -88,13 +88,16 @@ services:
   # a deterministic set of validators
   # TODO: Make num validators customizable
   create_beacon_chain_genesis:
-    image: "gcr.io/prysmaticlabs/prysm/cmd/prysmctl:latest"
+    image: "gcr.io/prysmaticlabs/prysm/cmd/prysmctl:nitro-deneb-integration"
     command:
       - testnet
       - generate-genesis
-      - --num-validators=64
+      - --num-validators=256
       - --output-ssz=/consensus/genesis.ssz
       - --chain-config-file=/config/prysm.yaml
+      - --fork=capella
+      - --geth-genesis-json-in=/config/geth_genesis.json
+      - --geth-genesis-json-out=/config/geth_genesis.json
     volumes:
       - "consensus:/consensus"
       - "config:/config"
@@ -104,12 +107,12 @@ services:
   # The account used in go-ethereum is set as the suggested fee recipient for transactions
   # proposed via the validators attached to the beacon node.
   prysm_beacon_chain:
-    image: "gcr.io/prysmaticlabs/prysm/beacon-chain:stable"
+    image: "gcr.io/prysmaticlabs/prysm/beacon-chain:nitro-deneb-integration"
     command:
       - --datadir=/consensus/beacondata
       - --rpc-port=5000
       - --min-sync-peers=0
-      - --interop-genesis-state=/consensus/genesis.ssz
+      - --genesis-state=/consensus/genesis.ssz
       - --interop-eth1data-votes
       - --bootstrap-node=
       - --chain-config-file=/config/prysm.yaml
@@ -134,12 +137,12 @@ services:
   # We run a validator client with 64, deterministically-generated keys that match
   # The validator keys present in the beacon chain genesis state generated a few steps above.
   prysm_validator:
-    image: "gcr.io/prysmaticlabs/prysm/validator:stable"
+    image: "gcr.io/prysmaticlabs/prysm/validator:nitro-deneb-integration"
     command:
       - --beacon-rpc-provider=prysm_beacon_chain:5000
       - --datadir=/consensus/validatordata
       - --accept-terms-of-use
-      - --interop-num-validators=64
+      - --interop-num-validators=256
       - --interop-start-index=0
       - --chain-config-file=/config/prysm.yaml
     depends_on:
@@ -163,7 +166,6 @@ services:
     depends_on:
       - geth
       - redis
-
 
   sequencer_b:
     pid: host # allow debugging
