@@ -94,6 +94,7 @@ services:
       - --fork=capella
       - --geth-genesis-json-in=/config/geth_genesis.json
       - --geth-genesis-json-out=/config/geth_genesis.json
+      - --genesis-time-delay=30
     volumes:
       - "consensus:/consensus"
       - "config:/config"
@@ -120,11 +121,6 @@ services:
       - --suggested-fee-recipient=0x1000000000000000000000000000000000000000 
       - --accept-terms-of-use
       - --jwt-secret=/config/jwt.hex
-    depends_on:
-      geth:
-        condition: service_started
-      create_beacon_chain_genesis:
-        condition: service_completed_successfully
     ports:
       - "127.0.0.1:5000:5000"
       - "127.0.0.1:3600:3600"
@@ -143,9 +139,6 @@ services:
       - --interop-num-validators=256
       - --interop-start-index=0
       - --chain-config-file=/config/prysm.yaml
-    depends_on:
-      prysm_beacon_chain:
-        condition: service_started
     volumes:
       - "consensus:/consensus"
       - "config:/config"
