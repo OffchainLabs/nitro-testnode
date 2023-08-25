@@ -94,6 +94,7 @@ services:
       - --fork=capella
       - --geth-genesis-json-in=/config/geth_genesis.json
       - --geth-genesis-json-out=/config/geth_genesis.json
+      - --genesis-time= # Read genesis time env var
     volumes:
       - "consensus:/consensus"
       - "config:/config"

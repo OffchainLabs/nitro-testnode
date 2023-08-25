@@ -370,6 +370,19 @@ function writeL3ChainConfig(argv: any) {
     fs.writeFileSync(path.join(consts.configpath, "l3_chain_config.json"), l3ChainConfigJSON)
 }
 
+function writeGenesisTime(argv: any) {
+ // Write genesis time to the env var
+ // current time + 30s
+}
+
+export const writeGenesisTimeCommand = {
+    command: "write-genesis-time",
+    describe: "writes genesis time to the env var",
+    handler: (argv: any) => {
+        writeGenesisTime(argv)
+    }
+}
+
 export const writeConfigCommand = {
     command: "write-config",
     describe: "writes config files",

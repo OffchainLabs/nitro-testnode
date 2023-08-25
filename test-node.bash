@@ -273,6 +273,9 @@ if $force_init; then
       echo == Writing configs
       docker-compose run scripts write-prysm-config
 
+      echo == Writing genesis time
+      docker-compose run scripts write-genesis-time
+
       echo == Creating prysm genesis
       docker-compose up create_beacon_chain_genesis
 
