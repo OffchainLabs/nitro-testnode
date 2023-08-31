@@ -273,7 +273,7 @@ function writeConfigs(argv: any) {
     fs.writeFileSync(path.join(consts.configpath, "l3node_config.json"), JSON.stringify(l3Config))
     posterConfig.node["batch-poster"]["redis-lock"]["key"] = "dataposter_b"
     fs.writeFileSync(path.join(consts.configpath, "poster_config_b.json"), JSON.stringify(posterConfig))
-    posterConfig.node["batch-poster"]["redis-lock"]["key"] = "dataposter_b"
+    posterConfig.node["batch-poster"]["redis-lock"]["key"] = "dataposter_c"
     fs.writeFileSync(path.join(consts.configpath, "poster_config_c.json"), JSON.stringify(posterConfig))
 
     let validationNodeConfig = JSON.parse(JSON.stringify({
