@@ -208,6 +208,9 @@ function writeConfigs(argv: any) {
                     "redis-signer": {
                       "signing-key": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
                     },
+                    "redis-lock": {
+                        "key": "simple-key"
+                    },
                     "wait-for-l1-finality": false
                 }
             },
@@ -271,9 +274,9 @@ function writeConfigs(argv: any) {
     l3Config.node["batch-poster"].enable = true
     l3Config.node["batch-poster"]["redis-url"] = ""
     fs.writeFileSync(path.join(consts.configpath, "l3node_config.json"), JSON.stringify(l3Config))
-    posterConfig.node["batch-poster"]["redis-lock"]["key"] = "dataposter_b"
+    posterConfig.node["batch-poster"]["redis-lock"].key = "dataposter_b"
     fs.writeFileSync(path.join(consts.configpath, "poster_config_b.json"), JSON.stringify(posterConfig))
-    posterConfig.node["batch-poster"]["redis-lock"]["key"] = "dataposter_c"
+    posterConfig.node["batch-poster"]["redis-lock"].key = "dataposter_c"
     fs.writeFileSync(path.join(consts.configpath, "poster_config_c.json"), JSON.stringify(posterConfig))
 
     let validationNodeConfig = JSON.parse(JSON.stringify({
