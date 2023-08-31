@@ -256,7 +256,11 @@ function writeConfigs(argv: any) {
     posterConfig.node["seq-coordinator"].enable = true
     posterConfig.node["batch-poster"].enable = true
     fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
-
+    posterConfig.node["batch-poster"]["redis-lock"] = {"key": "dataposter_b"}
+    fs.writeFileSync(path.join(consts.configpath, "poster_config_b.json"), JSON.stringify(posterConfig))
+    posterConfig.node["batch-poster"]["redis-lock"] = {"key": "dataposter_c"}
+    fs.writeFileSync(path.join(consts.configpath, "poster_config_c.json"), JSON.stringify(posterConfig))
+    
     let l3Config = JSON.parse(baseConfJSON)
     l3Config["parent-chain"].connection.url = argv.l2url 
     l3Config["parent-chain"].wallet.account = namedAccount("l3sequencer").address
@@ -271,6 +275,7 @@ function writeConfigs(argv: any) {
     l3Config.node["batch-poster"].enable = true
     l3Config.node["batch-poster"]["redis-url"] = ""
     fs.writeFileSync(path.join(consts.configpath, "l3node_config.json"), JSON.stringify(l3Config))
+    
 
     let validationNodeConfig = JSON.parse(JSON.stringify({
         "persistent": {
