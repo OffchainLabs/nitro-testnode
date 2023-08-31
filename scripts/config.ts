@@ -271,6 +271,10 @@ function writeConfigs(argv: any) {
     l3Config.node["batch-poster"].enable = true
     l3Config.node["batch-poster"]["redis-url"] = ""
     fs.writeFileSync(path.join(consts.configpath, "l3node_config.json"), JSON.stringify(l3Config))
+    posterConfig.node["batch-poster"]["redis-url"] = argv.redisUrlB
+    fs.writeFileSync(path.join(consts.configpath, "poster_config_b.json"), JSON.stringify(posterConfig))
+    posterConfig.node["batch-poster"]["redis-url"] = argv.redisUrlC
+    fs.writeFileSync(path.join(consts.configpath, "poster_config_c.json"), JSON.stringify(posterConfig))
 
     let validationNodeConfig = JSON.parse(JSON.stringify({
         "persistent": {

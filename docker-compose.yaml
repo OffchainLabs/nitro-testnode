@@ -240,7 +240,7 @@ services:
 
   poster_b:
     pid: host # allow debugging
-    image: nitro-node-dev-testnode
+    image: offchainlabs/nitro-node:v2.0.14-2baa834-dev
     ports:
       - "127.0.0.1:9147:8547"
       - "127.0.0.1:9148:8548"
@@ -248,14 +248,14 @@ services:
       - "poster-data-b:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
-    command: --conf.file /config/poster_config.json
+    command: --conf.file /config/poster_config_b.json
     depends_on:
       - geth
       - redis
 
   poster_c:
     pid: host # allow debugging
-    image: nitro-node-dev-testnode
+    image: offchainlabs/nitro-node:v2.0.14-2baa834-dev
     ports:
       - "127.0.0.1:9247:8547"
       - "127.0.0.1:9248:8548"
@@ -263,7 +263,7 @@ services:
       - "poster-data-c:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
-    command: --conf.file /config/poster_config.json
+    command: --conf.file /config/poster_config_c.json
     depends_on:
       - geth
       - redis
