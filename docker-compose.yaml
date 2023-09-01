@@ -240,7 +240,7 @@ services:
 
   poster_b:
     pid: host # allow debugging
-    image: offchainlabs/nitro-node:v2.0.14-2baa834-dev
+    image: offchainlabs/nitro-node:v2.1.0-beta.10-c028bf3
     ports:
       - "127.0.0.1:9147:8547"
       - "127.0.0.1:9148:8548"
@@ -255,7 +255,7 @@ services:
 
   poster_c:
     pid: host # allow debugging
-    image: offchainlabs/nitro-node:v2.0.14-2baa834-dev
+    image: offchainlabs/nitro-node:v2.1.0-beta.10-c028bf3
     ports:
       - "127.0.0.1:9247:8547"
       - "127.0.0.1:9248:8548"
