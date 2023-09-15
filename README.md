@@ -36,7 +36,7 @@ Check out the stylus branch of the repository.
 > Notice: stylus branch may be force-pushed at any time.
 
 ```bash
-git clone -b stylus https://github.com/OffchainLabs/nitro-testnode.git
+git clone -b stylus --recurse-submodules https://github.com/OffchainLabs/nitro-testnode.git
 cd nitro-testnode
 ```
 
