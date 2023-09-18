@@ -1,8 +1,6 @@
 # Nitro Testnode
 
-## General
-
-Nitro-testnode brings up a full environment for local nitro/stylus testing including a dev-mode geth L1, and multiple instances with different roles.
+Nitro-testnode brings up a full environment for local nitro testing (with or without Stylus support) including a dev-mode geth L1, and multiple instances with different roles.
 
 ### Requirements
 
@@ -11,11 +9,12 @@ Nitro-testnode brings up a full environment for local nitro/stylus testing inclu
 
 All must be installed in PATH.
 
-## Usage
+## Using latest nitro release (recommended)
 
-### Using latest nitro release (recommended) (not stylus)
+### Without Stylus support
 
 Check out the release branch of the repository.
+
 > Notice: release branch may be force-pushed at any time.
 
 ```bash
@@ -30,7 +29,7 @@ Initialize the node
 ```
 To see more options, use `--help`.
 
-### Using latest stylus release
+### With Stylus support
 
 Check out the stylus branch of the repository.
 > Notice: stylus branch may be force-pushed at any time.
@@ -47,18 +46,25 @@ Initialize the node
 ```
 To see more options, use `--help`.
 
-### Using current nitro or stylus code (local compilation)
+## Using current nitro code (local compilation)
 
 Check out the nitro or stylus repository. Use the test-node submodule of nitro repository.
+
 > Notice: testnode may not always be up-to-date with config options of current nitro node, and is not considered stable when operated in that way.
 
-#### for nitro
+### Without Stylus support
 ```bash
 git clone --recurse-submodules https://github.com/OffchainLabs/nitro.git
 cd nitro/nitro-testnode
 ```
 
-#### for stylus
+Initialize the node in dev-mode (this will build the docker images from source)
+```bash
+./test-node.bash --init --dev
+```
+To see more options, use `--help`.
+
+### With Stylus support
 ```bash
 git clone --recurse-submodules https://github.com/OffchainLabs/stylus.git
 cd stylus/nitro-testnode
@@ -69,6 +75,8 @@ Initialize the node in dev-mode (this will build the docker images from source)
 ./test-node.bash --init --dev
 ```
 To see more options, use `--help`.
+
+## Further information
 
 ### Working with docker containers
 
