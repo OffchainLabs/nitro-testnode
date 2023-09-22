@@ -1,4 +1,4 @@
-# Nitro Testnode
+# Nitro Testnode (for eth-global)
 
 Nitro-testnode brings up a full environment for local nitro testing (with or without Stylus support) including a dev-mode geth L1, and multiple instances with different roles.
 
@@ -29,13 +29,13 @@ Initialize the node
 ```
 To see more options, use `--help`.
 
-### With Stylus support
+### With Stylus (eth-global) support
 
-Check out the stylus branch of the repository.
-> Notice: stylus branch may be force-pushed at any time.
+Check out the eth-global branch of the repository.
+> Notice: eth-global branch may be force-pushed at any time.
 
 ```bash
-git clone -b stylus --recurse-submodules https://github.com/OffchainLabs/nitro-testnode.git
+git clone -b eth-global --recurse-submodules https://github.com/OffchainLabs/nitro-testnode.git
 cd nitro-testnode
 ```
 
@@ -64,9 +64,9 @@ Initialize the node in dev-mode (this will build the docker images from source)
 ```
 To see more options, use `--help`.
 
-### With Stylus support
+### With Stylus (eth-global) support
 ```bash
-git clone --recurse-submodules https://github.com/OffchainLabs/stylus.git
+git clone -b eth-global --recurse-submodules https://github.com/OffchainLabs/stylus.git
 cd stylus/nitro-testnode
 ```
 
