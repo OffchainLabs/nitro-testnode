@@ -293,7 +293,7 @@ services:
       - "validator-data:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
-    command: --conf.file /config/l3node_config.json --http.port 3347 --http.api net,web3,arb,debug --ws.port 3348
+    command: --conf.file /config/l3node_config.json --http.port 3347 --http.api net,web3,arb,debug,eth --ws.port 3348
     depends_on:
       - sequencer
       - validation_node
