@@ -183,6 +183,7 @@ function writeConfigs(argv: any) {
             },
             "sequencer": {
                 "enable": false,
+                "time-boost": true,
                 "dangerous": {
                     "no-coordinator": false
                 }
