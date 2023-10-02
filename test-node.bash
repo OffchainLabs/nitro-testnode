@@ -34,7 +34,7 @@ force_build=false
 validate=false
 detach=false
 blockscout=false
-tokenbridge=true
+tokenbridge=false
 l3node=false
 consensusclient=false
 redundantsequencers=0
@@ -43,6 +43,7 @@ dev_build_blockscout=false
 batchposters=1
 devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
+simple=true
 while [[ $# -gt 0 ]]; do
     case $1 in
         --init)
@@ -59,6 +60,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --dev)
+            simple=false
             shift
             if [[ $# -eq 0 || $1 == -* ]]; then
                 # If no argument after --dev, set both flags to true
@@ -80,11 +82,16 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --validate)
+            simple=false
             validate=true
             shift
             ;;
         --blockscout)
             blockscout=true
+            shift
+            ;;
+        --tokenbridge)
+            tokenbridge=true
             shift
             ;;
         --no-tokenbridge)
@@ -100,6 +107,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --batchposters)
+            simple=false
             batchposters=$2
             if ! [[ $batchposters =~ [0-3] ]] ; then
                 echo "batchposters must be between 0 and 3 value:$batchposters."
@@ -118,12 +126,21 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --redundantsequencers)
+            simple=false
             redundantsequencers=$2
             if ! [[ $redundantsequencers =~ [0-3] ]] ; then
                 echo "redundantsequencers must be between 0 and 3 value:$redundantsequencers."
                 exit 1
             fi
             shift
+            shift
+            ;;
+        --simple)
+            simple=true
+            shift
+            ;;
+        --no-simple)
+            simple=false
             shift
             ;;
         *)
@@ -142,6 +159,7 @@ while [[ $# -gt 0 ]]; do
             echo --blockscout:      build or launch blockscout
             echo --no-tokenbridge:  don\'t build or launch tokenbridge
             echo --no-run:          does not launch nodes \(usefull with build or init\)
+            echo --[no-]simple      simple \(on by default unless dev-build\) has only one node for l2, no redis
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
             exit 0
@@ -178,7 +196,7 @@ if [ $redundantsequencers -gt 2 ]; then
     NODES="$NODES sequencer_d"
 fi
 
-if [ $batchposters -gt 0 ]; then
+if [ $batchposters -gt 0 ] && ! $simple; then
     NODES="$NODES poster"
 fi
 if [ $batchposters -gt 1 ]; then
@@ -191,8 +209,8 @@ fi
 
 if $validate; then
     NODES="$NODES validator"
-else
-    NODES="$NODES staker-unsafe"
+elif ! $simple; then
+    NODES="redis $NODES staker-unsafe"
 fi
 if $l3node; then
     NODES="$NODES l3node"
@@ -303,13 +321,20 @@ if $force_init; then
     echo == Deploying L2
     sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
 
-    docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
-    docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
-    echo == Writing configs
-    docker-compose run scripts write-config
+    docker-compose run --entrypoint /usr/local/bin/deploy sequencer --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
+    docker-compose run --entrypoint sh sequencer -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
 
-    echo == Initializing redis
-    docker-compose run scripts redis-init --redundancy $redundantsequencers
+    if $simple; then
+        echo == Writing configs
+        docker-compose run scripts write-config --simple
+    else
+        echo == Writing configs
+        docker-compose run scripts write-config
+
+        echo == Initializing redis
+        docker-compose up -d redis
+        docker-compose run scripts redis-init --redundancy $redundantsequencers
+    fi
 
     echo == Funding l2 funnel
     docker-compose up -d $INITIAL_SEQ_NODES

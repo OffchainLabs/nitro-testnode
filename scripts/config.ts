@@ -234,28 +234,42 @@ function writeConfigs(argv: any) {
 
     const baseConfJSON = JSON.stringify(baseConfig)
 
-    let validatorConfig = JSON.parse(baseConfJSON)
-    validatorConfig["parent-chain"].wallet.account = namedAccount("validator").address
-    validatorConfig.node.staker.enable = true
-    validatorConfig.node.staker["use-smart-contract-wallet"] = true
-    let validconfJSON = JSON.stringify(validatorConfig)
-    fs.writeFileSync(path.join(consts.configpath, "validator_config.json"), validconfJSON)
+    if (argv.simple) {
+        let simpleConfig = JSON.parse(baseConfJSON)
+        simpleConfig["parent-chain"].wallet.account = namedAccount("sequencer").address
+        simpleConfig.node.staker.enable = true
+        simpleConfig.node.staker["use-smart-contract-wallet"] = true
+        simpleConfig.node.staker.dangerous["without-block-validator"] = true
+        simpleConfig.node.sequencer.enable = true
+        simpleConfig.node.sequencer.dangerous["no-coordinator"] = true
+        simpleConfig.node["delayed-sequencer"].enable = true
+        simpleConfig.node["batch-poster"].enable = true
+        simpleConfig.node["batch-poster"]["redis-url"] = ""
+        fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(simpleConfig))
+    } else {
+        let validatorConfig = JSON.parse(baseConfJSON)
+        validatorConfig["parent-chain"].wallet.account = namedAccount("validator").address
+        validatorConfig.node.staker.enable = true
+        validatorConfig.node.staker["use-smart-contract-wallet"] = true
+        let validconfJSON = JSON.stringify(validatorConfig)
+        fs.writeFileSync(path.join(consts.configpath, "validator_config.json"), validconfJSON)
 
-    let unsafeStakerConfig = JSON.parse(validconfJSON)
-    unsafeStakerConfig.node.staker.dangerous["without-block-validator"] = true
-    fs.writeFileSync(path.join(consts.configpath, "unsafe_staker_config.json"), JSON.stringify(unsafeStakerConfig))
+        let unsafeStakerConfig = JSON.parse(validconfJSON)
+        unsafeStakerConfig.node.staker.dangerous["without-block-validator"] = true
+        fs.writeFileSync(path.join(consts.configpath, "unsafe_staker_config.json"), JSON.stringify(unsafeStakerConfig))
 
-    let sequencerConfig = JSON.parse(baseConfJSON)
-    sequencerConfig.node.sequencer.enable = true
-    sequencerConfig.node["seq-coordinator"].enable = true
-    sequencerConfig.node["delayed-sequencer"].enable = true
-    fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
+        let sequencerConfig = JSON.parse(baseConfJSON)
+        sequencerConfig.node.sequencer.enable = true
+        sequencerConfig.node["seq-coordinator"].enable = true
+        sequencerConfig.node["delayed-sequencer"].enable = true
+        fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
 
-    let posterConfig = JSON.parse(baseConfJSON)
-    posterConfig["parent-chain"].wallet.account = namedAccount("sequencer").address
-    posterConfig.node["seq-coordinator"].enable = true
-    posterConfig.node["batch-poster"].enable = true
-    fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
+        let posterConfig = JSON.parse(baseConfJSON)
+        posterConfig["parent-chain"].wallet.account = namedAccount("sequencer").address
+        posterConfig.node["seq-coordinator"].enable = true
+        posterConfig.node["batch-poster"].enable = true
+        fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
+    }
 
     let l3Config = JSON.parse(baseConfJSON)
     l3Config["parent-chain"].connection.url = argv.l2url 
@@ -363,6 +377,13 @@ function writeL3ChainConfig(argv: any) {
 export const writeConfigCommand = {
     command: "write-config",
     describe: "writes config files",
+    builder: {
+        simple: {
+          boolean: true,
+          describe: "simple config (sequencer is also poster, validator)",
+          default: false,
+        },
+      },    
     handler: (argv: any) => {
         writeConfigs(argv)
     }
