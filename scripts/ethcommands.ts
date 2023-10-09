@@ -119,7 +119,7 @@ export const bridgeToL3Command = {
 
 export const createERC20Command = {
   command: "create-erc20",
-  describe: "creates simple ERC20 on L1",
+  describe: "creates simple ERC20 on L2",
   builder: {
     deployerKey: {
       string: true,
@@ -135,7 +135,7 @@ export const createERC20Command = {
   handler: async (argv: any) => {
     console.log("create-erc20");
 
-    argv.provider = new ethers.providers.WebSocketProvider(argv.l1url);
+    argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
 
     const contractFactory = new ContractFactory(
       ERC20PresetFixedSupplyArtifact.abi,
