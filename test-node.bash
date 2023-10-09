@@ -308,15 +308,8 @@ if $force_init; then
 
     sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
 
-    if $customFeeToken; then
-        echo == Deploying custom fee token
-        nativeTokenAddress=`docker-compose run scripts create-erc20 --deployerKey $devprivkey --mintTo user_l1user | tail -n 1 | awk '{ print $NF }'`
-    else
-        nativeTokenAddress="0x0000000000000000000000000000000000000000"
-    fi
-
     echo == Deploying L2
-    docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json --nativeTokenAddress $nativeTokenAddress
+    docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
     docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
 
     echo == Writing configs
@@ -327,16 +320,12 @@ if $force_init; then
 
     echo == Funding l2 funnel
     docker-compose up -d $INITIAL_SEQ_NODES
-    if ! $customFeeToken; then
-        docker-compose run scripts bridge-funds --ethamount 100000 --wait
-        if $tokenbridge; then
-            echo == Deploying token bridge
-            docker-compose run -e ARB_KEY=$devprivkey -e ETH_KEY=$devprivkey tokenbridge gen:network
-            docker-compose run --entrypoint sh tokenbridge -c "cat localNetwork.json"
-            echo
-        fi
-    else
-        echo == Skipping token bridge deployment when cusotm fee token is used
+    docker-compose run scripts bridge-funds --ethamount 100000 --wait
+    if $tokenbridge; then
+        echo == Deploying token bridge
+        docker-compose run -e ARB_KEY=$devprivkey -e ETH_KEY=$devprivkey tokenbridge gen:network
+        docker-compose run --entrypoint sh tokenbridge -c "cat localNetwork.json"
+        echo
     fi
 
     if $l3node; then
@@ -354,16 +343,24 @@ if $force_init; then
 
         echo == Deploying L3
         l3owneraddress=`docker-compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
-
         l3sequenceraddress=`docker-compose run scripts print-address --account l3sequencer | tail -n 1 | tr -d '\r\n'`
 
-        docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://sequencer:8548 --l1keystore /home/user/l1keystore --sequencerAddress $l3sequenceraddress --ownerAddress $l3owneraddress --l1DeployAccount $l3owneraddress --l1deployment /config/l3deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=412346 --l2chainconfig /config/l3_chain_config.json --l2chainname orbit-dev-test --l2chaininfo /config/deployed_l3_chain_info.json
+        deployL3Command="docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://sequencer:8548 --l1keystore /home/user/l1keystore --sequencerAddress $l3sequenceraddress --ownerAddress $l3owneraddress --l1DeployAccount $l3owneraddress --l1deployment /config/l3deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=412346 --l2chainconfig /config/l3_chain_config.json --l2chainname orbit-dev-test --l2chaininfo /config/deployed_l3_chain_info.json"
+        if $customFeeToken; then
+            echo == Deploying custom fee token
+            nativeTokenAddress=`docker-compose run scripts create-erc20 --deployerKey $devprivkey --mintTo user_l2user | tail -n 1 | awk '{ print $NF }'`
+            deployL3Command+=" --nativeTokenAddress $nativeTokenAddress"
+        fi
+
+        eval $deployL3Command
         docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
         echo == Funding l3 funnel
         docker-compose up -d l3node poster
-        docker-compose run scripts bridge-to-l3 --ethamount 50000 --wait
 
+        if ! $customFeeToken; then
+            docker-compose run scripts bridge-to-l3 --ethamount 50000 --wait
+        fi
     fi
 fi
 
