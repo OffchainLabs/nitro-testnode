@@ -121,29 +121,30 @@ export const createERC20Command = {
   command: "create-erc20",
   describe: "creates simple ERC20 on L2",
   builder: {
-    deployerKey: {
+    deployer: {
       string: true,
       describe: "account (see general help)",
-      default: "funnel",
+      default: "user_l2user",
     },
     mintTo: {
       string: true,
       describe: "account (see general help)",
-      default: "funnel",
+      default: "user_l2user",
     },
   },
   handler: async (argv: any) => {
     console.log("create-erc20");
 
     argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
+    const deployerWallet = new Wallet(
+      ethers.utils.sha256(ethers.utils.toUtf8Bytes(argv.deployer)),
+      argv.provider
+    );
 
     const contractFactory = new ContractFactory(
       ERC20PresetFixedSupplyArtifact.abi,
       ERC20PresetFixedSupplyArtifact.bytecode,
-      new Wallet(
-        argv.deployerKey,
-        argv.provider
-      )
+      deployerWallet
     );
     const contract = await contractFactory.deploy("AppTestToken", "APP", ethers.utils.parseEther("1000000000"), namedAccount(argv.mintTo).address);
     await contract.deployTransaction.wait();

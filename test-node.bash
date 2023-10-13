@@ -336,7 +336,9 @@ if $force_init; then
 
         echo == create l2 traffic
         docker-compose run scripts send-l2 --ethamount 100 --to user_l2user --wait
-        docker-compose run scripts send-l2 --ethamount 0.0001 --from user_l2user --to user_l2user_b --wait --delay 500 --times 500 > /dev/null &
+        docker-compose run scripts send-l2 --ethamount 100 --to user_l2user_b --wait
+        docker-compose run scripts send-l2 --ethamount 100 --to user_l2user_c --wait
+        docker-compose run scripts send-l2 --ethamount 0.0001 --from user_l2user_c --to user_l2user_b --wait --delay 500 --times 500 > /dev/null &
 
         echo == Writing l3 chain config
         docker-compose run scripts write-l3-chain-config
@@ -348,7 +350,7 @@ if $force_init; then
         deployL3Command="docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://sequencer:8548 --l1keystore /home/user/l1keystore --sequencerAddress $l3sequenceraddress --ownerAddress $l3owneraddress --l1DeployAccount $l3owneraddress --l1deployment /config/l3deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=412346 --l2chainconfig /config/l3_chain_config.json --l2chainname orbit-dev-test --l2chaininfo /config/deployed_l3_chain_info.json --maxDataSize 104857"
         if $customFeeToken; then
             echo == Deploying custom fee token
-            nativeTokenAddress=`docker-compose run scripts create-erc20 --deployerKey $devprivkey --mintTo user_l2user | tail -n 1 | awk '{ print $NF }'`
+            nativeTokenAddress=`docker-compose run scripts create-erc20 --deployer user_l2user_b --mintTo user_l2user | tail -n 1 | awk '{ print $NF }'`
             deployL3Command+=" --nativeTokenAddress $nativeTokenAddress"
         fi
 
