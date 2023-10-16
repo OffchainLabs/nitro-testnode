@@ -305,16 +305,16 @@ if $force_init; then
 
     # docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
     docker-compose run --entrypoint /usr/local/bin/bold-deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
-    # docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
-    # echo == Writing configs
-    # docker-compose run scripts write-config
+    docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
+    echo == Writing configs
+    docker-compose run scripts write-config
 
-    # echo == Initializing redis
-    # docker-compose run scripts redis-init --redundancy $redundantsequencers
+    echo == Initializing redis
+    docker-compose run scripts redis-init --redundancy $redundantsequencers
 
-    # echo == Funding l2 funnel
-    # docker-compose up -d $INITIAL_SEQ_NODES
-    # docker-compose run scripts bridge-funds --ethamount 100000 --wait
+    echo == Funding l2 funnel
+    docker-compose up -d $INITIAL_SEQ_NODES
+    docker-compose run scripts bridge-funds --ethamount 100000 --wait
 
     # if $tokenbridge; then
     #     echo == Deploying token bridge

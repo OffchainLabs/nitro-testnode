@@ -171,6 +171,9 @@ function writeConfigs(argv: any) {
         "node": {
             "archive": true,
             "forwarding-target": "null",
+            "bold": {
+                "enable": false,
+            },
             "staker": {
                 "dangerous": {
                     "without-block-validator": false
@@ -236,7 +239,8 @@ function writeConfigs(argv: any) {
 
     let validatorConfig = JSON.parse(baseConfJSON)
     validatorConfig["parent-chain"].wallet.account = namedAccount("validator").address
-    validatorConfig.node.staker.enable = true
+    validatorConfig.node.staker.enable = false // DISABLE STAKER, use BOLD instead.
+    validatorConfig.node.bold.enable = true;
     validatorConfig.node.staker["use-smart-contract-wallet"] = true
     let validconfJSON = JSON.stringify(validatorConfig)
     fs.writeFileSync(path.join(consts.configpath, "validator_config.json"), validconfJSON)
