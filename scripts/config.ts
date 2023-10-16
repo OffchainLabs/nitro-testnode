@@ -169,8 +169,8 @@ function writeConfigs(argv: any) {
             "info-files": [chainInfoFile],
         },
         "node": {
-            "archive": true,
-            "forwarding-target": "null",
+            // "archive": true,
+            // "forwarding-target": "null",
             "bold": {
                 "enable": false,
             },
@@ -250,7 +250,7 @@ function writeConfigs(argv: any) {
     fs.writeFileSync(path.join(consts.configpath, "unsafe_staker_config.json"), JSON.stringify(unsafeStakerConfig))
 
     let sequencerConfig = JSON.parse(baseConfJSON)
-    sequencerConfig.node.sequencer.enable = true
+    sequencerConfig.node.sequencer = true
     sequencerConfig.node["seq-coordinator"].enable = true
     sequencerConfig.node["delayed-sequencer"].enable = true
     fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
@@ -269,8 +269,8 @@ function writeConfigs(argv: any) {
     l3Config.chain["info-files"] = [l3ChainInfoFile]
     l3Config.node.staker.enable = true
     l3Config.node.staker["use-smart-contract-wallet"] = true
-    l3Config.node.sequencer.enable = true
-    l3Config.node.sequencer.dangerous["no-coordinator"] = true
+    l3Config.node.sequencer = true
+    //l3Config.node.sequencer.dangerous["no-coordinator"] = true
     l3Config.node["delayed-sequencer"].enable = true
     l3Config.node["batch-poster"].enable = true
     l3Config.node["batch-poster"]["redis-url"] = ""
