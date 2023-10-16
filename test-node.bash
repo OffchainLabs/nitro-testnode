@@ -311,9 +311,10 @@ if $force_init; then
     echo == Initializing redis
     docker-compose run scripts redis-init --redundancy $redundantsequencers
 
-    echo == Funding l2 funnel
+    echo == Funding l2 funnel and dev key
     docker-compose up -d $INITIAL_SEQ_NODES
     docker-compose run scripts bridge-funds --ethamount 100000 --wait
+    docker-compose run scripts bridge-funds --ethamount 1000 --wait --from "key_0x$devprivkey"
 
     if $tokenbridge; then
         echo == Deploying token bridge
@@ -343,9 +344,10 @@ if $force_init; then
         docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://sequencer:8548 --l1keystore /home/user/l1keystore --sequencerAddress $l3sequenceraddress --ownerAddress $l3owneraddress --l1DeployAccount $l3owneraddress --l1deployment /config/l3deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=412346 --l2chainconfig /config/l3_chain_config.json --l2chainname orbit-dev-test --l2chaininfo /config/deployed_l3_chain_info.json
         docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
-        echo == Funding l3 funnel
+        echo == Funding l3 funnel and dev key
         docker-compose up -d l3node poster
         docker-compose run scripts bridge-to-l3 --ethamount 50000 --wait
+        docker-compose run scripts bridge-to-l3 --ethamount 500 --wait --from "key_0x$devprivkey"
 
     fi
 fi
