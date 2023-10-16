@@ -184,12 +184,12 @@ function writeConfigs(argv: any) {
                 "make-assertion-interval": "10s",
                 "strategy": "MakeNodes",
             },
-            "sequencer": {
-                "enable": false,
-                "dangerous": {
-                    "no-coordinator": false
-                }
-            },
+            "sequencer": false,
+            //     "enable": false,
+            //     "dangerous": {
+            //         "no-coordinator": false
+            //     }
+            // },
             "delayed-sequencer": {
                 "enable": false
             },
