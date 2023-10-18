@@ -48,7 +48,7 @@ services:
       - "127.0.0.1:6379:6379"
 
   geth:
-    image: ethpandaops/geth:dencun-devnet-8-946a2da
+    image: ethpandaops/geth:lightclient-devnet-9-ae44519
     ports:
       - "127.0.0.1:8545:8545"
       - "127.0.0.1:8551:8551"
