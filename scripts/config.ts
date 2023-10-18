@@ -301,7 +301,7 @@ function writeConfigs(argv: any) {
 
 function writeEvilConfig(argv: any) {
     const valJwtSecret = path.join(consts.configpath, "val_jwt.hex")
-	const chainInfoFile = path.join(consts.configpath, "malicious_l2_chain_info.json")
+	const chainInfoFile = path.join(consts.configpath, "l2_chain_info.json")
     const baseConfig = {
         "parent-chain": {
             "connection" : {
@@ -317,9 +317,10 @@ function writeEvilConfig(argv: any) {
             "id": 412346,
             "info-files": [chainInfoFile],
         },
+        "execution": {
+            "evil": true,
+        },
         "node": {
-            // "archive": true,
-            // "forwarding-target": "null",
             "bold": {
                 "enable": false,
                 "evil": true,
@@ -335,17 +336,12 @@ function writeEvilConfig(argv: any) {
                 "strategy": "MakeNodes",
             },
             "sequencer": false,
-            //     "enable": false,
-            //     "dangerous": {
-            //         "no-coordinator": false
-            //     }
-            // },
             "delayed-sequencer": {
                 "enable": false
             },
             "seq-coordinator": {
                 "enable": false,
-                "redis-url": argv.evilRedisUrl,
+                "redis-url": argv.redisUrl,
                 "lockout-duration": "30s",
                 "lockout-spare": "1s",
                 "my-url": "",
@@ -355,7 +351,7 @@ function writeEvilConfig(argv: any) {
             },
             "batch-poster": {
                 "enable": false,
-                "redis-url": argv.evilRedisUrl,
+                "redis-url": argv.redisUrl,
                 "max-delay": "30s",
                 "data-poster": {
                     "redis-signer": {
@@ -395,36 +391,6 @@ function writeEvilConfig(argv: any) {
     let validconfJSON = JSON.stringify(validatorConfig)
     fs.writeFileSync(path.join(consts.configpath, "evil_validator_config.json"), validconfJSON)
 
-    let unsafeStakerConfig = JSON.parse(validconfJSON)
-    unsafeStakerConfig.node.staker.dangerous["without-block-validator"] = true
-    fs.writeFileSync(path.join(consts.configpath, "evil_unsafe_staker_config.json"), JSON.stringify(unsafeStakerConfig))
-
-    let sequencerConfig = JSON.parse(baseConfJSON)
-    sequencerConfig.node.sequencer = true
-    sequencerConfig.node["seq-coordinator"].enable = true
-    sequencerConfig.node["delayed-sequencer"].enable = true
-    fs.writeFileSync(path.join(consts.configpath, "evil_sequencer_config.json"), JSON.stringify(sequencerConfig))
-
-    let posterConfig = JSON.parse(baseConfJSON)
-    posterConfig["parent-chain"].wallet.account = namedAccount("evil-sequencer").address
-    posterConfig.node["seq-coordinator"].enable = true
-    posterConfig.node["batch-poster"].enable = true
-    fs.writeFileSync(path.join(consts.configpath, "evil_poster_config.json"), JSON.stringify(posterConfig))
-
-    let l3Config = JSON.parse(baseConfJSON)
-    l3Config["parent-chain"].connection.url = argv.l2url 
-    l3Config["parent-chain"].wallet.account = namedAccount("l3sequencer").address
-    l3Config.chain.id = 333333
-    const l3ChainInfoFile = path.join(consts.configpath, "l3_chain_info.json")
-    l3Config.chain["info-files"] = [l3ChainInfoFile]
-    l3Config.node.staker.enable = true
-    l3Config.node.staker["use-smart-contract-wallet"] = true
-    l3Config.node.sequencer = true
-    //l3Config.node.sequencer.dangerous["no-coordinator"] = true
-    l3Config.node["delayed-sequencer"].enable = true
-    l3Config.node["batch-poster"].enable = true
-    l3Config.node["batch-poster"]["redis-url"] = ""
-    fs.writeFileSync(path.join(consts.configpath, "evil_l3node_config.json"), JSON.stringify(l3Config))
 
     let validationNodeConfig = JSON.parse(JSON.stringify({
         "persistent": {

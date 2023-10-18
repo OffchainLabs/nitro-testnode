@@ -60,32 +60,6 @@ async function writeRedisPriorities(redisUrl: string, priorities: number) {
   await getAndPrint(redis, "coordinator.priorities");
 }
 
-async function writeEvilRedisPriorities(redisUrl: string, priorities: number) {
-  const redis = createClient({ url: redisUrl });
-
-  let prio_sequencers = "bcd";
-  let priostring = "";
-  if (priorities == 0) {
-    priostring = "ws://evil_sequencer:8548";
-  }
-  if (priorities > prio_sequencers.length) {
-    priorities = prio_sequencers.length;
-  }
-  for (let index = 0; index < priorities; index++) {
-    const this_prio =
-      "ws://evil_sequencer_" + prio_sequencers.charAt(index) + ":8548";
-    if (index != 0) {
-      priostring = priostring + ",";
-    }
-    priostring = priostring + this_prio;
-  }
-  await redis.connect();
-
-  await redis.set("coordinator.priorities", priostring);
-
-  await getAndPrint(redis, "coordinator.priorities");
-}
-
 export const redisInitCommand = {
   command: "redis-init",
   describe: "init redis priorities",
@@ -98,21 +72,5 @@ export const redisInitCommand = {
   },
   handler: async (argv: any) => {
     await writeRedisPriorities(argv.redisUrl, argv.redundancy);
-  },
-};
-
-
-export const evilRedisInitCommand = {
-  command: "evil-redis-init",
-  describe: "init evil redis priorities",
-  builder: {
-    redundancy: {
-      string: true,
-      describe: "number of servers [0-3]",
-      default: 0,
-    },
-  },
-  handler: async (argv: any) => {
-    await writeEvilRedisPriorities(argv.evilRedisUrl, argv.redundancy);
   },
 };

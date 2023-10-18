@@ -1,7 +1,7 @@
 import { hideBin } from "yargs/helpers";
 import Yargs from "yargs/yargs";
 import { stressOptions } from "./stress";
-import { redisReadCommand, evilRedisInitCommand,redisInitCommand } from "./redis";
+import { redisReadCommand, redisInitCommand } from "./redis";
 import { writeConfigCommand, writeGethGenesisCommand, writePrysmCommand, writeL2ChainConfigCommand, writeL3ChainConfigCommand, writeEvilConfigCommand } from "./config";
 import {
   printAddressCommand,
@@ -21,7 +21,6 @@ async function main() {
   await Yargs(hideBin(process.argv))
     .options({
       redisUrl: { string: true, default: "redis://redis:6379" },
-      evilRedisUrl: { string: true, default: "redis://evil_redis:6379" },
       l1url: { string: true, default: "ws://geth:8546" },
       l2url: { string: true, default: "ws://sequencer:8548" },
       l3url: { string: true, default: "ws://l3node:3348" },
@@ -45,7 +44,6 @@ async function main() {
     .command(printAddressCommand)
     .command(redisReadCommand)
     .command(redisInitCommand)
-    .command(evilRedisInitCommand)
     .strict()
     .demandCommand(1, "a command must be specified")
     .epilogue(namedAccountHelpString)
