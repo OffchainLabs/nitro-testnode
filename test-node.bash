@@ -294,6 +294,7 @@ if $force_init; then
     docker-compose run scripts send-l1 --ethamount 1000 --to validator --wait
     docker-compose run scripts send-l1 --ethamount 1000 --to evil-validator --wait
     docker-compose run scripts send-l1 --ethamount 1000 --to sequencer --wait
+    docker-compose run scripts send-l1 --ethamount 1000 --to evil-sequencer --wait
 
     echo == create l1 traffic
     docker-compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
@@ -304,6 +305,7 @@ if $force_init; then
 
     echo == Deploying L2
     sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
+    evilsequenceraddress=`docker-compose run scripts print-address --account evil-sequencer | tail -n 1 | tr -d '\r\n'`
 
     docker-compose run --entrypoint /usr/local/bin/bold-deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
 
@@ -322,7 +324,7 @@ if $force_init; then
 
     if $validate; then
       echo == Deploying Malicious L2 contracts
-      docker-compose run --entrypoint /usr/local/bin/bold-deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --inputl2chaininfo /config/deployed_chain_info.json --l2chaininfo /config/malicious_deployed_chain_info.json
+      docker-compose run --entrypoint /usr/local/bin/bold-deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $evilsequenceraddress --ownerAddress $evilsequenceraddress --l1DeployAccount $evilsequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --inputl2chaininfo /config/deployed_chain_info.json --l2chaininfo /config/malicious_deployed_chain_info.json
     fi
 
     echo == Writing evil configs

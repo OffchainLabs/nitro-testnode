@@ -406,7 +406,7 @@ function writeEvilConfig(argv: any) {
     fs.writeFileSync(path.join(consts.configpath, "evil_sequencer_config.json"), JSON.stringify(sequencerConfig))
 
     let posterConfig = JSON.parse(baseConfJSON)
-    posterConfig["parent-chain"].wallet.account = namedAccount("sequencer").address
+    posterConfig["parent-chain"].wallet.account = namedAccount("evil-sequencer").address
     posterConfig.node["seq-coordinator"].enable = true
     posterConfig.node["batch-poster"].enable = true
     fs.writeFileSync(path.join(consts.configpath, "evil_poster_config.json"), JSON.stringify(posterConfig))
