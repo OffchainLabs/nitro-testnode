@@ -47,6 +47,11 @@ services:
     ports:
       - "127.0.0.1:6379:6379"
 
+  evil_redis:
+    image: redis:6.2.6
+    ports:
+      - "127.0.0.1:5379:6379"
+
   geth:
     image: ethereum/client-go:v1.10.23
     ports:
@@ -164,6 +169,20 @@ services:
       - geth
       - redis
 
+  evil_sequencer:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    ports:
+      - "127.0.0.1:7547:8547"
+      - "127.0.0.1:7548:8548"
+      - "127.0.0.1:7642:8642"
+    volumes:
+      - "evil_seqdata:/home/user/.arbitrum/local/nitro"
+      - "config:/config"
+    command: --conf.file /config/evil_sequencer_config.json --node.feed.output.enable --node.feed.output.port 8642 --http.api net,web3,eth,txpool,debug --node.seq-coordinator.my-url ws://evil_sequencer:8548 --graphql.enable --graphql.vhosts * --graphql.corsdomain *
+    depends_on:
+      - geth
+      - evil_redis
 
   sequencer_b:
     pid: host # allow debugging
@@ -238,6 +257,21 @@ services:
       - geth
       - redis
 
+  evil_poster:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    ports:
+      - "127.0.0.1:6147:8547"
+      - "127.0.0.1:6148:8548"
+    volumes:
+      - "evil-poster-data:/home/user/.arbitrum/local/nitro"
+      - "l1keystore:/home/user/l1keystore"
+      - "config:/config"
+    command: --conf.file /config/evil_poster_config.json
+    depends_on:
+      - geth
+      - evil_redis
+
   poster_b:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
@@ -283,6 +317,21 @@ services:
       - sequencer
       - validation_node
 
+  evil_validator:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    ports:
+      - "127.0.0.1:8947:8947"
+      - "127.0.0.1:8948:8948"
+    volumes:
+      - "evil-validator-data:/home/user/.arbitrum/local/nitro"
+      - "l1keystore:/home/user/l1keystore"
+      - "config:/config"
+    command: --conf.file /config/evil_validator_config.json --http.port 8947 --http.api net,web3,arb,debug --ws.port 8948
+    depends_on:
+      - evil_sequencer
+      - evil_validation_node
+
   l3node:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
@@ -308,6 +357,16 @@ services:
     command: --conf.file /config/validation_node_config.json
     entrypoint: /usr/local/bin/nitro-val
 
+  evil_validation_node:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    ports:
+      - "127.0.0.1:8999:8999"
+    volumes:
+      - "config:/config"
+    command: --conf.file /config/evil_validation_node_config.json
+    entrypoint: /usr/local/bin/nitro-val
+
   scripts:
     build: scripts/
     volumes:
@@ -315,6 +374,7 @@ services:
       - "config:/config"
     depends_on:
       - redis
+      - evil_redis
 
   relay:
     pid: host
@@ -342,12 +402,15 @@ volumes:
   consensus:
   l1keystore:
   seqdata:
+  evil_seqdata:
   seqdata_b:
   seqdata_c:
   seqdata_d:
   unsafestaker-data:
   validator-data:
+  evil-validator-data:
   poster-data:
+  evil-poster-data:
   poster-data-b:
   poster-data-c:
   config:
