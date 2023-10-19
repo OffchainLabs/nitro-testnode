@@ -321,6 +321,9 @@ if $force_init; then
     echo == Bridging funds
     docker-compose run scripts bridge-funds --ethamount 100000 --wait
 
+    echo == Bridging funds again
+    docker-compose run scripts bridge-funds --ethamount 100000 --wait
+
     if $tokenbridge; then
         echo == Deploying token bridge
         docker-compose run -e ARB_KEY=$devprivkey -e ETH_KEY=$devprivkey tokenbridge gen:network
