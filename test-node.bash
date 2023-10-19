@@ -40,7 +40,7 @@ consensusclient=false
 redundantsequencers=0
 dev_build_nitro=false
 dev_build_blockscout=false
-customFeeToken=false
+l3CustomFeeToken=false
 batchposters=1
 devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
@@ -100,10 +100,6 @@ while [[ $# -gt 0 ]]; do
             detach=true
             shift
             ;;
-        --fee-token)
-            customFeeToken=true
-            shift
-            ;;
         --batchposters)
             batchposters=$2
             if ! [[ $batchposters =~ [0-3] ]] ; then
@@ -120,6 +116,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --l3node)
             l3node=true
+            shift
+            ;;
+        --l3-fee-token)
+            if ! $l3node; then
+                echo "Error: --l3-fee-token requires --l3node to be provided."
+                exit 1
+            fi
+            l3CustomFeeToken=true
             shift
             ;;
         --redundantsequencers)
@@ -141,7 +145,7 @@ while [[ $# -gt 0 ]]; do
             echo --init:            remove all data, rebuild, deploy new rollup
             echo --pos:             l1 is a proof-of-stake chain \(using prysm for consensus\)
             echo --validate:        heavy computation, validating all blocks in WASM
-            echo --fee-token:       chain is set up to use custom fee token
+            echo --l3-fee-token:    L3 chain is set up to use custom fee token. Only valid if also '--l3node' is provided
             echo --batchposters:    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach:          detach from nodes after running them
@@ -350,7 +354,7 @@ if $force_init; then
         l3sequenceraddress=`docker-compose run scripts print-address --account l3sequencer | tail -n 1 | tr -d '\r\n'`
 
         deployL3Command="docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://sequencer:8548 --l1keystore /home/user/l1keystore --sequencerAddress $l3sequenceraddress --ownerAddress $l3owneraddress --l1DeployAccount $l3owneraddress --l1deployment /config/l3deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=412346 --l2chainconfig /config/l3_chain_config.json --l2chainname orbit-dev-test --l2chaininfo /config/deployed_l3_chain_info.json --maxDataSize 104857"
-        if $customFeeToken; then
+        if $l3CustomFeeToken; then
             echo == Deploying custom fee token
             nativeTokenAddress=`docker-compose run scripts create-erc20 --deployer user_l2user_b --mintTo user_l2user | tail -n 1 | awk '{ print $NF }'`
             deployL3Command+=" --nativeTokenAddress $nativeTokenAddress"
@@ -362,7 +366,7 @@ if $force_init; then
         echo == Funding l3 funnel and dev key
         docker-compose up -d l3node poster
 
-        if ! $customFeeToken; then
+        if ! $l3CustomFeeToken; then
             docker-compose run scripts bridge-to-l3 --ethamount 50000 --wait
             docker-compose run scripts bridge-to-l3 --ethamount 500 --wait --from "key_0x$devprivkey"
         fi
