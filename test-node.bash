@@ -318,9 +318,11 @@ if $force_init; then
     echo == Initializing redis
     docker-compose run scripts redis-init --redundancy $redundantsequencers
 
-    echo == Funding l2 funnel
+    echo == Funding l2 funnel and dev key
     docker-compose up -d $INITIAL_SEQ_NODES
     docker-compose run scripts bridge-funds --ethamount 100000 --wait
+    docker-compose run scripts bridge-funds --ethamount 1000 --wait --from "key_0x$devprivkey"
+
     if $tokenbridge; then
         echo == Deploying token bridge
         docker-compose run -e ARB_KEY=$devprivkey -e ETH_KEY=$devprivkey tokenbridge gen:network
@@ -357,12 +359,14 @@ if $force_init; then
         eval $deployL3Command
         docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
-        echo == Funding l3 funnel
+        echo == Funding l3 funnel and dev key
         docker-compose up -d l3node poster
 
         if ! $customFeeToken; then
             docker-compose run scripts bridge-to-l3 --ethamount 50000 --wait
+            docker-compose run scripts bridge-to-l3 --ethamount 500 --wait --from "key_0x$devprivkey"
         fi
+
     fi
 fi
 
