@@ -361,6 +361,8 @@ function writeEvilConfig(argv: any) {
                 }
             },
             "block-validator": {
+                "evil": true,
+                "chain-id": "412346",
 				"validation-server" : {
 					"url": "ws://evil_validation_node:8999",
 					"jwtsecret": valJwtSecret,
