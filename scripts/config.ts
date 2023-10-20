@@ -271,6 +271,8 @@ function writeConfigs(argv: any) {
     l3Config.execution["sequencer"].enable = true
     l3Config.node["dangerous"]["no-sequencer-coordinator"] = true
     l3Config.node["delayed-sequencer"].enable = true
+    l3Config.node["delayed-sequencer"]["finalize-distance"] = 0
+    l3Config.node["delayed-sequencer"]["require-full-finality"] = false
     l3Config.node["batch-poster"].enable = true
     l3Config.node["batch-poster"]["redis-url"] = ""
     fs.writeFileSync(path.join(consts.configpath, "l3node_config.json"), JSON.stringify(l3Config))
