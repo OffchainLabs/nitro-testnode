@@ -339,19 +339,20 @@ if $force_init; then
         docker-compose run scripts send-l2 --ethamount 1000 --to l3owner --wait
         docker-compose run scripts send-l2 --ethamount 1000 --to l3sequencer --wait
 
+        echo == Funding l2 deployers
+        docker-compose run scripts send-l2 --ethamount 100 --to user_token_bridge_deployer --wait
+        docker-compose run scripts send-l2 --ethamount 100 --to user_fee_token_deployer --wait
 
         echo == create l2 traffic
-        docker-compose run scripts send-l2 --ethamount 100 --to user_l2user --wait
-        docker-compose run scripts send-l2 --ethamount 100 --to user_l2user_b --wait
-        docker-compose run scripts send-l2 --ethamount 100 --to user_l2user_c --wait
-        docker-compose run scripts send-l2 --ethamount 0.0001 --from user_l2user_c --to user_l2user_b --wait --delay 500 --times 500 > /dev/null &
+        docker-compose run scripts send-l2 --ethamount 100 --to user_traffic_generator --wait
+        docker-compose run scripts send-l2 --ethamount 0.0001 --from user_traffic_generator --to user_fee_token_deployer --wait --delay 500 --times 500 > /dev/null &
 
         echo == Writing l3 chain config
         docker-compose run scripts write-l3-chain-config
 
         if $l3CustomFeeToken; then
             echo == Deploying custom fee token
-            nativeTokenAddress=`docker-compose run scripts create-erc20 --deployer user_l2user_b --mintTo user_l2user | tail -n 1 | awk '{ print $NF }'`
+            nativeTokenAddress=`docker-compose run scripts create-erc20 --deployer user_fee_token_deployer --mintTo user_token_bridge_deployer | tail -n 1 | awk '{ print $NF }'`
             EXTRA_L3_DEPLOY_FLAG="--nativeTokenAddress $nativeTokenAddress"
         fi
 
