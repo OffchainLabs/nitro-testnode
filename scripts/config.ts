@@ -184,7 +184,7 @@ function writeConfigs(argv: any) {
                 "make-assertion-interval": "10s",
                 "strategy": "MakeNodes",
             },
-            "sequencer": true,
+            "sequencer": false,
             "delayed-sequencer": {
                 "enable": false
             },
