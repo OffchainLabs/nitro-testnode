@@ -169,8 +169,6 @@ function writeConfigs(argv: any) {
             "info-files": [chainInfoFile],
         },
         "node": {
-            // "archive": true,
-            // "forwarding-target": "null",
             "bold": {
                 "enable": false,
             },
@@ -185,11 +183,6 @@ function writeConfigs(argv: any) {
                 "strategy": "MakeNodes",
             },
             "sequencer": false,
-            //     "enable": false,
-            //     "dangerous": {
-            //         "no-coordinator": false
-            //     }
-            // },
             "delayed-sequencer": {
                 "enable": false
             },
