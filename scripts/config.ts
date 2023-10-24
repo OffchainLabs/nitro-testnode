@@ -263,7 +263,6 @@ function writeConfigs(argv: any) {
     l3Config.node.staker.enable = true
     l3Config.node.staker["use-smart-contract-wallet"] = true
     l3Config.node.sequencer = true
-    //l3Config.node.sequencer.dangerous["no-coordinator"] = true
     l3Config.node["delayed-sequencer"].enable = true
     l3Config.node["batch-poster"].enable = true
     l3Config.node["batch-poster"]["redis-url"] = ""
