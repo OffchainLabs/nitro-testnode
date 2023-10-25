@@ -4,7 +4,7 @@
             "url": "ws://host.docker.internal:8546"
         },
         "wallet": {
-            "private-key": "4186cddd403633d6d845bfbefa87dcffc9152eb8373b97b53e5e8e15b918aba6"
+            "private-key": "ee3c0bf39d962a78dba87aee083cae443cabc814f93677f302cbabde844237db"
         }
     },
     "chain": {
@@ -16,7 +16,7 @@
     "node": {
         "bold": {
             "enable": true,
-            "validator-private-key": "4186cddd403633d6d845bfbefa87dcffc9152eb8373b97b53e5e8e15b918aba6"
+            "validator-private-key": "ee3c0bf39d962a78dba87aee083cae443cabc814f93677f302cbabde844237db"
         },
         "staker": {
             "dangerous": {

@@ -240,10 +240,10 @@ if $force_init; then
     docker-compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
 
     echo == Writing l2 chain config
-    docker-compose run scripts write-l2-chain-config
+    sequenceraddress="0x7BCD4b1d62De88CeE1C08b785aAdC807c1914531"
+    docker-compose run scripts write-l2-chain-config --l2owner $sequenceraddress
 
     echo == Deploying L2
-    sequenceraddress="0x7BCD4b1d62De88CeE1C08b785aAdC807c1914531"
     ownerpriv="4186cddd403633d6d845bfbefa87dcffc9152eb8373b97b53e5e8e15b918aba6"
     l1conn="ws://host.docker.internal:8546"
     l1chainid="11155111"
@@ -261,12 +261,6 @@ if $force_init; then
 
     echo == Setting up sequencers
     docker-compose up -d $INITIAL_SEQ_NODES
-
-    # echo == Bridging funds
-    # docker-compose run scripts bridge-funds --ethamount 0.05 --wait
-
-    # echo == Bridging funds again
-    # docker-compose run scripts bridge-funds --ethamount 0.05 --wait
 fi
 
 if $run; then

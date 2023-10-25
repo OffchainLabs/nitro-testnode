@@ -8,9 +8,16 @@ services:
       - "127.0.0.1:8948:8948"
     volumes:
       - "evil-validator-data:/home/user/.arbitrum/local/nitro"
+      - "config:/config"
+      - type: bind
+        source: ./val_jwt.hex
+        target: /config/val_jwt.hex
       - type: bind
         source: ./evil_validator_config.json
         target: /config/evil_validator_config.json
+      - type: bind
+        source: ./l2_chain_info.json
+        target: /config/l2_chain_info.json
     command: --conf.file /config/evil_validator_config.json --http.port 8947 --http.api net,web3,arb,debug --ws.port 8948
     depends_on:
       - evil_validation_node
@@ -21,11 +28,19 @@ services:
     ports:
       - "127.0.0.1:8999:8999"
     volumes:
+      - "config:/config"
+      - type: bind
+        source: ./val_jwt.hex
+        target: /config/val_jwt.hex
       - type: bind
         source: ./evil_validation_node_config.json
         target: /config/evil_validation_node_config.json
+      - type: bind
+        source: ./l2_chain_info.json
+        target: /config/l2_chain_info.json
     command: --conf.file /config/evil_validation_node_config.json
     entrypoint: /usr/local/bin/nitro-val
 
 volumes:
   evil-validator-data:
+  config:
