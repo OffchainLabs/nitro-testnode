@@ -205,7 +205,10 @@ function writeConfigs(argv: any) {
                       "signing-key": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
                     },
                     "wait-for-l1-finality": false
-                }
+                },
+                "parent-chain-wallet": {
+                    "private-key": "",
+                },
             },
             "block-validator": {
 				"validation-server" : {
@@ -249,9 +252,10 @@ function writeConfigs(argv: any) {
     fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
 
     let posterConfig = JSON.parse(baseConfJSON)
-    posterConfig["parent-chain"].wallet.account = namedAccount("sequencer").address
+    posterConfig["parent-chain"].wallet = null
     posterConfig.node["seq-coordinator"].enable = true
     posterConfig.node["batch-poster"].enable = true
+    posterConfig.node["batch-poster"]["parent-chain-wallet"]["private-key"] = "4186cddd403633d6d845bfbefa87dcffc9152eb8373b97b53e5e8e15b918aba6"
     fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
 
     let l3Config = JSON.parse(baseConfJSON)

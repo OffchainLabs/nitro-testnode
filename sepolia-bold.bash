@@ -237,24 +237,24 @@ if $force_init; then
         docker volume rm $leftoverVolumes
     fi
 
-    echo == Funding validator and sequencer
-    docker-compose run scripts send-l1 --ethamount 1000 --to validator --wait
-    docker-compose run scripts send-l1 --ethamount 1000 --to evil-validator --wait
-    docker-compose run scripts send-l1 --ethamount 1000 --to sequencer --wait
+    docker-compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
 
     echo == Writing l2 chain config
     docker-compose run scripts write-l2-chain-config
 
     echo == Deploying L2
-    sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
+    sequenceraddress="0x7BCD4b1d62De88CeE1C08b785aAdC807c1914531"
+    ownerpriv="4186cddd403633d6d845bfbefa87dcffc9152eb8373b97b53e5e8e15b918aba6"
+    l1conn="ws://host.docker.internal:8546"
+    l1chainid="11155111"
 
-    docker-compose run --entrypoint /usr/local/bin/bold-deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
+    docker-compose run --entrypoint /usr/local/bin/bold-deploy poster --l1conn $l1conn --l1privatekey $ownerpriv --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
 
     docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
 
     echo == Writing configs
-    docker-compose run scripts write-config
-    docker-compose run scripts write-evil-config
+    docker-compose run scripts write-config --l1url $l1conn --l2owner $sequenceraddress
+    docker-compose run scripts write-evil-config --l1url $l1conn --l2owner $sequenceraddress
 
     echo == Initializing redis
     docker-compose run scripts redis-init --redundancy $redundantsequencers
@@ -262,11 +262,11 @@ if $force_init; then
     echo == Setting up sequencers
     docker-compose up -d $INITIAL_SEQ_NODES
 
-    echo == Bridging funds
-    docker-compose run scripts bridge-funds --ethamount 100000 --wait
+    # echo == Bridging funds
+    # docker-compose run scripts bridge-funds --ethamount 0.05 --wait
 
-    echo == Bridging funds again
-    docker-compose run scripts bridge-funds --ethamount 100000 --wait
+    # echo == Bridging funds again
+    # docker-compose run scripts bridge-funds --ethamount 0.05 --wait
 fi
 
 if $run; then

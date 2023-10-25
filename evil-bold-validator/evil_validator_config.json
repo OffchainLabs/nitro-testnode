@@ -1,0 +1,81 @@
+{
+    "parent-chain": {
+        "connection": {
+            "url": "ws://host.docker.internal:8546"
+        },
+        "wallet": {
+            "private-key": "4186cddd403633d6d845bfbefa87dcffc9152eb8373b97b53e5e8e15b918aba6"
+        }
+    },
+    "chain": {
+        "id": 412346,
+        "info-files": [
+            "/config/l2_chain_info.json"
+        ]
+    },
+    "execution": {
+        "evil": true
+    },
+    "node": {
+        "bold": {
+            "enable": true,
+            "evil": true,
+            "validator_private-key": "ee3c0bf39d962a78dba87aee083cae443cabc814f93677f302cbabde844237db"
+        },
+        "staker": {
+            "dangerous": {
+                "without-block-validator": false
+            },
+            "disable-challenge": false,
+            "enable": false,
+            "staker-interval": "10s",
+            "make-assertion-interval": "10s",
+            "strategy": "MakeNodes",
+            "use-smart-contract-wallet": true
+        },
+        "sequencer": false,
+        "delayed-sequencer": {
+            "enable": false
+        },
+        "seq-coordinator": {
+            "enable": false,
+            "redis-url": "redis://redis:6379",
+            "lockout-duration": "30s",
+            "lockout-spare": "1s",
+            "my-url": "",
+            "retry-interval": "0.5s",
+            "seq-num-duration": "24h0m0s",
+            "update-interval": "3s"
+        },
+        "batch-poster": {
+            "enable": false,
+            "redis-url": "redis://redis:6379",
+            "max-delay": "30s",
+            "data-poster": {
+                "redis-signer": {
+                    "signing-key": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                },
+                "wait-for-l1-finality": false
+            }
+        },
+        "block-validator": {
+            "evil": true,
+            "chain-id": "412346",
+            "validation-server": {
+                "url": "ws://evil_validation_node:8999",
+                "jwtsecret": "/config/val_jwt.hex"
+            }
+        }
+    },
+    "persistent": {
+        "chain": "local"
+    },
+    "ws": {
+        "addr": "0.0.0.0"
+    },
+    "http": {
+        "addr": "0.0.0.0",
+        "vhosts": "*",
+        "corsdomain": "*"
+    }
+}

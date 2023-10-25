@@ -1,0 +1,31 @@
+version: "3.9"
+services:
+  evil_validator:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    ports:
+      - "127.0.0.1:8947:8947"
+      - "127.0.0.1:8948:8948"
+    volumes:
+      - "evil-validator-data:/home/user/.arbitrum/local/nitro"
+      - type: bind
+        source: ./evil_validator_config.json
+        target: /config/evil_validator_config.json
+    command: --conf.file /config/evil_validator_config.json --http.port 8947 --http.api net,web3,arb,debug --ws.port 8948
+    depends_on:
+      - evil_validation_node
+
+  evil_validation_node:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    ports:
+      - "127.0.0.1:8999:8999"
+    volumes:
+      - type: bind
+        source: ./evil_validation_node_config.json
+        target: /config/evil_validation_node_config.json
+    command: --conf.file /config/evil_validation_node_config.json
+    entrypoint: /usr/local/bin/nitro-val
+
+volumes:
+  evil-validator-data:
