@@ -2,7 +2,7 @@ version: "3.9"
 services:
   evil_validator:
     pid: host # allow debugging
-    image: ghcr.io/rauljordan/nitro:bold
+    image: nitro-node-dev-testnode
     ports:
       - "127.0.0.1:8947:8947"
       - "127.0.0.1:8948:8948"
@@ -24,7 +24,7 @@ services:
 
   evil_validation_node:
     pid: host # allow debugging
-    image: ghcr.io/rauljordan/nitro:bold
+    image: nitro-node-dev-testnode
     ports:
       - "127.0.0.1:8999:8999"
     volumes:
