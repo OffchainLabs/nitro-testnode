@@ -44,7 +44,7 @@ async function bridgeFunds(argv: any, parentChainUrl: string, chainUrl: string, 
     const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
     while (true) {
       const balance = await account.getBalance()
-      if (balance >= ethers.utils.parseEther(argv.ethamount)) {
+      if (balance.gt(ethers.utils.parseEther(argv.ethamount))) {
         return
       }
       await sleep(100)
