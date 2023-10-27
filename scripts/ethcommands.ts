@@ -44,7 +44,7 @@ async function bridgeFunds(argv: any, parentChainUrl: string, chainUrl: string, 
     const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
     while (true) {
       const balance = await account.getBalance()
-      if (balance.gt(ethers.utils.parseEther(argv.ethamount))) {
+      if (balance.gte(ethers.utils.parseEther(argv.ethamount))) {
         return
       }
       await sleep(100)
@@ -148,6 +148,11 @@ export const createERC20Command = {
     );
     const contract = await contractFactory.deploy("AppTestToken", "APP", ethers.utils.parseEther("1000000000"), namedAccount(argv.mintTo).address);
     await contract.deployTransaction.wait();
+
+    // transfer some tokens to funnel account
+    const mintTo = namedAccount(argv.mintTo).connect(argv.provider);
+    const funnel = namedAccount("funnel");
+    await contract.connect(mintTo).transfer(funnel.address, ethers.utils.parseEther("200000000"));
 
     console.log("Contract deployed at address:", contract.address);
 
