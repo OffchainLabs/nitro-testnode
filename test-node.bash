@@ -239,7 +239,7 @@ if $force_build; then
     fi
   fi
   LOCAL_BUILD_NODES=scripts
-  if $tokenbridge; then
+  if $tokenbridge || $l3_token_bridge; then
     LOCAL_BUILD_NODES="$LOCAL_BUILD_NODES tokenbridge"
   fi
   docker-compose build --no-rm $LOCAL_BUILD_NODES
@@ -338,9 +338,10 @@ if $force_init; then
     docker-compose run scripts bridge-funds --ethamount 1000 --wait --from "key_0x$devprivkey"
 
     if $tokenbridge; then
-        echo == Deploying token bridge
-        docker-compose run -e ARB_KEY=$devprivkey -e ETH_KEY=$devprivkey tokenbridge gen:network
-        docker-compose run --entrypoint sh tokenbridge -c "cat localNetwork.json"
+        echo == Deploying L1-L2 token bridge
+        rollupAddress=`docker-compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
+        docker-compose run -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_KEY=$devprivkey -e PARENT_RPC=http://geth:8545 -e CHILD_KEY=$devprivkey -e CHILD_RPC=http://sequencer:8547 tokenbridge deploy:local:token-bridge
+        docker-compose run --entrypoint sh tokenbridge -c "cat network.json"
         echo
     fi
 
