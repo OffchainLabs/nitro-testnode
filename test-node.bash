@@ -40,7 +40,8 @@ consensusclient=false
 redundantsequencers=0
 dev_build_nitro=false
 dev_build_blockscout=false
-l3CustomFeeToken=false
+l3_custom_fee_token=false
+l3_token_bridge=false
 batchposters=1
 devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
@@ -123,7 +124,15 @@ while [[ $# -gt 0 ]]; do
                 echo "Error: --l3-fee-token requires --l3node to be provided."
                 exit 1
             fi
-            l3CustomFeeToken=true
+            l3_custom_fee_token=true
+            shift
+            ;;
+        --l3-token-bridge)
+            if ! $l3node; then
+                echo "Error: --l3-token-bridge requires --l3node to be provided."
+                exit 1
+            fi
+            l3_token_bridge=true
             shift
             ;;
         --redundantsequencers)
@@ -146,6 +155,7 @@ while [[ $# -gt 0 ]]; do
             echo --pos:             l1 is a proof-of-stake chain \(using prysm for consensus\)
             echo --validate:        heavy computation, validating all blocks in WASM
             echo --l3-fee-token:    L3 chain is set up to use custom fee token. Only valid if also '--l3node' is provided
+            echo --l3-token-bridge: Deploy L2-L3 token bridge. Only valid if also '--l3node' is provided
             echo --batchposters:    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach:          detach from nodes after running them
@@ -350,7 +360,7 @@ if $force_init; then
         echo == Writing l3 chain config
         docker-compose run scripts write-l3-chain-config
 
-        if $l3CustomFeeToken; then
+        if $l3_custom_fee_token; then
             echo == Deploying custom fee token
             nativeTokenAddress=`docker-compose run scripts create-erc20 --deployer user_fee_token_deployer --mintTo user_token_bridge_deployer | tail -n 1 | awk '{ print $NF }'`
             EXTRA_L3_DEPLOY_FLAG="--nativeTokenAddress $nativeTokenAddress"
@@ -365,7 +375,15 @@ if $force_init; then
         echo == Funding l3 funnel and dev key
         docker-compose up -d l3node poster
 
-        if ! $l3CustomFeeToken; then
+        if $l3_token_bridge; then
+            echo == Deploying L2-L3 token bridge
+            rollupAddress=`docker-compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_l3_chain_info.json | tail -n 1 | tr -d '\r\n'"`
+            docker-compose run -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_RPC=http://sequencer:8547 -e CHILD_RPC=http://l3node:3347 tokenbridge deploy:local:token-bridge
+            docker-compose run --entrypoint sh tokenbridge -c "cat network.json"
+            echo
+        fi
+
+        if ! $l3_custom_fee_token; then
             docker-compose run scripts bridge-to-l3 --ethamount 50000 --wait
             docker-compose run scripts bridge-to-l3 --ethamount 500 --wait --from "key_0x$devprivkey"
         fi
