@@ -149,11 +149,6 @@ export const createERC20Command = {
     const contract = await contractFactory.deploy("AppTestToken", "APP", ethers.utils.parseEther("1000000000"), namedAccount(argv.mintTo).address);
     await contract.deployTransaction.wait();
 
-    // transfer some tokens to funnel account
-    const mintTo = namedAccount(argv.mintTo).connect(argv.provider);
-    const funnel = namedAccount("funnel");
-    await contract.connect(mintTo).transfer(funnel.address, ethers.utils.parseEther("200000000"));
-
     console.log("Contract deployed at address:", contract.address);
 
     argv.provider.destroy();
