@@ -14,13 +14,24 @@
         ]
     },
     "execution": {
-        "evil": true
+        "evil": true,
+        "evil-intercept-deposit-gwei": 1000000
     },
     "node": {
         "bold": {
             "enable": true,
             "evil": true,
-            "validator-private-key": "93690ac9d039285ed00f874a2694d951c1777ac3a165732f36ea773f16179a89"
+            "mode": "make-mode",
+            "block-challenge-leaf-height": 32,
+            "big-step-leaf-height": 32,
+            "small-step-leaf-height": 128,
+            "num-big-steps": 5,
+            "validator-name": "evil",
+            "machine-leaves-cache-path": "/tmp/machine-leaves-cache",
+            "assertion-posting-interval-seconds": 30,
+            "assertion-scanning-interval-seconds": 30,
+            "assertion-confirming-interval-seconds": 60,
+            "edge-tracker-wake-interval-seconds": 1
         },
         "staker": {
             "dangerous": {
@@ -60,7 +71,7 @@
         },
         "block-validator": {
             "evil": true,
-            "chain-id": "412346",
+            "evil-intercept-deposit-gwei": 1000000,
             "validation-server": {
                 "url": "ws://evil_validation_node:8999",
                 "jwtsecret": "/config/val_jwt.hex"

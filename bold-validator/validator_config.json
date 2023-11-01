@@ -16,7 +16,17 @@
     "node": {
         "bold": {
             "enable": true,
-            "validator-private-key": "ee3c0bf39d962a78dba87aee083cae443cabc814f93677f302cbabde844237db"
+            "mode": "make-mode",
+            "block-challenge-leaf-height": 32,
+            "big-step-leaf-height": 32,
+            "small-step-leaf-height": 128,
+            "num-big-steps": 5,
+            "validator-name": "honest",
+            "machine-leaves-cache-path": "/tmp/machine-leaves-cache",
+            "assertion-posting-interval-seconds": 30,
+            "assertion-scanning-interval-seconds": 30,
+            "assertion-confirming-interval-seconds": 60,
+            "edge-tracker-wake-interval-seconds": 1
         },
         "staker": {
             "dangerous": {
