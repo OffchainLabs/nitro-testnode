@@ -379,8 +379,9 @@ if $force_init; then
 
         if $l3_token_bridge; then
             echo == Deploying L2-L3 token bridge
+            deployer_key=`printf "%s" "user_token_bridge_deployer" | openssl dgst -sha256 | sed 's/^.*= //'`
             rollupAddress=`docker-compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_l3_chain_info.json | tail -n 1 | tr -d '\r\n'"`
-            docker-compose run -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_RPC=http://sequencer:8547 -e CHILD_RPC=http://l3node:3347 tokenbridge deploy:local:token-bridge
+            docker-compose run -e ROLLUP_OWNER=$l3owneraddress -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_RPC=http://sequencer:8547 -e PARENT_KEY=$deployer_key  -e CHILD_RPC=http://l3node:3347 -e CHILD_KEY=$deployer_key tokenbridge deploy:local:token-bridge
             docker-compose run --entrypoint sh tokenbridge -c "cat network.json"
             echo
         fi
