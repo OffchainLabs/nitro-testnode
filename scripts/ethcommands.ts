@@ -59,10 +59,8 @@ async function bridgeNativeToken(argv: any, parentChainUrl: string, chainUrl: st
   argv.to = "address_" + inboxAddr;
 
   /// approve inbox to use fee token
-  const childProvider = new ethers.providers.WebSocketProvider(chainUrl);
-  const bridger = namedAccount(argv.from, argv.threadId).connect(childProvider)
-
-  const nativeTokenContract = new ethers.Contract(token, ERC20.abi, bridger)
+  const bridgerParentChain = namedAccount(argv.from, argv.threadId).connect(argv.provider)
+  const nativeTokenContract = new ethers.Contract(token, ERC20.abi, bridgerParentChain)
   await nativeTokenContract.approve(inboxAddr, ethers.utils.parseEther(argv.amount))
 
   /// deposit fee token
@@ -73,6 +71,8 @@ async function bridgeNativeToken(argv: any, parentChainUrl: string, chainUrl: st
 
   argv.provider.destroy();
   if (argv.wait) {
+    const childProvider = new ethers.providers.WebSocketProvider(chainUrl);
+    const bridger = namedAccount(argv.from, argv.threadId).connect(childProvider)
     const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
     while (true) {
       const balance = await bridger.getBalance()
