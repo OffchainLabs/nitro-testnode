@@ -35,14 +35,14 @@
       }
     },
     "rollup": {
-      "bridge": "0x0e9f0db41e3d24614b03d00e4755812fe2f13fad",
-      "inbox": "0xa4f05a7587bd5f982ba3a1d4b19a555f265818b4",
-      "sequencer-inbox": "0x05a1471fa043949ea44dd24ec4657e4131ac94e9",
-      "rollup": "0xa8774d188cf20018b0d12b30f4e523e4a35989ed",
+      "bridge": "0x37049662dddf14e93ce50f193046b9592675e758",
+      "inbox": "0x20f6ba818eec15e313328054a2994316c6466fcd",
+      "sequencer-inbox": "0x9f3c908130887b93dcdb85661c1bacc37e354182",
+      "rollup": "0xb596a69602f5a42250e9ad67a8df169521dd3f72",
       "validator-utils": "0x0000000000000000000000000000000000000000",
-      "validator-wallet-creator": "0x755dfbd03d6ca6917e12c0d85ad96c10e098488d",
-      "stake-token": "0xb147595445fae25da16e4fa4e50aa45b2ac211b7",
-      "deployed-at": 4575158
+      "validator-wallet-creator": "0x9ff30acae03ae01e4a0dc981440f211bc605eb70",
+      "stake-token": "0x8f93636f8f0ecf540c6a7cab99e5cde1fbb61460",
+      "deployed-at": 4616335
     }
   }
 ]
