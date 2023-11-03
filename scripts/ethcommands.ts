@@ -3,6 +3,7 @@ import { ContractFactory, ethers, Wallet } from "ethers";
 import * as consts from "./consts";
 import { namedAccount, namedAddress } from "./accounts";
 import * as ERC20PresetFixedSupplyArtifact from "@openzeppelin/contracts/build/contracts/ERC20PresetFixedSupply.json";
+import * as ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
 import * as fs from "fs";
 const path = require("path");
 
@@ -52,11 +53,19 @@ async function bridgeFunds(argv: any, parentChainUrl: string, chainUrl: string, 
   }
 }
 
-async function bridgeNativeToken(argv: any, parentChainUrl: string, chainUrl: string, inboxAddr: string) {
+async function bridgeNativeToken(argv: any, parentChainUrl: string, chainUrl: string, inboxAddr: string, token: string) {
   argv.provider = new ethers.providers.WebSocketProvider(parentChainUrl);
 
   argv.to = "address_" + inboxAddr;
 
+  /// approve inbox to use fee token
+  const childProvider = new ethers.providers.WebSocketProvider(chainUrl);
+  const bridger = namedAccount(argv.from, argv.threadId).connect(childProvider)
+
+  const nativeTokenContract = new ethers.Contract(token, ERC20.abi, bridger)
+  await nativeTokenContract.approve(inboxAddr, ethers.utils.parseEther(argv.amount))
+
+  /// deposit fee token
   const iface = new ethers.utils.Interface(["function depositERC20(uint256 amount)"])
   argv.data = iface.encodeFunctionData("depositERC20", [ethers.utils.parseEther(argv.amount)]);
 
@@ -64,11 +73,9 @@ async function bridgeNativeToken(argv: any, parentChainUrl: string, chainUrl: st
 
   argv.provider.destroy();
   if (argv.wait) {
-    const childProvider = new ethers.providers.WebSocketProvider(chainUrl);
-    const account = namedAccount(argv.from, argv.threadId).connect(childProvider)
     const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
     while (true) {
-      const balance = await account.getBalance()
+      const balance = await bridger.getBalance()
       if (balance.gte(ethers.utils.parseEther(argv.amount))) {
         return
       }
@@ -156,6 +163,10 @@ export const bridgeNativeTokenToL3Command = {
       describe: "account (see general help)",
       default: "funnel",
     },
+    token: {
+      string: true,
+      describe: "chain's custom fee token",
+    },
     wait: {
       boolean: true,
       describe: "wait till l3 has balance of amount",
@@ -171,7 +182,7 @@ export const bridgeNativeTokenToL3Command = {
     const inboxAddr = ethers.utils.hexlify(deploydata.inbox);
 
     argv.ethamount = "0"
-    await bridgeFunds(argv, argv.l2url, argv.l3url, inboxAddr)
+    await bridgeNativeToken(argv, argv.l2url, argv.l3url, inboxAddr, argv.token)
   },
 };
 
