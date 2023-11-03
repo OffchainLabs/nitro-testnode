@@ -170,6 +170,7 @@ export const bridgeNativeTokenToL3Command = {
     );
     const inboxAddr = ethers.utils.hexlify(deploydata.inbox);
 
+    argv.ethamount = "0"
     await bridgeFunds(argv, argv.l2url, argv.l3url, inboxAddr)
   },
 };
