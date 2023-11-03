@@ -52,6 +52,32 @@ async function bridgeFunds(argv: any, parentChainUrl: string, chainUrl: string, 
   }
 }
 
+async function bridgeNativeToken(argv: any, parentChainUrl: string, chainUrl: string, inboxAddr: string) {
+  argv.provider = new ethers.providers.WebSocketProvider(parentChainUrl);
+
+  argv.to = "address_" + inboxAddr;
+
+  const iface = new ethers.utils.Interface(["function depositERC20(uint256 amount)"])
+  argv.data = iface.encodeFunctionData("depositERC20", [ethers.utils.parseEther(argv.amount)]);
+
+  await runStress(argv, sendTransaction);
+
+  argv.provider.destroy();
+  if (argv.wait) {
+    const childProvider = new ethers.providers.WebSocketProvider(chainUrl);
+    const account = namedAccount(argv.from, argv.threadId).connect(childProvider)
+    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+    while (true) {
+      const balance = await account.getBalance()
+      if (balance.gte(ethers.utils.parseEther(argv.amount))) {
+        return
+      }
+      await sleep(100)
+    }
+  }
+}
+
+
 export const bridgeFundsCommand = {
   command: "bridge-funds",
   describe: "sends funds from l1 to l2",
@@ -84,7 +110,6 @@ export const bridgeFundsCommand = {
   },
 };
 
-
 export const bridgeToL3Command = {
   command: "bridge-to-l3",
   describe: "sends funds from l2 to l3",
@@ -102,6 +127,38 @@ export const bridgeToL3Command = {
     wait: {
       boolean: true,
       describe: "wait till l3 has balance of ethamount",
+      default: false,
+    },
+  },
+  handler: async (argv: any) => {
+    const deploydata = JSON.parse(
+      fs
+        .readFileSync(path.join(consts.configpath, "l3deployment.json"))
+        .toString()
+    );
+    const inboxAddr = ethers.utils.hexlify(deploydata.inbox);
+
+    await bridgeFunds(argv, argv.l2url, argv.l3url, inboxAddr)
+  },
+};
+
+export const bridgeNativeTokenToL3Command = {
+  command: "bridge-native-token-to-l3",
+  describe: "bridge native token from l2 to l3",
+  builder: {
+    amount: {
+      string: true,
+      describe: "amount to transfer",
+      default: "10",
+    },
+    from: {
+      string: true,
+      describe: "account (see general help)",
+      default: "funnel",
+    },
+    wait: {
+      boolean: true,
+      describe: "wait till l3 has balance of amount",
       default: false,
     },
   },
@@ -228,7 +285,7 @@ export const sendL2Command = {
 
 export const sendL3Command = {
   command: "send-l3",
-  describe: "sends funds between l2 accounts",
+  describe: "sends funds between l3 accounts",
   builder: {
     ethamount: {
       string: true,
