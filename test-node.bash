@@ -388,8 +388,8 @@ if $force_init; then
 
         echo == Fund L3 accounts
         if $l3_custom_fee_token; then
-            nativeTokenAddress=`docker-compose run scripts create-erc20 --deployer user_fee_token_deployer --mintTo user_token_bridge_deployer | tail -n 1 | awk '{ print $NF }'`
-            docker-compose run scripts bridge-native-token-to-l3 --token $nativeTokenAddress --amount 50000 --from user_token_bridge_deployer --wait
+            native_token=`docker-compose run --entrypoint sh poster -c "jq -r '.[0].rollup[\"native-token\"]' /config/deployed_l3_chain_info.json | tail -n 1 | tr -d '\r\n'"`
+            docker-compose run scripts bridge-native-token-to-l3 --token $native_token --amount 50000 --from user_token_bridge_deployer --wait
             docker-compose run scripts send-l3 --ethamount 500 --from user_token_bridge_deployer --wait
             docker-compose run scripts send-l3 --ethamount 500 --from user_token_bridge_deployer --to "key_0x$devprivkey" --wait
         else
