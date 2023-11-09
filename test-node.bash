@@ -305,16 +305,16 @@ if $force_init; then
       docker-compose run geth init --datadir /datadir/ /config/geth_genesis.json
 
       echo == Starting geth
-      docker-compose up -d geth
+      docker-compose up --wait geth
 
       echo == Creating prysm genesis
       docker-compose up create_beacon_chain_genesis
 
       echo == Running prysm
-      docker-compose up -d prysm_beacon_chain
-      docker-compose up -d prysm_validator
+      docker-compose up --wait prysm_beacon_chain
+      docker-compose up --wait prysm_validator
     else
-      docker-compose up -d geth
+      docker-compose up --wait geth
     fi
 
     echo == Funding validator and sequencer
@@ -341,12 +341,12 @@ if $force_init; then
         docker-compose run scripts write-config
 
         echo == Initializing redis
-        docker-compose up -d redis
+        docker-compose up --wait redis
         docker-compose run scripts redis-init --redundancy $redundantsequencers
     fi
 
     echo == Funding l2 funnel and dev key
-    docker-compose up -d $INITIAL_SEQ_NODES
+    docker-compose up --wait $INITIAL_SEQ_NODES
     docker-compose run scripts bridge-funds --ethamount 100000 --wait
     docker-compose run scripts bridge-funds --ethamount 1000 --wait --from "key_0x$devprivkey"
 
@@ -382,11 +382,11 @@ if $force_init; then
         echo == Deploying L3
         l3owneraddress=`docker-compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
         l3sequenceraddress=`docker-compose run scripts print-address --account l3sequencer | tail -n 1 | tr -d '\r\n'`
-        docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://sequencer:8548 --l1keystore /home/user/l1keystore --sequencerAddress $l3sequenceraddress --ownerAddress $l3owneraddress --l1DeployAccount $l3owneraddress --l1deployment /config/l3deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=412346 --l2chainconfig /config/l3_chain_config.json --l2chainname orbit-dev-test --l2chaininfo /config/deployed_l3_chain_info.json --maxDataSize 104857 $EXTRA_L3_DEPLOY_FLAG
-        docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
+        docker-compose run --entrypoint /usr/local/bin/deploy sequencer --l1conn ws://sequencer:8548 --l1keystore /home/user/l1keystore --sequencerAddress $l3sequenceraddress --ownerAddress $l3owneraddress --l1DeployAccount $l3owneraddress --l1deployment /config/l3deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=412346 --l2chainconfig /config/l3_chain_config.json --l2chainname orbit-dev-test --l2chaininfo /config/deployed_l3_chain_info.json --maxDataSize 104857 $EXTRA_L3_DEPLOY_FLAG
+        docker-compose run --entrypoint sh sequencer -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
         echo == Funding l3 funnel and dev key
-        docker-compose up -d l3node poster
+        docker-compose up --wait l3node sequencer
 
         if ! $l3CustomFeeToken; then
             docker-compose run scripts bridge-to-l3 --ethamount 50000 --wait
@@ -399,7 +399,7 @@ fi
 if $run; then
     UP_FLAG=""
     if $detach; then
-        UP_FLAG="-d"
+        UP_FLAG="--wait"
     fi
 
     echo == Launching Sequencer
