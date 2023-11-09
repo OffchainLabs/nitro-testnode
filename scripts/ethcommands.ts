@@ -1,7 +1,8 @@
 import { runStress } from "./stress";
-import { ethers } from "ethers";
+import { ContractFactory, ethers, Wallet } from "ethers";
 import * as consts from "./consts";
 import { namedAccount, namedAddress } from "./accounts";
+import * as ERC20PresetFixedSupplyArtifact from "@openzeppelin/contracts/build/contracts/ERC20PresetFixedSupply.json";
 import * as fs from "fs";
 const path = require("path");
 
@@ -43,7 +44,7 @@ async function bridgeFunds(argv: any, parentChainUrl: string, chainUrl: string, 
     const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
     while (true) {
       const balance = await account.getBalance()
-      if (balance >= ethers.utils.parseEther(argv.ethamount)) {
+      if (balance.gte(ethers.utils.parseEther(argv.ethamount))) {
         return
       }
       await sleep(100)
@@ -115,6 +116,45 @@ export const bridgeToL3Command = {
     await bridgeFunds(argv, argv.l2url, argv.l3url, inboxAddr)
   },
 };
+
+export const createERC20Command = {
+  command: "create-erc20",
+  describe: "creates simple ERC20 on L2",
+  builder: {
+    deployer: {
+      string: true,
+      describe: "account (see general help)",
+      default: "user_l2user",
+    },
+    mintTo: {
+      string: true,
+      describe: "account (see general help)",
+      default: "user_l2user",
+    },
+  },
+  handler: async (argv: any) => {
+    console.log("create-erc20");
+
+    argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
+    const deployerWallet = new Wallet(
+      ethers.utils.sha256(ethers.utils.toUtf8Bytes(argv.deployer)),
+      argv.provider
+    );
+
+    const contractFactory = new ContractFactory(
+      ERC20PresetFixedSupplyArtifact.abi,
+      ERC20PresetFixedSupplyArtifact.bytecode,
+      deployerWallet
+    );
+    const contract = await contractFactory.deploy("AppTestToken", "APP", ethers.utils.parseEther("1000000000"), namedAccount(argv.mintTo).address);
+    await contract.deployTransaction.wait();
+
+    console.log("Contract deployed at address:", contract.address);
+
+    argv.provider.destroy();
+  },
+};
+
 
 export const sendL1Command = {
   command: "send-l1",

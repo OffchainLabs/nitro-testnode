@@ -11,6 +11,7 @@ import {
 import {
   bridgeFundsCommand,
   bridgeToL3Command,
+  createERC20Command,
   sendL1Command,
   sendL2Command,
   sendL3Command,
@@ -30,6 +31,7 @@ async function main() {
     .options(stressOptions)
     .command(bridgeFundsCommand)
     .command(bridgeToL3Command)
+    .command(createERC20Command)
     .command(sendL1Command)
     .command(sendL2Command)
     .command(sendL3Command)

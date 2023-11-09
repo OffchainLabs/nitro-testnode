@@ -2,7 +2,7 @@
 
 set -e
 
-NITRO_NODE_VERSION=offchainlabs/nitro-node:v2.1.0-72ccc0c-dev
+NITRO_NODE_VERSION=offchainlabs/nitro-node:v2.1.1-e9d8842-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
 
 mydir=`dirname $0`
@@ -40,6 +40,7 @@ consensusclient=false
 redundantsequencers=0
 dev_build_nitro=false
 dev_build_blockscout=false
+l3CustomFeeToken=false
 batchposters=1
 devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
@@ -125,6 +126,14 @@ while [[ $# -gt 0 ]]; do
             l3node=true
             shift
             ;;
+        --l3-fee-token)
+            if ! $l3node; then
+                echo "Error: --l3-fee-token requires --l3node to be provided."
+                exit 1
+            fi
+            l3CustomFeeToken=true
+            shift
+            ;;
         --redundantsequencers)
             simple=false
             redundantsequencers=$2
@@ -153,6 +162,7 @@ while [[ $# -gt 0 ]]; do
             echo --init:            remove all data, rebuild, deploy new rollup
             echo --pos:             l1 is a proof-of-stake chain \(using prysm for consensus\)
             echo --validate:        heavy computation, validating all blocks in WASM
+            echo --l3-fee-token:    L3 chain is set up to use custom fee token. Only valid if also '--l3node' is provided
             echo --batchposters:    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach:          detach from nodes after running them
@@ -318,7 +328,6 @@ if $force_init; then
     echo == Writing l2 chain config
     docker-compose run scripts write-l2-chain-config
 
-    echo == Deploying L2
     sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
 
     docker-compose run --entrypoint /usr/local/bin/deploy sequencer --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
@@ -336,9 +345,10 @@ if $force_init; then
         docker-compose run scripts redis-init --redundancy $redundantsequencers
     fi
 
-    echo == Funding l2 funnel
+    echo == Funding l2 funnel and dev key
     docker-compose up -d $INITIAL_SEQ_NODES
     docker-compose run scripts bridge-funds --ethamount 100000 --wait
+    docker-compose run scripts bridge-funds --ethamount 1000 --wait --from "key_0x$devprivkey"
 
     if $tokenbridge; then
         echo == Deploying token bridge
@@ -352,25 +362,36 @@ if $force_init; then
         docker-compose run scripts send-l2 --ethamount 1000 --to l3owner --wait
         docker-compose run scripts send-l2 --ethamount 1000 --to l3sequencer --wait
 
+        echo == Funding l2 deployers
+        docker-compose run scripts send-l2 --ethamount 100 --to user_token_bridge_deployer --wait
+        docker-compose run scripts send-l2 --ethamount 100 --to user_fee_token_deployer --wait
 
         echo == create l2 traffic
-        docker-compose run scripts send-l2 --ethamount 100 --to user_l2user --wait
-        docker-compose run scripts send-l2 --ethamount 0.0001 --from user_l2user --to user_l2user_b --wait --delay 500 --times 500 > /dev/null &
+        docker-compose run scripts send-l2 --ethamount 100 --to user_traffic_generator --wait
+        docker-compose run scripts send-l2 --ethamount 0.0001 --from user_traffic_generator --to user_fee_token_deployer --wait --delay 500 --times 500 > /dev/null &
 
         echo == Writing l3 chain config
         docker-compose run scripts write-l3-chain-config
 
+        if $l3CustomFeeToken; then
+            echo == Deploying custom fee token
+            nativeTokenAddress=`docker-compose run scripts create-erc20 --deployer user_fee_token_deployer --mintTo user_token_bridge_deployer | tail -n 1 | awk '{ print $NF }'`
+            EXTRA_L3_DEPLOY_FLAG="--nativeTokenAddress $nativeTokenAddress"
+        fi
+
         echo == Deploying L3
         l3owneraddress=`docker-compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
-
         l3sequenceraddress=`docker-compose run scripts print-address --account l3sequencer | tail -n 1 | tr -d '\r\n'`
-
-        docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://sequencer:8548 --l1keystore /home/user/l1keystore --sequencerAddress $l3sequenceraddress --ownerAddress $l3owneraddress --l1DeployAccount $l3owneraddress --l1deployment /config/l3deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=412346 --l2chainconfig /config/l3_chain_config.json --l2chainname orbit-dev-test --l2chaininfo /config/deployed_l3_chain_info.json
+        docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://sequencer:8548 --l1keystore /home/user/l1keystore --sequencerAddress $l3sequenceraddress --ownerAddress $l3owneraddress --l1DeployAccount $l3owneraddress --l1deployment /config/l3deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=412346 --l2chainconfig /config/l3_chain_config.json --l2chainname orbit-dev-test --l2chaininfo /config/deployed_l3_chain_info.json --maxDataSize 104857 $EXTRA_L3_DEPLOY_FLAG
         docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
-        echo == Funding l3 funnel
+        echo == Funding l3 funnel and dev key
         docker-compose up -d l3node poster
-        docker-compose run scripts bridge-to-l3 --ethamount 50000 --wait
+
+        if ! $l3CustomFeeToken; then
+            docker-compose run scripts bridge-to-l3 --ethamount 50000 --wait
+            docker-compose run scripts bridge-to-l3 --ethamount 500 --wait --from "key_0x$devprivkey"
+        fi
 
     fi
 fi
