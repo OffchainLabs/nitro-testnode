@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as consts from './consts'
-import { namedAccount } from './accounts'
+import { namedAccount, namedAddress } from './accounts'
 
 const path = require("path");
 
@@ -158,11 +158,6 @@ function writeConfigs(argv: any) {
             "connection": {
                 "url": argv.l1url,
             },
-            "wallet": {
-                "account": "",
-                "password": consts.l1passphrase,
-                "pathname": consts.l1keystore,
-            },
         },
         "chain": {
             "id": 412346,
@@ -172,6 +167,11 @@ function writeConfigs(argv: any) {
             "staker": {
                 "dangerous": {
                     "without-block-validator": false
+                },
+                "parent-chain-wallet" : {
+                    "account": namedAddress("validator"),
+                    "password": consts.l1passphrase,
+                    "pathname": consts.l1keystore,    
                 },
                 "disable-challenge": false,
                 "enable": false,
@@ -200,6 +200,12 @@ function writeConfigs(argv: any) {
                 "enable": false,
                 "redis-url": argv.redisUrl,
                 "max-delay": "30s",
+                "l1-block-bound": "ignore",
+                "parent-chain-wallet" : {
+                    "account": namedAddress("sequencer"),
+                    "password": consts.l1passphrase,
+                    "pathname": consts.l1keystore,    
+                },
                 "data-poster": {
                     "redis-signer": {
                         "signing-key": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -237,19 +243,18 @@ function writeConfigs(argv: any) {
 
     if (argv.simple) {
         let simpleConfig = JSON.parse(baseConfJSON)
-        simpleConfig["parent-chain"].wallet.account = namedAccount("sequencer").address
         simpleConfig.node.staker.enable = true
         simpleConfig.node.staker["use-smart-contract-wallet"] = true
         simpleConfig.node.staker.dangerous["without-block-validator"] = true
-        simpleConfig.node.sequencer.enable = true
-        simpleConfig.node.sequencer.dangerous["no-coordinator"] = true
+        simpleConfig.node.sequencer = true
+        simpleConfig.node.dangerous["no-sequencer-coordinator"] = true
         simpleConfig.node["delayed-sequencer"].enable = true
         simpleConfig.node["batch-poster"].enable = true
         simpleConfig.node["batch-poster"]["redis-url"] = ""
+        simpleConfig.execution["sequencer"].enable = true
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(simpleConfig))
     } else {
         let validatorConfig = JSON.parse(baseConfJSON)
-        validatorConfig["parent-chain"].wallet.account = namedAccount("validator").address
         validatorConfig.node.staker.enable = true
         validatorConfig.node.staker["use-smart-contract-wallet"] = true
         let validconfJSON = JSON.stringify(validatorConfig)
@@ -267,7 +272,6 @@ function writeConfigs(argv: any) {
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
 
         let posterConfig = JSON.parse(baseConfJSON)
-        posterConfig["parent-chain"].wallet.account = namedAccount("sequencer").address
         posterConfig.node["seq-coordinator"].enable = true
         posterConfig.node["batch-poster"].enable = true
         fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
@@ -275,7 +279,8 @@ function writeConfigs(argv: any) {
 
     let l3Config = JSON.parse(baseConfJSON)
     l3Config["parent-chain"].connection.url = argv.l2url
-    l3Config["parent-chain"].wallet.account = namedAccount("l3sequencer").address
+    l3Config.node.staker["parent-chain-wallet"].account = namedAddress("l3owner")
+    l3Config.node["batch-poster"]["parent-chain-wallet"].account = namedAddress("l3sequencer")
     l3Config.chain.id = 333333
     const l3ChainInfoFile = path.join(consts.configpath, "l3_chain_info.json")
     l3Config.chain["info-files"] = [l3ChainInfoFile]
@@ -286,7 +291,7 @@ function writeConfigs(argv: any) {
     l3Config.node["dangerous"]["no-sequencer-coordinator"] = true
     l3Config.node["delayed-sequencer"].enable = true
     l3Config.node["delayed-sequencer"]["finalize-distance"] = 0
-    l3Config.node["delayed-sequencer"]["require-full-finality"] = false
+    l3Config.node["delayed-sequencer"]["use-merge-finality"] = false
     l3Config.node["batch-poster"].enable = true
     l3Config.node["batch-poster"]["redis-url"] = ""
     fs.writeFileSync(path.join(consts.configpath, "l3node_config.json"), JSON.stringify(l3Config))
