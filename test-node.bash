@@ -157,19 +157,20 @@ while [[ $# -gt 0 ]]; do
             echo        $0 script [SCRIPT-ARGS]
             echo
             echo OPTIONS:
-            echo --build:           rebuild docker images
-            echo --dev:             build nitro and blockscout dockers from source \(otherwise - pull docker\)
-            echo --init:            remove all data, rebuild, deploy new rollup
-            echo --pos:             l1 is a proof-of-stake chain \(using prysm for consensus\)
-            echo --validate:        heavy computation, validating all blocks in WASM
-            echo --l3-fee-token:    L3 chain is set up to use custom fee token. Only valid if also '--l3node' is provided
-            echo --batchposters:    batch posters [0-3]
+            echo --build           rebuild docker images
+            echo --dev             build nitro and blockscout dockers from source instead of pulling them. Disables simple mode
+            echo --init            remove all data, rebuild, deploy new rollup
+            echo --pos             l1 is a proof-of-stake chain \(using prysm for consensus\)
+            echo --validate        heavy computation, validating all blocks in WASM
+            echo --l3-fee-token    L3 chain is set up to use custom fee token. Only valid if also '--l3node' is provided
+            echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
-            echo --detach:          detach from nodes after running them
-            echo --blockscout:      build or launch blockscout
-            echo --no-tokenbridge:  don\'t build or launch tokenbridge
-            echo --no-run:          does not launch nodes \(usefull with build or init\)
-            echo --[no-]simple      simple \(on by default unless dev-build\) has only one node for l2, no redis
+            echo --detach          detach from nodes after running them
+            echo --blockscout      build or launch blockscout
+            echo --simple          run a simple configuration. one node as sequencer/batch-poster/staker \(default unless using --dev\)
+            echo --no-tokenbridge  don\'t build or launch tokenbridge
+            echo --no-run          does not launch nodes \(usefull with build or init\)
+            echo --no-simple       run a full configuration with separate sequencer/batch-poster/validator/relayer
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
             exit 0
@@ -195,6 +196,9 @@ fi
 NODES="sequencer"
 INITIAL_SEQ_NODES="sequencer"
 
+if ! $simple; then
+    NODES="$NODES redis"
+fi
 if [ $redundantsequencers -gt 0 ]; then
     NODES="$NODES sequencer_b"
     INITIAL_SEQ_NODES="$INITIAL_SEQ_NODES sequencer_b"
@@ -220,7 +224,7 @@ fi
 if $validate; then
     NODES="$NODES validator"
 elif ! $simple; then
-    NODES="redis $NODES staker-unsafe"
+    NODES="$NODES staker-unsafe"
 fi
 if $l3node; then
     NODES="$NODES l3node"
