@@ -169,7 +169,7 @@ while [[ $# -gt 0 ]]; do
             echo --blockscout      build or launch blockscout
             echo --simple          run a simple configuration. one node as sequencer/batch-poster/staker \(default unless using --dev\)
             echo --no-tokenbridge  don\'t build or launch tokenbridge
-            echo --no-run          does not launch nodes \(usefull with build or init\)
+            echo --no-run          does not launch nodes \(useful with build or init\)
             echo --no-simple       run a full configuration with separate sequencer/batch-poster/validator/relayer
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
