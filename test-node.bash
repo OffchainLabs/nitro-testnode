@@ -2,7 +2,7 @@
 
 set -e
 
-NITRO_NODE_VERSION=offchainlabs/nitro-node:v2.1.1-e9d8842-dev
+NITRO_NODE_VERSION=offchainlabs/nitro-node:v2.2.0-alpha.1-fdd098e-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
 
 mydir=`dirname $0`
@@ -34,7 +34,7 @@ force_build=false
 validate=false
 detach=false
 blockscout=false
-tokenbridge=true
+tokenbridge=false
 l3node=false
 consensusclient=false
 redundantsequencers=0
@@ -44,6 +44,7 @@ l3CustomFeeToken=false
 batchposters=1
 devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
+simple=true
 while [[ $# -gt 0 ]]; do
     case $1 in
         --init)
@@ -60,6 +61,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --dev)
+            simple=false
             shift
             if [[ $# -eq 0 || $1 == -* ]]; then
                 # If no argument after --dev, set both flags to true
@@ -81,11 +83,16 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --validate)
+            simple=false
             validate=true
             shift
             ;;
         --blockscout)
             blockscout=true
+            shift
+            ;;
+        --tokenbridge)
+            tokenbridge=true
             shift
             ;;
         --no-tokenbridge)
@@ -101,6 +108,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --batchposters)
+            simple=false
             batchposters=$2
             if ! [[ $batchposters =~ [0-3] ]] ; then
                 echo "batchposters must be between 0 and 3 value:$batchposters."
@@ -127,6 +135,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --redundantsequencers)
+            simple=false
             redundantsequencers=$2
             if ! [[ $redundantsequencers =~ [0-3] ]] ; then
                 echo "redundantsequencers must be between 0 and 3 value:$redundantsequencers."
@@ -135,23 +144,33 @@ while [[ $# -gt 0 ]]; do
             shift
             shift
             ;;
+        --simple)
+            simple=true
+            shift
+            ;;
+        --no-simple)
+            simple=false
+            shift
+            ;;
         *)
             echo Usage: $0 \[OPTIONS..]
             echo        $0 script [SCRIPT-ARGS]
             echo
             echo OPTIONS:
-            echo --build:           rebuild docker images
-            echo --dev:             build nitro and blockscout dockers from source \(otherwise - pull docker\)
-            echo --init:            remove all data, rebuild, deploy new rollup
-            echo --pos:             l1 is a proof-of-stake chain \(using prysm for consensus\)
-            echo --validate:        heavy computation, validating all blocks in WASM
-            echo --l3-fee-token:    L3 chain is set up to use custom fee token. Only valid if also '--l3node' is provided
-            echo --batchposters:    batch posters [0-3]
+            echo --build           rebuild docker images
+            echo --dev             build nitro and blockscout dockers from source instead of pulling them. Disables simple mode
+            echo --init            remove all data, rebuild, deploy new rollup
+            echo --pos             l1 is a proof-of-stake chain \(using prysm for consensus\)
+            echo --validate        heavy computation, validating all blocks in WASM
+            echo --l3-fee-token    L3 chain is set up to use custom fee token. Only valid if also '--l3node' is provided
+            echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
-            echo --detach:          detach from nodes after running them
-            echo --blockscout:      build or launch blockscout
-            echo --no-tokenbridge:  don\'t build or launch tokenbridge
-            echo --no-run:          does not launch nodes \(usefull with build or init\)
+            echo --detach          detach from nodes after running them
+            echo --blockscout      build or launch blockscout
+            echo --simple          run a simple configuration. one node as sequencer/batch-poster/staker \(default unless using --dev\)
+            echo --no-tokenbridge  don\'t build or launch tokenbridge
+            echo --no-run          does not launch nodes \(useful with build or init\)
+            echo --no-simple       run a full configuration with separate sequencer/batch-poster/validator/relayer
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
             exit 0
@@ -177,6 +196,9 @@ fi
 NODES="sequencer"
 INITIAL_SEQ_NODES="sequencer"
 
+if ! $simple; then
+    NODES="$NODES redis"
+fi
 if [ $redundantsequencers -gt 0 ]; then
     NODES="$NODES sequencer_b"
     INITIAL_SEQ_NODES="$INITIAL_SEQ_NODES sequencer_b"
@@ -188,7 +210,7 @@ if [ $redundantsequencers -gt 2 ]; then
     NODES="$NODES sequencer_d"
 fi
 
-if [ $batchposters -gt 0 ]; then
+if [ $batchposters -gt 0 ] && ! $simple; then
     NODES="$NODES poster"
 fi
 if [ $batchposters -gt 1 ]; then
@@ -201,7 +223,7 @@ fi
 
 if $validate; then
     NODES="$NODES validator"
-else
+elif ! $simple; then
     NODES="$NODES staker-unsafe"
 fi
 if $l3node; then
@@ -287,16 +309,16 @@ if $force_init; then
       docker-compose run geth init --datadir /datadir/ /config/geth_genesis.json
 
       echo == Starting geth
-      docker-compose up -d geth
+      docker-compose up --wait geth
 
       echo == Creating prysm genesis
       docker-compose up create_beacon_chain_genesis
 
       echo == Running prysm
-      docker-compose up -d prysm_beacon_chain
-      docker-compose up -d prysm_validator
+      docker-compose up --wait prysm_beacon_chain
+      docker-compose up --wait prysm_validator
     else
-      docker-compose up -d geth
+      docker-compose up --wait geth
     fi
 
     echo == Funding validator and sequencer
@@ -312,18 +334,23 @@ if $force_init; then
 
     sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
 
-    echo == Deploying L2
-    docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
-    docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
+    docker-compose run --entrypoint /usr/local/bin/deploy sequencer --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
+    docker-compose run --entrypoint sh sequencer -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
 
-    echo == Writing configs
-    docker-compose run scripts write-config
+    if $simple; then
+        echo == Writing configs
+        docker-compose run scripts write-config --simple
+    else
+        echo == Writing configs
+        docker-compose run scripts write-config
 
-    echo == Initializing redis
-    docker-compose run scripts redis-init --redundancy $redundantsequencers
+        echo == Initializing redis
+        docker-compose up --wait redis
+        docker-compose run scripts redis-init --redundancy $redundantsequencers
+    fi
 
     echo == Funding l2 funnel and dev key
-    docker-compose up -d $INITIAL_SEQ_NODES
+    docker-compose up --wait $INITIAL_SEQ_NODES
     docker-compose run scripts bridge-funds --ethamount 100000 --wait
     docker-compose run scripts bridge-funds --ethamount 1000 --wait --from "key_0x$devprivkey"
 
@@ -359,11 +386,11 @@ if $force_init; then
         echo == Deploying L3
         l3owneraddress=`docker-compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
         l3sequenceraddress=`docker-compose run scripts print-address --account l3sequencer | tail -n 1 | tr -d '\r\n'`
-        docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://sequencer:8548 --l1keystore /home/user/l1keystore --sequencerAddress $l3sequenceraddress --ownerAddress $l3owneraddress --l1DeployAccount $l3owneraddress --l1deployment /config/l3deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=412346 --l2chainconfig /config/l3_chain_config.json --l2chainname orbit-dev-test --l2chaininfo /config/deployed_l3_chain_info.json --maxDataSize 104857 $EXTRA_L3_DEPLOY_FLAG
-        docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
+        docker-compose run --entrypoint /usr/local/bin/deploy sequencer --l1conn ws://sequencer:8548 --l1keystore /home/user/l1keystore --sequencerAddress $l3sequenceraddress --ownerAddress $l3owneraddress --l1DeployAccount $l3owneraddress --l1deployment /config/l3deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=412346 --l2chainconfig /config/l3_chain_config.json --l2chainname orbit-dev-test --l2chaininfo /config/deployed_l3_chain_info.json --maxDataSize 104857 $EXTRA_L3_DEPLOY_FLAG
+        docker-compose run --entrypoint sh sequencer -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
         echo == Funding l3 funnel and dev key
-        docker-compose up -d l3node poster
+        docker-compose up --wait l3node sequencer
 
         if ! $l3CustomFeeToken; then
             docker-compose run scripts bridge-to-l3 --ethamount 50000 --wait
@@ -376,7 +403,7 @@ fi
 if $run; then
     UP_FLAG=""
     if $detach; then
-        UP_FLAG="-d"
+        UP_FLAG="--wait"
     fi
 
     echo == Launching Sequencer
