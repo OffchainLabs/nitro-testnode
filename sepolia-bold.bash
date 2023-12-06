@@ -47,7 +47,7 @@ docker-compose run scripts write-l2-chain-config --l2owner $sequenceraddress
 
 echo == Deploying L2
 ownerpriv="4186cddd403633d6d845bfbefa87dcffc9152eb8373b97b53e5e8e15b918aba6"
-l1conn="ws://host.docker.internal:8546"
+l1conn="ws://localhost:8546"
 l1chainid="11155111"
 
 docker-compose run --entrypoint /usr/local/bin/bold-deploy poster --l1conn $l1conn --l1privatekey $ownerpriv --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
