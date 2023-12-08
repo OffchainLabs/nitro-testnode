@@ -172,7 +172,7 @@ while [[ $# -gt 0 ]]; do
             echo --pos             l1 is a proof-of-stake chain \(using prysm for consensus\)
             echo --validate        heavy computation, validating all blocks in WASM
             echo --l3-fee-token    L3 chain is set up to use custom fee token. Only valid if also '--l3node' is provided
-            echo --l3-token-bridge: Deploy L2-L3 token bridge. Only valid if also '--l3node' is provided
+            echo --l3-token-bridge Deploy L2-L3 token bridge. Only valid if also '--l3node' is provided
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
