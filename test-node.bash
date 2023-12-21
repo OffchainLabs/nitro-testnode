@@ -319,16 +319,16 @@ if $force_init; then
       docker-compose run geth init --datadir /datadir/ /config/geth_genesis.json
 
       echo == Starting geth
-      docker-compose up --wait geth
+      docker compose up --wait geth
 
       echo == Creating prysm genesis
       docker-compose up create_beacon_chain_genesis
 
       echo == Running prysm
-      docker-compose up --wait prysm_beacon_chain
-      docker-compose up --wait prysm_validator
+      docker compose up --wait prysm_beacon_chain
+      docker compose up --wait prysm_validator
     else
-      docker-compose up --wait geth
+      docker compose up --wait geth
     fi
 
     echo == Funding validator and sequencer
@@ -355,12 +355,12 @@ if $force_init; then
         docker-compose run scripts write-config
 
         echo == Initializing redis
-        docker-compose up --wait redis
+        docker compose up --wait redis
         docker-compose run scripts redis-init --redundancy $redundantsequencers
     fi
 
     echo == Funding l2 funnel and dev key
-    docker-compose up --wait $INITIAL_SEQ_NODES
+    docker compose up --wait $INITIAL_SEQ_NODES
     docker-compose run scripts bridge-funds --ethamount 100000 --wait
     docker-compose run scripts bridge-funds --ethamount 1000 --wait --from "key_0x$devprivkey"
 
@@ -402,7 +402,7 @@ if $force_init; then
         docker-compose run --entrypoint sh sequencer -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
         echo == Funding l3 funnel and dev key
-        docker-compose up --wait l3node sequencer
+        docker compose up --wait l3node sequencer
 
         if $l3_token_bridge; then
             echo == Deploying L2-L3 token bridge
