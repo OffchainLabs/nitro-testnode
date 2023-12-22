@@ -8,13 +8,6 @@ BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
 mydir=`dirname $0`
 cd "$mydir"
 
-if ! which docker compose > /dev/null; then
-    echo == Error! docker compose not installed
-    echo please install docker compose and have it in PATH
-    echo see https://docs.docker.com/compose/install/
-    exit 1
-fi
-
 if [[ $# -gt 0 ]] && [[ $1 == "script" ]]; then
     shift
     docker compose run scripts "$@"
