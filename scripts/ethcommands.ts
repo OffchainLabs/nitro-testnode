@@ -163,10 +163,6 @@ export const bridgeNativeTokenToL3Command = {
       describe: "account (see general help)",
       default: "funnel",
     },
-    token: {
-      string: true,
-      describe: "chain's custom fee token",
-    },
     wait: {
       boolean: true,
       describe: "wait till l3 has balance of amount",
@@ -180,9 +176,10 @@ export const bridgeNativeTokenToL3Command = {
         .toString()
     );
     const inboxAddr = ethers.utils.hexlify(deploydata.inbox);
+    const nativeTokenAddr = ethers.utils.hexlify(deploydata["native-token"]);
 
     argv.ethamount = "0"
-    await bridgeNativeToken(argv, argv.l2url, argv.l3url, inboxAddr, argv.token)
+    await bridgeNativeToken(argv, argv.l2url, argv.l3url, inboxAddr, nativeTokenAddr)
   },
 };
 
