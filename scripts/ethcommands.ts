@@ -1,5 +1,5 @@
 import { runStress } from "./stress";
-import { ContractFactory, ethers, Wallet } from "ethers";
+import { BigNumber, ContractFactory, ethers, Wallet } from "ethers";
 import * as consts from "./consts";
 import { namedAccount, namedAddress } from "./accounts";
 import * as ERC20PresetFixedSupplyArtifact from "@openzeppelin/contracts/build/contracts/ERC20PresetFixedSupply.json";
@@ -65,7 +65,9 @@ async function bridgeNativeToken(argv: any, parentChainUrl: string, chainUrl: st
 
   /// deposit fee token
   const iface = new ethers.utils.Interface(["function depositERC20(uint256 amount)"])
-  argv.data = iface.encodeFunctionData("depositERC20", [ethers.utils.parseEther(argv.amount)]);
+  const decimals = await nativeTokenContract.decimals()
+  const depositAmount = BigNumber.from(argv.amount).mul(BigNumber.from('10').pow(decimals))
+  argv.data = iface.encodeFunctionData("depositERC20", [depositAmount]);
 
   await runStress(argv, sendTransaction);
 
@@ -76,7 +78,7 @@ async function bridgeNativeToken(argv: any, parentChainUrl: string, chainUrl: st
     const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
     while (true) {
       const balance = await bridger.getBalance()
-      if (balance.gte(ethers.utils.parseEther(argv.amount))) {
+      if (balance.gte(depositAmount)) {
         return
       }
       await sleep(100)
