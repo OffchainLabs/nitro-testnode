@@ -10,6 +10,7 @@ import {
 } from "./accounts";
 import {
   bridgeFundsCommand,
+  bridgeNativeTokenToL3Command,
   bridgeToL3Command,
   createERC20Command,
   sendL1Command,
@@ -31,6 +32,7 @@ async function main() {
     .options(stressOptions)
     .command(bridgeFundsCommand)
     .command(bridgeToL3Command)
+    .command(bridgeNativeTokenToL3Command)
     .command(createERC20Command)
     .command(sendL1Command)
     .command(sendL2Command)
