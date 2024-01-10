@@ -58,15 +58,19 @@ async function bridgeNativeToken(argv: any, parentChainUrl: string, chainUrl: st
 
   argv.to = "address_" + inboxAddr;
 
-  /// approve inbox to use fee token
+  // get token contract
   const bridgerParentChain = namedAccount(argv.from, argv.threadId).connect(argv.provider)
   const nativeTokenContract = new ethers.Contract(token, ERC20.abi, bridgerParentChain)
-  await nativeTokenContract.approve(inboxAddr, ethers.utils.parseEther(argv.amount))
+
+  // scale deposit amount
+  const decimals = await nativeTokenContract.decimals()
+  const depositAmount = BigNumber.from(argv.amount).mul(BigNumber.from('10').pow(decimals))
+
+  /// approve inbox to use fee token
+  await nativeTokenContract.approve(inboxAddr, depositAmount)
 
   /// deposit fee token
   const iface = new ethers.utils.Interface(["function depositERC20(uint256 amount)"])
-  const decimals = await nativeTokenContract.decimals()
-  const depositAmount = BigNumber.from(argv.amount).mul(BigNumber.from('10').pow(decimals))
   argv.data = iface.encodeFunctionData("depositERC20", [depositAmount]);
 
   await runStress(argv, sendTransaction);
