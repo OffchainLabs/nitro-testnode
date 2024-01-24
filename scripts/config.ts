@@ -224,6 +224,7 @@ function writeConfigs(argv: any) {
             "sequencer": {
                 "enable": false,
             },
+            "forwarding-target": "null",
         },
         "persistent": {
             "chain": "local"
