@@ -242,12 +242,13 @@ function writeConfigs(argv: any) {
     fs.writeFileSync(path.join(consts.configpath, "validator_config.json"), validconfJSON)
 
     let unsafeStakerConfig = JSON.parse(validconfJSON)
-    unsafeStakerConfig.node.staker.dangerous["without-block-validator"] = true
+    unsafeStakerConfig.node.staker.dangerous["without-block-validator"] = false
     fs.writeFileSync(path.join(consts.configpath, "unsafe_staker_config.json"), JSON.stringify(unsafeStakerConfig))
 
     let sequencerConfig = JSON.parse(baseConfJSON)
     sequencerConfig.node.sequencer.enable = true
     sequencerConfig.node["seq-coordinator"].enable = true
+    sequencerConfig.node["seq-coordinator"]["seq-num-duration"] = "2m0s"
     sequencerConfig.node["delayed-sequencer"].enable = true
     fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
 
@@ -255,6 +256,7 @@ function writeConfigs(argv: any) {
     posterConfig["parent-chain"].wallet.account = namedAccount("sequencer").address
     posterConfig.node["seq-coordinator"].enable = true
     posterConfig.node["batch-poster"].enable = true
+    posterConfig.node["batch-poster"]["data-poster"]["wait-for-l1-finality"] = true
     fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
 
     let l3Config = JSON.parse(baseConfJSON)
