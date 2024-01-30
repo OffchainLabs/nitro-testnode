@@ -2,7 +2,7 @@ import { runStress } from "./stress";
 import { ContractFactory, ethers, Wallet } from "ethers";
 import * as consts from "./consts";
 import { namedAccount, namedAddress } from "./accounts";
-import * as ERC20PresetFixedSupplyArtifact from "@openzeppelin/contracts/build/contracts/ERC20PresetFixedSupply.json";
+import * as MintableTestArbCustomToken from "@arbitrum/token-bridge-contracts/build/contracts/contracts/tokenbridge/test/TestArbCustomToken.sol/MintableTestArbCustomToken.json"
 import * as ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
 import * as fs from "fs";
 const path = require("path");
@@ -207,15 +207,33 @@ export const createERC20Command = {
       argv.provider
     );
 
+    let gatewayAddr = ethers.constants.AddressZero;
+    let routerAddr = ethers.constants.AddressZero;
+
+    if (fs.existsSync(path.join(consts.configpath, "l2_token_bridge_network.json"))) {
+      // set gateway if l2 token bridge exists
+      const l2TokenBridge = JSON.parse(
+        fs
+          .readFileSync(path.join(consts.configpath, "l2_token_bridge_network.json"))
+          .toString()
+      );
+      console.log(l2TokenBridge)
+      // this is very insecure and only meant to be used for testing
+      // anyone can register a l1 token to the custom gateway to mint this l2 token
+      gatewayAddr = l2TokenBridge.l2Network.tokenBridge.l2CustomGateway;
+      routerAddr = l2TokenBridge.l2Network.tokenBridge.l2GatewayRouter;
+    }
+
     const contractFactory = new ContractFactory(
-      ERC20PresetFixedSupplyArtifact.abi,
-      ERC20PresetFixedSupplyArtifact.bytecode,
+      MintableTestArbCustomToken.abi,
+      MintableTestArbCustomToken.bytecode,
       deployerWallet
     );
-    const contract = await contractFactory.deploy("AppTestToken", "APP", ethers.utils.parseEther("1000000000"), namedAccount(argv.mintTo).address);
+    const contract = await contractFactory.deploy(gatewayAddr, routerAddr);
     await contract.deployTransaction.wait();
 
     console.log("Contract deployed at address:", contract.address);
+    await (await contract.userMint(namedAccount(argv.mintTo).address, ethers.utils.parseEther("1000000000"))).wait();
 
     argv.provider.destroy();
   },

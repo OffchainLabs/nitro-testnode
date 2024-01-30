@@ -359,6 +359,7 @@ if $force_init; then
 
     if $tokenbridge; then
         echo == Deploying L1-L2 token bridge
+        sleep 10 # no idea why this sleep is needed but without it the deploy fails randomly
         rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
         docker compose run -e ROLLUP_OWNER=$sequenceraddress -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_KEY=$devprivkey -e PARENT_RPC=http://geth:8545 -e CHILD_KEY=$devprivkey -e CHILD_RPC=http://sequencer:8547 tokenbridge deploy:local:token-bridge
         docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json /out/l2_token_bridge_network.json"
