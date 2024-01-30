@@ -95,6 +95,10 @@ async function handlePrintAddress(argv: any, threadId: number) {
   console.log(namedAddress(argv.account, threadId));
 }
 
+async function handlePrintPrivateKey(argv: any, threadId: number) {
+  console.log(namedAccount(argv.account, threadId).privateKey);
+}
+
 export const printAddressCommand = {
   command: "print-address",
   describe: "prints the requested address",
@@ -109,6 +113,21 @@ export const printAddressCommand = {
     await runStress(argv, handlePrintAddress);
   },
 };
+
+export const printPrivateKeyCommand = {
+  command: "print-private-key",
+  describe: "prints the requested private key",
+  builder: {
+    account: {
+      string: true,
+      describe: "address (see general help)",
+      default: "funnel",
+    },
+  },
+  handler: async (argv: any) => {
+    await runStress(argv, handlePrintPrivateKey);
+  },
+}
 
 export const writeAccountsCommand = {
   command: "write-accounts",
