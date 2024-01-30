@@ -312,6 +312,7 @@ services:
     volumes:
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
+      - "sdk-data:/sdk-data"
 
   relay:
     pid: host

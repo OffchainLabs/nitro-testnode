@@ -361,7 +361,7 @@ if $force_init; then
         echo == Deploying L1-L2 token bridge
         rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
         docker compose run -e ROLLUP_OWNER=$sequenceraddress -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_KEY=$devprivkey -e PARENT_RPC=http://geth:8545 -e CHILD_KEY=$devprivkey -e CHILD_RPC=http://sequencer:8547 tokenbridge deploy:local:token-bridge
-        docker compose run --entrypoint sh tokenbridge -c "cat network.json"
+        docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json /workspace/l1l2_network.json"
         echo
     fi
 
@@ -401,7 +401,7 @@ if $force_init; then
             deployer_key=`printf "%s" "user_token_bridge_deployer" | openssl dgst -sha256 | sed 's/^.*= //'`
             rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_l3_chain_info.json | tail -n 1 | tr -d '\r\n'"`
             docker compose run -e ROLLUP_OWNER=$l3owneraddress -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_RPC=http://sequencer:8547 -e PARENT_KEY=$deployer_key  -e CHILD_RPC=http://l3node:3347 -e CHILD_KEY=$deployer_key tokenbridge deploy:local:token-bridge
-            docker compose run --entrypoint sh tokenbridge -c "cat network.json"
+            docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json /workspace/l2l3_network.json"
             echo
         fi
 
