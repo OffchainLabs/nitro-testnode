@@ -331,6 +331,7 @@ services:
       - ARB_URL=http://sequencer:8547
       - ETH_URL=http://geth:8545
     volumes:
+      - "config:/out"
       - "sdk-data:/workspace"
       - /var/run/docker.sock:/var/run/docker.sock
 
