@@ -186,7 +186,7 @@ export const bridgeNativeTokenToL3Command = {
 
 export const createERC20Command = {
   command: "create-erc20",
-  describe: "creates simple ERC20 on L1",
+  describe: "creates simple ERC20 on L2",
   builder: {
     deployer: {
       string: true,
@@ -196,12 +196,16 @@ export const createERC20Command = {
       string: true,
       describe: "account (see general help)",
     },
+    bridgeable: {
+      boolean: true,
+      describe: "if true, deploy on L1 and bridge to L2",
+    },
   },
   handler: async (argv: any) => {
     console.log("create-erc20");
 
-    if (fs.existsSync(path.join(consts.sdkdatapath, "l1l2_network.json"))) {
-      // l1-l2 token bridge exists, deploy token on l1 and bridge to l2
+    if (argv.bridgeable) {
+      // deploy token on l1 and bridge to l2
       const l1l2tokenbridge = JSON.parse(
         fs
           .readFileSync(path.join(consts.sdkdatapath, "l1l2_network.json"))
