@@ -208,7 +208,7 @@ export const createERC20Command = {
       // deploy token on l1 and bridge to l2
       const l1l2tokenbridge = JSON.parse(
         fs
-          .readFileSync(path.join(consts.sdkdatapath, "l1l2_network.json"))
+          .readFileSync(path.join(consts.tokenbridgedatapath, "l1l2_network.json"))
           .toString()
       );
 
