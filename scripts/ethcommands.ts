@@ -190,13 +190,11 @@ export const createERC20Command = {
   builder: {
     deployer: {
       string: true,
-      describe: "account (see general help)",
-      default: "user_l1user",
+      describe: "account (see general help)"
     },
     mintTo: {
       string: true,
       describe: "account (see general help)",
-      default: "user_l1user",
     },
   },
   handler: async (argv: any) => {
