@@ -7,6 +7,7 @@ import {
   printAddressCommand,
   namedAccountHelpString,
   writeAccountsCommand,
+  printPrivateKeyCommand,
 } from "./accounts";
 import {
   bridgeFundsCommand,
@@ -45,6 +46,7 @@ async function main() {
     .command(writePrysmCommand)
     .command(writeAccountsCommand)
     .command(printAddressCommand)
+    .command(printPrivateKeyCommand)
     .command(redisReadCommand)
     .command(redisInitCommand)
     .strict()

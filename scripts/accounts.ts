@@ -5,7 +5,7 @@ import * as crypto from "crypto";
 import { runStress } from "./stress";
 const path = require("path");
 
-const specialAccounts = 5;
+const specialAccounts = 6;
 
 async function writeAccounts() {
   for (let i = 0; i < specialAccounts; i++) {
@@ -43,6 +43,9 @@ export function namedAccount(
   }
   if (name == "l3sequencer") {
     return specialAccount(4);
+  }
+  if (name == "l2owner") {
+    return specialAccount(5);
   }
   if (name.startsWith("user_")) {
     return new ethers.Wallet(
@@ -95,6 +98,10 @@ async function handlePrintAddress(argv: any, threadId: number) {
   console.log(namedAddress(argv.account, threadId));
 }
 
+async function handlePrintPrivateKey(argv: any, threadId: number) {
+  console.log(namedAccount(argv.account, threadId).privateKey);
+}
+
 export const printAddressCommand = {
   command: "print-address",
   describe: "prints the requested address",
@@ -109,6 +116,21 @@ export const printAddressCommand = {
     await runStress(argv, handlePrintAddress);
   },
 };
+
+export const printPrivateKeyCommand = {
+  command: "print-private-key",
+  describe: "prints the requested private key",
+  builder: {
+    account: {
+      string: true,
+      describe: "address (see general help)",
+      default: "funnel",
+    },
+  },
+  handler: async (argv: any) => {
+    await runStress(argv, handlePrintPrivateKey);
+  },
+}
 
 export const writeAccountsCommand = {
   command: "write-accounts",
