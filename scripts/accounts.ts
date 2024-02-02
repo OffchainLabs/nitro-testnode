@@ -85,10 +85,11 @@ export function namedAddress(
 
 export const namedAccountHelpString =
   "Valid account names:\n" +
-  "  funnel | sequencer | validator - known keys\n" +
-  "  user_[Alphanumeric]            - key will be generated from username\n" +
-  "  threaduser_[Alphanumeric]      - same as user_[Alphanumeric]_thread_[thread-id]\n" +
-  "  key_0x[full private key]       - user with specified private key\n" +
+  "  funnel | sequencer | validator | l2owner - known keys used by l2\n" +
+  "  l3owner | l3sequencer                    - known keys used by l3\n" +
+  "  user_[Alphanumeric]                      - key will be generated from username\n" +
+  "  threaduser_[Alphanumeric]                - same as user_[Alphanumeric]_thread_[thread-id]\n" +
+  "  key_0x[full private key]                 - user with specified private key\n" +
   "\n" +
   "Valid addresses: any account name, or\n" +
   "  address_0x[full eth address]\n" +
@@ -123,7 +124,7 @@ export const printPrivateKeyCommand = {
   builder: {
     account: {
       string: true,
-      describe: "address (see general help)",
+      describe: "account (see general help)",
       default: "funnel",
     },
   },
