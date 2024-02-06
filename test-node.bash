@@ -164,6 +164,7 @@ while [[ $# -gt 0 ]]; do
             echo --init            remove all data, rebuild, deploy new rollup
             echo --pos             l1 is a proof-of-stake chain \(using prysm for consensus\)
             echo --validate        heavy computation, validating all blocks in WASM
+            echo --l3-node         deploys an L3 node on top of the L2
             echo --l3-fee-token    L3 chain is set up to use custom fee token. Only valid if also '--l3node' is provided
             echo --l3-token-bridge Deploy L2-L3 token bridge. Only valid if also '--l3node' is provided
             echo --batchposters    batch posters [0-3]
@@ -171,6 +172,7 @@ while [[ $# -gt 0 ]]; do
             echo --detach          detach from nodes after running them
             echo --blockscout      build or launch blockscout
             echo --simple          run a simple configuration. one node as sequencer/batch-poster/staker \(default unless using --dev\)
+            echo --tokenbridge     deploy L1-L2 token bridge.
             echo --no-tokenbridge  don\'t build or launch tokenbridge
             echo --no-run          does not launch nodes \(useful with build or init\)
             echo --no-simple       run a full configuration with separate sequencer/batch-poster/validator/relayer
