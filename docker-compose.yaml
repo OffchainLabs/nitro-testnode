@@ -160,6 +160,7 @@ services:
       - "seqdata:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
+      - "tokenbridge-data:/tokenbridge-data"
     command: --conf.file /config/sequencer_config.json --node.feed.output.enable --node.feed.output.port 9642  --http.api net,web3,eth,txpool,debug --node.seq-coordinator.my-url  ws://sequencer:8548 --graphql.enable --graphql.vhosts * --graphql.corsdomain *
     depends_on:
       - geth
@@ -312,6 +313,7 @@ services:
     volumes:
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
+      - "tokenbridge-data:/tokenbridge-data"
 
   relay:
     pid: host
@@ -331,7 +333,7 @@ services:
       - ARB_URL=http://sequencer:8547
       - ETH_URL=http://geth:8545
     volumes:
-      - "sdk-data:/workspace"
+      - "tokenbridge-data:/workspace"
       - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
@@ -349,4 +351,4 @@ volumes:
   poster-data-c:
   config:
   postgres-data:
-  sdk-data:
+  tokenbridge-data:
