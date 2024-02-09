@@ -43,6 +43,7 @@ dev_build_blockscout=false
 batchposters=1
 devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
+runL2Txs=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         --init)
@@ -115,6 +116,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --l3node)
             l3node=true
+            shift
+            ;;
+        --run-l2-txs)
+            runL2Txs=true
             shift
             ;;
         --redundantsequencers)
@@ -320,6 +325,10 @@ if $force_init; then
         docker-compose run -e ARB_KEY=$devprivkey -e ETH_KEY=$devprivkey tokenbridge gen:network
         docker-compose run --entrypoint sh tokenbridge -c "cat localNetwork.json"
         echo
+    fi
+
+    if $runL2Txs; then
+        docker-compose run scripts send-l2 --ethamount 100 --to user_l2user --wait
     fi
 
     if $l3node; then
