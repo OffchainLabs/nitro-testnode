@@ -34,4 +34,4 @@ jobs:
         restore-keys: ${{ runner.os }}-buildx-
           
     - name:  Startup Nitro testnode
-      run: ${{ github.workspace }}/.github/workflows/testnode.sh
+      run: ${{ github.workspace }}/.github/workflows/testnode.bash
