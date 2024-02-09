@@ -6,7 +6,9 @@
   "author": "Offchain Labs, Inc.",
   "license": "Apache-2.0",
   "dependencies": {
+    "@arbitrum/token-bridge-contracts": "1.2.0",
     "@node-redis/client": "^1.0.4",
+    "@openzeppelin/contracts": "^4.9.3",
     "@types/node": "^17.0.22",
     "@types/yargs": "^17.0.10",
     "ethers": "^5.6.1",

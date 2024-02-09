@@ -5,7 +5,7 @@ import * as crypto from "crypto";
 import { runStress } from "./stress";
 const path = require("path");
 
-const specialAccounts = 5;
+const specialAccounts = 6;
 
 async function writeAccounts() {
   for (let i = 0; i < specialAccounts; i++) {
@@ -43,6 +43,9 @@ export function namedAccount(
   }
   if (name == "l3sequencer") {
     return specialAccount(4);
+  }
+  if (name == "l2owner") {
+    return specialAccount(5);
   }
   if (name.startsWith("user_")) {
     return new ethers.Wallet(
@@ -82,10 +85,11 @@ export function namedAddress(
 
 export const namedAccountHelpString =
   "Valid account names:\n" +
-  "  funnel | sequencer | validator - known keys\n" +
-  "  user_[Alphanumeric]            - key will be generated from username\n" +
-  "  threaduser_[Alphanumeric]      - same as user_[Alphanumeric]_thread_[thread-id]\n" +
-  "  key_0x[full private key]       - user with specified private key\n" +
+  "  funnel | sequencer | validator | l2owner - known keys used by l2\n" +
+  "  l3owner | l3sequencer                    - known keys used by l3\n" +
+  "  user_[Alphanumeric]                      - key will be generated from username\n" +
+  "  threaduser_[Alphanumeric]                - same as user_[Alphanumeric]_thread_[thread-id]\n" +
+  "  key_0x[full private key]                 - user with specified private key\n" +
   "\n" +
   "Valid addresses: any account name, or\n" +
   "  address_0x[full eth address]\n" +
@@ -93,6 +97,10 @@ export const namedAccountHelpString =
 
 async function handlePrintAddress(argv: any, threadId: number) {
   console.log(namedAddress(argv.account, threadId));
+}
+
+async function handlePrintPrivateKey(argv: any, threadId: number) {
+  console.log(namedAccount(argv.account, threadId).privateKey);
 }
 
 export const printAddressCommand = {
@@ -109,6 +117,21 @@ export const printAddressCommand = {
     await runStress(argv, handlePrintAddress);
   },
 };
+
+export const printPrivateKeyCommand = {
+  command: "print-private-key",
+  describe: "prints the requested private key",
+  builder: {
+    account: {
+      string: true,
+      describe: "account (see general help)",
+      default: "funnel",
+    },
+  },
+  handler: async (argv: any) => {
+    await runStress(argv, handlePrintPrivateKey);
+  },
+}
 
 export const writeAccountsCommand = {
   command: "write-accounts",
