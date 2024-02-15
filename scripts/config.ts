@@ -158,6 +158,9 @@ function writeConfigs(argv: any) {
             "connection": {
                 "url": argv.l1url,
             },
+            "blob-client": {
+                "beacon-url": "http://prysm_beacon_chain:3500"
+            },
         },
         "chain": {
             "id": 412346,
