@@ -158,9 +158,6 @@ function writeConfigs(argv: any) {
             "connection": {
                 "url": argv.l1url,
             },
-            "blob-client": {
-                "beacon-url": "http://prysm_beacon_chain:3500"
-            },
         },
         "chain": {
             "id": 412346,
@@ -184,7 +181,8 @@ function writeConfigs(argv: any) {
             },
             "sequencer": false,
             "dangerous": {
-                "no-sequencer-coordinator": false
+                "no-sequencer-coordinator": false,
+                "disable-blob-reader": true,
             },
             "delayed-sequencer": {
                 "enable": false
