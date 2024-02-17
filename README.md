@@ -102,21 +102,35 @@ For help and further scripts, see:
 
 ## Named accounts
 
+Here is a list of address that are used in the testnode setup, avoid using them before the deployment finishes or you might end up with some nonce race.
+
 ```bash
-./test-node.bash script print-address --account sequencer
+./test-node.bash scripts print-address --account <name>
+./test-node.bash scripts print-private-key --account <name>
 ```
+
 ```
 sequencer:                  0xe2148eE53c0755215Df69b2616E552154EdC584f
 validator:                  0x6A568afe0f82d34759347bb36F14A6bB171d2CBe
 l2owner:                    0x5E1497dD1f08C87b2d8FE23e9AAB6c1De833D927
 l3owner:                    0x863c904166E801527125D8672442D736194A3362
 l3sequencer:                0x3E6134aAD4C4d422FF2A4391Dc315c4DDf98D1a5
-user_l1user:                0x058E6C774025ade66153C65672219191c72c7095
+user_l1traffic:             0xa2db25762CFdF7bAF602F3Bcf2ec534937725f00
+user_l1traffic_b:           0xacC305CaCB4605Aa1975001e24D25F7A5d11dC61
+user_l2traffic:             0x7641C76365faC5090d315410358073D4ba199c57
+user_l2traffic_b:           0x0d25ca3B2c4b8e8c9fe4104Fbd6D37B9563FdaE4
 user_token_bridge_deployer: 0x3EaCb30f025630857aDffac9B2366F953eFE4F98
 user_fee_token_deployer:    0x2AC5278D230f88B481bBE4A94751d7188ef48Ca2
 ```
 
-While not a named account, 0x3f1eae7d46d88f08fc2f8ed27fcb2ab183eb2d0e is funded on all test chains.
+While not a named account, 0x3f1eae7d46d88f08fc2f8ed27fcb2ab183eb2d0e is funded on all test chains and is used to fund other accounts.
+
+The following accounts are funded on L1, L2, and L3 respectively and can be used for testing without risk of nonce race from testnode setup:
+```
+user_l1user:                0x058E6C774025ade66153C65672219191c72c7095
+user_l2user:                0xEEA8EC07A3642769168D40e3Abd05Af5F1c56c44
+user_l3user:                0xE87cF1C248e62c1EdaD39a1e134570D368BdF39A
+```
 
 ## Contact
 
