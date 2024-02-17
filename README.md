@@ -132,6 +132,12 @@ user_l2user:                0xEEA8EC07A3642769168D40e3Abd05Af5F1c56c44
 user_l3user:                0xE87cF1C248e62c1EdaD39a1e134570D368BdF39A
 ```
 
+## Deployment status
+
+L2 and L3 are deployed when their respective RPC are avaliable (port 8545 and 3347)
+L2 token bridge is deployed if `docker-compose run --entrypoint sh tokenbridge -c "cat l1l2_network.json"` returns a valid json.
+L3 token bridge is deployed if `docker-compose run --entrypoint sh tokenbridge -c "cat l2l3_network.json"` returns a valid json.
+
 ## Contact
 
 Discord - [Arbitrum](https://discord.com/invite/5KE54JwyTs)
