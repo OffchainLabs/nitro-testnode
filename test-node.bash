@@ -324,10 +324,11 @@ if $force_init; then
       docker compose up --wait geth
     fi
 
-    echo == Funding validator, sequencer and l2owner
+    echo == Funding validator, sequencer, l2owner and token bridge deployer
     docker compose run scripts send-l1 --ethamount 1000 --to validator --wait
     docker compose run scripts send-l1 --ethamount 1000 --to sequencer --wait
     docker compose run scripts send-l1 --ethamount 1000 --to l2owner --wait
+    docker compose run scripts send-l1 --ethamount 1000 --to user_token_bridge_deployer --wait
 
     echo == create l1 traffic
     docker compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
@@ -364,7 +365,8 @@ if $force_init; then
         sleep 10 # no idea why this sleep is needed but without it the deploy fails randomly
         rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
         l2ownerKey=`docker compose run scripts print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
-        docker compose run -e ROLLUP_OWNER_KEY=$l2ownerKey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_KEY=$devprivkey -e PARENT_RPC=http://geth:8545 -e CHILD_KEY=$devprivkey -e CHILD_RPC=http://sequencer:8547 tokenbridge deploy:local:token-bridge
+        l2_token_bridge_deployer_key=`docker compose run scripts print-private-key --account user_token_bridge_deployer | tail -n 1 | tr -d '\r\n'`
+        docker compose run -e ROLLUP_OWNER_KEY=$l2ownerKey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_KEY=$l2_token_bridge_deployer_key -e PARENT_RPC=http://geth:8545 -e CHILD_KEY=$l2_token_bridge_deployer_key -e CHILD_RPC=http://sequencer:8547 tokenbridge deploy:local:token-bridge
         docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json l1l2_network.json && cp network.json localNetwork.json"
         echo
     fi
@@ -375,7 +377,6 @@ if $force_init; then
         docker compose run scripts send-l2 --ethamount 1000 --to l3sequencer --wait
 
         echo == Funding l2 deployers
-        docker compose run scripts send-l1 --ethamount 100 --to user_token_bridge_deployer --wait
         docker compose run scripts send-l2 --ethamount 100 --to user_token_bridge_deployer --wait
 
         echo == Funding token deployer
@@ -407,7 +408,7 @@ if $force_init; then
 
         if $l3_token_bridge; then
             echo == Deploying L2-L3 token bridge
-            deployer_key=`printf "%s" "user_token_bridge_deployer" | openssl dgst -sha256 | sed 's/^.*= //'`
+            l3_token_bridge_deployer_key=`docker compose run scripts print-private-key --account user_token_bridge_deployer | tail -n 1 | tr -d '\r\n'`
             rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_l3_chain_info.json | tail -n 1 | tr -d '\r\n'"`
             l2Weth=""
             if $tokenbridge; then
@@ -415,7 +416,7 @@ if $force_init; then
                 # we need to pull out the L2 WETH address and pass it as an override to the L2 L3 token bridge deployment
                 l2Weth=`docker compose run --entrypoint sh tokenbridge -c "cat l1l2_network.json" | jq -r '.l2Network.tokenBridge.l2Weth'`
             fi
-            docker compose run -e PARENT_WETH_OVERRIDE=$l2Weth -e ROLLUP_OWNER_KEY=$l3ownerkey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_RPC=http://sequencer:8547 -e PARENT_KEY=$deployer_key  -e CHILD_RPC=http://l3node:3347 -e CHILD_KEY=$deployer_key tokenbridge deploy:local:token-bridge
+            docker compose run -e PARENT_WETH_OVERRIDE=$l2Weth -e ROLLUP_OWNER_KEY=$l3ownerkey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_RPC=http://sequencer:8547 -e PARENT_KEY=$l3_token_bridge_deployer_key  -e CHILD_RPC=http://l3node:3347 -e CHILD_KEY=$l3_token_bridge_deployer_key tokenbridge deploy:local:token-bridge
             docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json l2l3_network.json"
             echo
         fi
