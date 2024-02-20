@@ -105,8 +105,8 @@ For help and further scripts, see:
 Here is a list of address that are used in the testnode setup, avoid using them before the deployment finishes or you might end up with some nonce race.
 
 ```bash
-./test-node.bash scripts print-address --account <name>
-./test-node.bash scripts print-private-key --account <name>
+./test-node.bash script print-address --account <name>
+./test-node.bash script print-private-key --account <name>
 ```
 
 ```
@@ -125,11 +125,9 @@ user_fee_token_deployer:    0x2AC5278D230f88B481bBE4A94751d7188ef48Ca2
 
 While not a named account, 0x3f1eae7d46d88f08fc2f8ed27fcb2ab183eb2d0e is funded on all test chains and is used to fund other accounts.
 
-The following accounts are funded on L1, L2, and L3 respectively and can be used for testing without risk of nonce race from testnode setup:
+The following account is funded on all L1, L2, and L3 and can be used for testing without risk of nonce race from testnode setup:
 ```
-user_l1user:                0x058E6C774025ade66153C65672219191c72c7095
-user_l2user:                0xEEA8EC07A3642769168D40e3Abd05Af5F1c56c44
-user_l3user:                0xE87cF1C248e62c1EdaD39a1e134570D368BdF39A
+user_user:                  0xC3Aa24dA923c30BD0738111c458ec68A8FdC2dfD
 ```
 
 ## Deployment status

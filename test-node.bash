@@ -324,8 +324,8 @@ if $force_init; then
       docker compose up --wait geth
     fi
 
-    echo == Funding l1 user
-    docker compose run scripts send-l1 --ethamount 100 --to user_l1user --wait
+    echo == Funding user on L1
+    docker compose run scripts send-l1 --ethamount 100 --to user_user --wait
 
     echo == Funding validator, sequencer, l2owner and token bridge deployer
     docker compose run scripts send-l1 --ethamount 1000 --to validator --wait
@@ -363,8 +363,8 @@ if $force_init; then
     docker compose run scripts bridge-funds --ethamount 100000 --wait
     docker compose run scripts bridge-funds --ethamount 1000 --wait --from "key_0x$devprivkey"
 
-    echo == Funding l2 user
-    docker compose run scripts send-l2 --ethamount 100 --to user_l2user --wait
+    echo == Funding user on L2
+    docker compose run scripts send-l2 --ethamount 100 --to user_user --wait
 
     if $tokenbridge; then
         echo == Deploying L1-L2 token bridge
@@ -437,8 +437,8 @@ if $force_init; then
             docker compose run scripts bridge-to-l3 --ethamount 500 --wait --from "key_0x$devprivkey"
         fi
 
-        echo == Funding l3 user
-        docker compose run scripts send-l3 --ethamount 100 --to user_l3user --wait
+        echo == Funding user on L3
+        docker compose run scripts send-l3 --ethamount 100 --to user_user --wait
     fi
 fi
 
