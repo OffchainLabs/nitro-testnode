@@ -38,7 +38,6 @@ l3_token_bridge=false
 batchposters=1
 devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
-runL2Txs=false
 simple=true
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -121,8 +120,6 @@ while [[ $# -gt 0 ]]; do
             l3node=true
             shift
             ;;
-        --run-l2-txs)
-            runL2Txs=true
         --l3-fee-token)
             if ! $l3node; then
                 echo "Error: --l3-fee-token requires --l3node to be provided."
@@ -370,10 +367,6 @@ if $force_init; then
         docker compose run -e ROLLUP_OWNER_KEY=$l2ownerKey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_KEY=$devprivkey -e PARENT_RPC=http://geth:8545 -e CHILD_KEY=$devprivkey -e CHILD_RPC=http://sequencer:8547 tokenbridge deploy:local:token-bridge
         docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json l1l2_network.json && cp network.json localNetwork.json"
         echo
-    fi
-
-    if $runL2Txs; then
-        docker-compose run scripts send-l2 --ethamount 100 --to user_l2user --wait
     fi
 
     if $l3node; then
