@@ -2,7 +2,7 @@
 # The script starts up the test node (with timeout 1 minute), with option to
 # run l2 transactions to make sure node is working
 
-timeout 60 ${GITHUB_WORKSPACE}/nitro-testnode/test-node.bash --init --dev --detach || exit_status=$?
+timeout 60 ${GITHUB_WORKSPACE}/test-node.bash --init --dev --detach || exit_status=$?
 sleep 3s
 ${GITHUB_WORKSPACE}/test-node.bash script send-l2 --ethamount 100 --to user_l2user --wait
 
