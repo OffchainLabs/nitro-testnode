@@ -3,7 +3,7 @@
 # run l2 transactions to make sure node is working
 
 timeout 60 ${GITHUB_WORKSPACE}/test-node.bash --init --dev --detach || exit_status=$?
-sleep 5m
+sleep 15m
 ${GITHUB_WORKSPACE}/test-node.bash script send-l2 --ethamount 100 --to user_l2user --wait
 
 if  [ -n "$exit_status" ] && [ $exit_status -ne 0 ] && [ $exit_status -ne 124 ]; then
