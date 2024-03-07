@@ -181,7 +181,8 @@ function writeConfigs(argv: any) {
             },
             "sequencer": false,
             "dangerous": {
-                "no-sequencer-coordinator": false
+                "no-sequencer-coordinator": false,
+                "disable-blob-reader": true,
             },
             "delayed-sequencer": {
                 "enable": false
