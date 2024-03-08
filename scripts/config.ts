@@ -182,7 +182,7 @@ function writeConfigs(argv: any) {
             "sequencer": false,
             "dangerous": {
                 "no-sequencer-coordinator": false,
-                "disable-blob-reader": true,
+                // "disable-blob-reader": true, todo: reactivate when nitro version is bumped
             },
             "delayed-sequencer": {
                 "enable": false
