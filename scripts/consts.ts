@@ -5,3 +5,5 @@ export const tokenbridgedatapath = "/tokenbridge-data";
 // Not secure. Do not use for production purposes
 export const l1mnemonic =
   "indoor dish desk flag debris potato excuse depart ticket judge file exit";
+
+export const ARB_OWNER = "0x0000000000000000000000000000000000000070";
