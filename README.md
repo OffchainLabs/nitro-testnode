@@ -66,8 +66,14 @@ To see more options, use `--help`.
 
 ### With Stylus support
 ```bash
-git clone --recurse-submodules https://github.com/OffchainLabs/stylus.git
+git clone -b stylus --recurse-submodules https://github.com/OffchainLabs/stylus.git
 cd stylus/nitro-testnode
+```
+
+Update the nitro-testnet repository and checkout stylus branch
+```bash
+git pull
+git checkout stylus
 ```
 
 Initialize the node in dev-mode (this will build the docker images from source)
