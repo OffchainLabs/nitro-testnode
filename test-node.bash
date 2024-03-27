@@ -343,7 +343,7 @@ if $force_init; then
     l2ownerKey=`docker compose run scripts print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
 
     echo == Deploying
-    docker compose run -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_RPC="http://geth:8545" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=0xf4389b835497a910d7ba3ebfb77aa93da985634f3c052de1290360635be40c4a -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/deployment.json" -e L1_CHAIN_ID=$l1chainid rollupcreator create-rollup-testnode
+    docker compose run -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e L1_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=0xf4389b835497a910d7ba3ebfb77aa93da985634f3c052de1290360635be40c4a -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
     # docker compose run -e DEPLOYER_PRIVKEY=$l2ownerKey -e MAX_DATA_SIZE=117964 rollupcreator deploy-factory --network testnode_l1
     # docker compose run -e OWNER_ADDRESS=$l2ownerAddress -e MAX_DATA_SIZE=117964 -e WASM_MODULE_ROOT=0xf4389b835497a910d7ba3ebfb77aa93da985634f3c052de1290360635be40c4a -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/deployment.json" -e L1_CHAIN_ID=$l1chainid -e DEPLOYER_PRIVKEY=$l2ownerKey -e ROLLUP_CREATOR_ADDRESS=0x82A3c114b40ecF1FC34745400A1B9B9115c33d31 rollupcreator deploy-eth-rollup --network testnode_l1
     echo == Deployment done
@@ -351,7 +351,7 @@ if $force_init; then
     #docker compose run --entrypoint /usr/local/bin/deploy sequencer --l1conn ws://getrollupcreator deploy-factory --network testnode_l1
     #docker compose run -e OWNER_ADDRESS=$l2ownerAddress -e MAX_DATA_SIZE=$maxDataSize -e WASM_MODULE_ROOT=0xf4389b835497a910d7ba3ebfb77aa93da985634f3c052de1290360635be40c4a -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/deployment.json" -e L1_CHAIN_ID=$l1chainid -e DEPLOYER_PRIVKEY=$l2ownerKey -e ROLLUP_CREATOR_ADDRESS=0x8569CADe473FD633310d7899c0F5025e1F21f664 rollupcreator deploy-eth-rollup --network testnode_l1
     #docker compose run --entrypoint /usr/local/bin/deploy sequencer --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $l2ownerAddress --l1DeployAccount $l2ownerAddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
-    docker compose run --entrypoint sh sequencer -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
+    docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
 
     if $simple; then
         echo == Writing configs

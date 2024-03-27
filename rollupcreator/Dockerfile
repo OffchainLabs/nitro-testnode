@@ -1,6 +1,6 @@
 FROM node:16-bullseye-slim
 RUN apt-get update && \
-    apt-get install -y git docker.io python3 build-essential curl
+    apt-get install -y git docker.io python3 build-essential curl jq
 WORKDIR /workspace  
 RUN git clone -b testnode-deploy https://github.com/OffchainLabs/nitro-contracts.git ./
 RUN curl -L https://foundry.paradigm.xyz | bash

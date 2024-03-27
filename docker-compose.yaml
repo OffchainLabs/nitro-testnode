@@ -344,6 +344,7 @@ services:
     pid: host
     build: rollupcreator/
     volumes:
+      - "config:/config"
       - "rollupcreator-data:/workspace"
       - /var/run/docker.sock:/var/run/docker.sock
 
