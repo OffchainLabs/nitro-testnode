@@ -329,7 +329,10 @@ services:
       - geth
       - sequencer
     pid: host
-    build: tokenbridge/
+    build:
+      context: tokenbridge/
+      args:
+        TOKEN_BRIDGE_BRANCH: ${TOKEN_BRIDGE_BRANCH:-main}
     environment:
       - ARB_URL=http://sequencer:8547
       - ETH_URL=http://geth:8545
