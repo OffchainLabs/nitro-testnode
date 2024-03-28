@@ -279,6 +279,38 @@ export const createERC20Command = {
   },
 };
 
+export const transferERC20Command = {
+  command: "transfer-erc20",
+  describe: "transfers ERC20 token",
+  builder: {
+    token: {
+      string: true,
+      describe: "token address",
+    },
+    amount: {
+      string: true,
+      describe: "amount to transfer",
+    },
+    from: {
+      string: true,
+      describe: "account (see general help)",
+    },
+    to: {
+      string: true,
+      describe: "address (see general help)",
+    },
+  },
+  handler: async (argv: any) => {
+    console.log("transfer-erc20");
+
+    argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
+    const account = namedAccount(argv.from).connect(argv.provider);
+    const tokenContract = new ethers.Contract(argv.token, ERC20.abi, account);
+    const decimals = await tokenContract.decimals();
+    await(await tokenContract.transfer(namedAccount(argv.to).address, ethers.utils.parseUnits(argv.amount, decimals))).wait();
+    argv.provider.destroy();
+  },
+};
 
 export const sendL1Command = {
   command: "send-l1",

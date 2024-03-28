@@ -14,6 +14,7 @@ import {
   bridgeNativeTokenToL3Command,
   bridgeToL3Command,
   createERC20Command,
+  transferERC20Command,
   sendL1Command,
   sendL2Command,
   sendL3Command,
@@ -35,6 +36,7 @@ async function main() {
     .command(bridgeToL3Command)
     .command(bridgeNativeTokenToL3Command)
     .command(createERC20Command)
+    .command(transferERC20Command)
     .command(sendL1Command)
     .command(sendL2Command)
     .command(sendL3Command)
