@@ -161,7 +161,6 @@ services:
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
       - "tokenbridge-data:/tokenbridge-data"
-      - "rollupcreator-data:/rollupcreator-data"
     command: --conf.file /config/sequencer_config.json --node.feed.output.enable --node.feed.output.port 9642  --http.api net,web3,eth,txpool,debug --node.seq-coordinator.my-url  ws://sequencer:8548 --graphql.enable --graphql.vhosts * --graphql.corsdomain *
     depends_on:
       - geth
@@ -351,7 +350,6 @@ services:
         NITRO_CONTRACTS_BRANCH: ${NITRO_CONTRACTS_BRANCH:-main}
     volumes:
       - "config:/config"
-      - "rollupcreator-data:/workspace"
       - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
@@ -370,4 +368,3 @@ volumes:
   config:
   postgres-data:
   tokenbridge-data:
-  rollupcreator-data:
