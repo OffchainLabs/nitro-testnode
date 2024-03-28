@@ -255,6 +255,10 @@ if $force_build; then
       docker build blockscout -t blockscout -f blockscout/docker/Dockerfile
     fi
   fi
+
+  NITRO_CONTRACTS_BRANCH="testnode-deploy"
+  export NITRO_CONTRACTS_BRANCH
+
   LOCAL_BUILD_NODES="scripts rollupcreator"
   if $tokenbridge || $l3_token_bridge; then
     LOCAL_BUILD_NODES="$LOCAL_BUILD_NODES tokenbridge"

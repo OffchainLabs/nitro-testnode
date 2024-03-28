@@ -342,7 +342,10 @@ services:
       - geth
       - sequencer
     pid: host
-    build: rollupcreator/
+    build:
+      context: rollupcreator/
+      args:
+        NITRO_CONTRACTS_BRANCH: ${NITRO_CONTRACTS_BRANCH:-main}
     volumes:
       - "config:/config"
       - "rollupcreator-data:/workspace"
