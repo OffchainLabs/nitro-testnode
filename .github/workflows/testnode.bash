@@ -3,10 +3,9 @@
 # until send-l2 succeeds.
 
 # Start the test node and get PID, to terminate it once send-l2 is done.
-${GITHUB_WORKSPACE}/test-node.bash --init > output.log 2>&1 &
-PID=$!
+cd ${GITHUB_WORKSPACE}
 
-sleep 5m
+./test-node.bash --init-force --detach
 
 START=$(date +%s)
 SUCCEDED=0
@@ -29,11 +28,10 @@ while true; do
     sleep 10
 done
 
-# Shut down the test node and wait for it to terminate.
-kill $PID
-wait $PID
+docker-compose stop
 
 if [ "$SUCCEDED" -eq 0 ]; then
+    docker-compose logs
     exit 1
 fi
 
