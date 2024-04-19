@@ -54,6 +54,10 @@ while [[ $# -gt 0 ]]; do
             fi
             shift
             ;;
+        --init-force)
+            force_init=true
+            shift
+            ;;
         --dev)
             simple=false
             shift
