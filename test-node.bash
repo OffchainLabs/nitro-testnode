@@ -412,8 +412,8 @@ if $force_init; then
         if $l3_custom_fee_token; then
             echo == Deploying custom fee token
             nativeTokenAddress=`docker compose run scripts create-erc20 --deployer user_fee_token_deployer --bridgeable $tokenbridge --decimals $l3_custom_fee_token_decimals | tail -n 1 | awk '{ print $NF }'`
-            docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 100 --from user_fee_token_deployer --to l3owner
-            docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 100 --from user_fee_token_deployer --to user_token_bridge_deployer
+            docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 10000 --from user_fee_token_deployer --to l3owner
+            docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 10000 --from user_fee_token_deployer --to user_token_bridge_deployer
             EXTRA_L3_DEPLOY_FLAG="-e FEE_TOKEN_ADDRESS=$nativeTokenAddress"
         fi
 
@@ -445,7 +445,7 @@ if $force_init; then
 
         echo == Fund L3 accounts
         if $l3_custom_fee_token; then
-            docker compose run scripts bridge-native-token-to-l3 --amount 50000 --from user_token_bridge_deployer --wait
+            docker compose run scripts bridge-native-token-to-l3 --amount 5000 --from user_token_bridge_deployer --wait
             docker compose run scripts send-l3 --ethamount 5 --from user_token_bridge_deployer --wait
             docker compose run scripts send-l3 --ethamount 5 --from user_token_bridge_deployer --to "key_0x$devprivkey" --wait
         else
