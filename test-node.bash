@@ -411,8 +411,9 @@ if $force_init; then
 
         if $l3_custom_fee_token; then
             echo == Deploying custom fee token
-            nativeTokenAddress=`docker compose run scripts create-erc20 --deployer user_fee_token_deployer --mintTo user_token_bridge_deployer --bridgeable $tokenbridge --decimals $l3_custom_fee_token_decimals | tail -n 1 | awk '{ print $NF }'`
-            docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 100 --from user_token_bridge_deployer --to l3owner
+            nativeTokenAddress=`docker compose run scripts create-erc20 --deployer user_fee_token_deployer --bridgeable $tokenbridge --decimals $l3_custom_fee_token_decimals | tail -n 1 | awk '{ print $NF }'`
+            docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 100 --from user_fee_token_deployer --to l3owner
+            docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 100 --from user_fee_token_deployer --to user_token_bridge_deployer
             EXTRA_L3_DEPLOY_FLAG="-e FEE_TOKEN_ADDRESS=$nativeTokenAddress"
         fi
 
