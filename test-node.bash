@@ -2,7 +2,7 @@
 
 set -e
 
-NITRO_NODE_VERSION=offchainlabs/nitro-node:v2.2.2-8f33fea-dev
+NITRO_NODE_VERSION=offchainlabs/nitro-node:v2.3.3-6a1c1a7-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
 
 mydir=`dirname $0`
@@ -53,6 +53,10 @@ while [[ $# -gt 0 ]]; do
                     exit 0
                 fi
             fi
+            shift
+            ;;
+        --init-force)
+            force_init=true
             shift
             ;;
         --dev)
