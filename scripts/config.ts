@@ -202,6 +202,7 @@ function writeConfigs(argv: any) {
                 "redis-url": argv.redisUrl,
                 "max-delay": "30s",
                 "l1-block-bound": "ignore",
+                "post-4844-blobs": false,
                 "parent-chain-wallet" : {
                     "account": namedAddress("sequencer"),
                     "password": consts.l1passphrase,
