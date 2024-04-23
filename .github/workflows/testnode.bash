@@ -5,7 +5,8 @@
 # Start the test node and get PID, to terminate it once send-l2 is done.
 cd ${GITHUB_WORKSPACE}
 
-./test-node.bash --init-force --detach
+# TODO once e2e-to-ci is merged into master, remove the NITRO_CONTRACTS_BRANCH env var
+NITRO_CONTRACTS_BRANCH=e2e-to-ci ./test-node.bash --init-force --detach
 
 START=$(date +%s)
 SUCCEDED=0
