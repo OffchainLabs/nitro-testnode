@@ -331,7 +331,7 @@ services:
     build:
       context: tokenbridge/
       args:
-        TOKEN_BRIDGE_BRANCH: ${TOKEN_BRIDGE_BRANCH:-main}
+        TOKEN_BRIDGE_BRANCH: ${TOKEN_BRIDGE_BRANCH:-}
     environment:
       - ARB_URL=http://sequencer:8547
       - ETH_URL=http://geth:8545
@@ -347,7 +347,7 @@ services:
     build:
       context: rollupcreator/
       args:
-        NITRO_CONTRACTS_BRANCH: ${NITRO_CONTRACTS_BRANCH:-main}
+        NITRO_CONTRACTS_BRANCH: ${NITRO_CONTRACTS_BRANCH:-}
     volumes:
       - "config:/config"
       - /var/run/docker.sock:/var/run/docker.sock

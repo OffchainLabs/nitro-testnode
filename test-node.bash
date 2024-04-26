@@ -5,6 +5,20 @@ set -e
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v2.3.3-6a1c1a7-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
 
+# This commit matches the v1.2.1 contracts, with additional fixes for rollup deployment script.
+# Once v1.2.2 is released, we can switch to that version.
+DEFAULT_NITRO_CONTRACTS_VERSION="2e8eeb9f28104465de0557851aa7607b037cafcf"
+DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.1"
+
+# Set default versions if not overriden by provided env vars
+: ${NITRO_CONTRACTS_BRANCH:=$DEFAULT_NITRO_CONTRACTS_VERSION}
+: ${TOKEN_BRIDGE_BRANCH:=$DEFAULT_TOKEN_BRIDGE_VERSION}
+export NITRO_CONTRACTS_BRANCH
+export TOKEN_BRIDGE_BRANCH
+
+echo "Using NITRO_CONTRACTS_BRANCH: $NITRO_CONTRACTS_BRANCH"
+echo "Using TOKEN_BRIDGE_BRANCH: $TOKEN_BRIDGE_BRANCH"
+
 mydir=`dirname $0`
 cd "$mydir"
 
