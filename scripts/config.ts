@@ -215,7 +215,7 @@ function writeConfigs(argv: any) {
                 }
             },
             "block-validator": {
-                "validation-server": {
+                "execution-server": {
                     "url": argv.validationNodeUrl,
                     "jwtsecret": valJwtSecret,
                 }
