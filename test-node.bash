@@ -300,7 +300,7 @@ else
 fi
 
 if $force_build; then
-    docker compose build --no-rm $NODES scripts
+    docker compose build --no-rm $NODES scripts rollupcreator
 fi
 
 if $force_init; then
@@ -366,6 +366,8 @@ if $force_init; then
     docker compose run -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
     docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
 
+
+
     if $simple; then
         echo == Writing configs
         docker compose run scripts write-config --simple
@@ -382,6 +384,8 @@ if $force_init; then
     docker compose up --wait $INITIAL_SEQ_NODES
     docker compose run scripts bridge-funds --ethamount 100000 --wait
     docker compose run scripts bridge-funds --ethamount 1000 --wait --from "key_0x$devprivkey"
+
+
 
     if $tokenbridge; then
         echo == Deploying L1-L2 token bridge
