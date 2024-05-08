@@ -257,6 +257,8 @@ if $blockscout; then
 fi
 if $force_build; then
   echo == Building..
+  echo == force_init=$force_init
+
   if $dev_build_nitro; then
     if ! [ -n "${NITRO_SRC+set}" ]; then
         NITRO_SRC=`dirname $PWD`
@@ -278,6 +280,7 @@ if $force_build; then
   if $tokenbridge || $l3_token_bridge; then
     LOCAL_BUILD_NODES="$LOCAL_BUILD_NODES tokenbridge"
   fi
+  echo == build
   docker compose build $LOCAL_BUILD_NODES
 
   echo == force_init=$force_init
