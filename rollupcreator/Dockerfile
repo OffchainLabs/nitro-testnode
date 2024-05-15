@@ -4,7 +4,7 @@ RUN apt-get update && \
     apt-get install -y git docker.io python3 build-essential curl jq
 WORKDIR /workspace  
 RUN git clone --no-checkout https://github.com/OffchainLabs/nitro-contracts.git ./
-RUN git checkout ${NITRO_CONTRACTS_BRANCH}
+RUN git fetch --all && git checkout ${NITRO_CONTRACTS_BRANCH} && git pull origin ${NITRO_CONTRACTS_BRANCH}
 RUN curl -L https://foundry.paradigm.xyz | bash
 ENV PATH="${PATH}:/root/.foundry/bin"
 RUN foundryup
