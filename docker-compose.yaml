@@ -320,8 +320,8 @@ services:
     image: nitro-node-dev-testnode
     ports:
       - "127.0.0.1:9652:9652"
-    entrypoint: bin/relay
-    command: --node.feed.output.port 9652 --node.feed.input.url ws://sequencer:9652
+    entrypoint: /usr/local/bin/relay
+    command: --chain.id 412346 --node.feed.input.url ws://sequencer:9642 --node.feed.output.port 9652
 
   tokenbridge:
     depends_on:
