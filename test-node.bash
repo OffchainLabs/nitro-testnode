@@ -330,20 +330,24 @@ if $force_init; then
       docker compose up --wait geth
     fi
 
-    echo == Funding validator, sequencer and l2owner
+    echo == Funding user on L1
+    docker compose run scripts send-l1 --ethamount 100 --to user_user --wait
+
+    echo == Funding validator, sequencer, l2owner and token bridge deployer
     docker compose run scripts send-l1 --ethamount 1000 --to validator --wait
     docker compose run scripts send-l1 --ethamount 1000 --to sequencer --wait
     docker compose run scripts send-l1 --ethamount 1000 --to l2owner --wait
+    docker compose run scripts send-l1 --ethamount 1000 --to user_token_bridge_deployer --wait
 
     echo == create l1 traffic
-    docker compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
-    docker compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 1000000 > /dev/null &
-
-    echo == Writing l2 chain config
-    docker compose run scripts write-l2-chain-config
+    docker compose run scripts send-l1 --ethamount 1000 --to user_l1traffic --wait
+    docker compose run scripts send-l1 --ethamount 0.0001 --from user_l1traffic --to user_l1traffic_b --wait --delay 500 --times 1000000 > /dev/null &
 
     sequenceraddress=`docker compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
     l2ownerAddress=`docker compose run scripts print-address --account l2owner | tail -n 1 | tr -d '\r\n'`
+
+    echo == Writing l2 chain config
+    docker compose run scripts write-l2-chain-config --l2owner $l2ownerAddress
 
     docker compose run --entrypoint /usr/local/bin/deploy sequencer --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $l2ownerAddress --l1DeployAccount $l2ownerAddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
     docker compose run --entrypoint sh sequencer -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
@@ -365,23 +369,26 @@ if $force_init; then
     docker compose run scripts bridge-funds --ethamount 100000 --wait
     docker compose run scripts bridge-funds --ethamount 1000 --wait --from "key_0x$devprivkey"
 
+    echo == Funding user on L2
+    docker compose run scripts send-l2 --ethamount 100 --to user_user --wait
+
     if $tokenbridge; then
         echo == Deploying L1-L2 token bridge
         sleep 10 # no idea why this sleep is needed but without it the deploy fails randomly
         rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
         l2ownerKey=`docker compose run scripts print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
-        docker compose run -e ROLLUP_OWNER_KEY=$l2ownerKey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_KEY=$devprivkey -e PARENT_RPC=http://geth:8545 -e CHILD_KEY=$devprivkey -e CHILD_RPC=http://sequencer:8547 tokenbridge deploy:local:token-bridge
+        l2_token_bridge_deployer_key=`docker compose run scripts print-private-key --account user_token_bridge_deployer | tail -n 1 | tr -d '\r\n'`
+        docker compose run -e ROLLUP_OWNER_KEY=$l2ownerKey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_KEY=$l2_token_bridge_deployer_key -e PARENT_RPC=http://geth:8545 -e CHILD_KEY=$l2_token_bridge_deployer_key -e CHILD_RPC=http://sequencer:8547 tokenbridge deploy:local:token-bridge
         docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json l1l2_network.json && cp network.json localNetwork.json"
         echo
     fi
 
     if $l3node; then
-        echo == Funding l3 users
+        echo == Funding l3 owner and sequencer
         docker compose run scripts send-l2 --ethamount 1000 --to l3owner --wait
         docker compose run scripts send-l2 --ethamount 1000 --to l3sequencer --wait
 
         echo == Funding l2 deployers
-        docker compose run scripts send-l1 --ethamount 100 --to user_token_bridge_deployer --wait
         docker compose run scripts send-l2 --ethamount 100 --to user_token_bridge_deployer --wait
 
         echo == Funding token deployer
@@ -389,11 +396,12 @@ if $force_init; then
         docker compose run scripts send-l2 --ethamount 100 --to user_fee_token_deployer --wait
 
         echo == create l2 traffic
-        docker compose run scripts send-l2 --ethamount 100 --to user_traffic_generator --wait
-        docker compose run scripts send-l2 --ethamount 0.0001 --from user_traffic_generator --to user_fee_token_deployer --wait --delay 500 --times 1000000 > /dev/null &
+        docker compose run scripts send-l2 --ethamount 100 --to user_l2traffic --wait
+        docker compose run scripts send-l2 --ethamount 0.0001 --from user_l2traffic --to user_l2traffic_b --wait --delay 500 --times 1000000 > /dev/null &
 
+        l3owneraddress=`docker compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
         echo == Writing l3 chain config
-        docker compose run scripts write-l3-chain-config
+        docker compose run scripts write-l3-chain-config --l3owner $l3owneraddress
 
         if $l3_custom_fee_token; then
             echo == Deploying custom fee token
@@ -402,7 +410,6 @@ if $force_init; then
         fi
 
         echo == Deploying L3
-        l3owneraddress=`docker compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
         l3ownerkey=`docker compose run scripts print-private-key --account l3owner | tail -n 1 | tr -d '\r\n'`
         l3sequenceraddress=`docker compose run scripts print-address --account l3sequencer | tail -n 1 | tr -d '\r\n'`
         docker compose run --entrypoint /usr/local/bin/deploy sequencer --l1conn ws://sequencer:8548 --l1keystore /home/user/l1keystore --sequencerAddress $l3sequenceraddress --ownerAddress $l3owneraddress --l1DeployAccount $l3owneraddress --l1deployment /config/l3deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=412346 --l2chainconfig /config/l3_chain_config.json --l2chainname orbit-dev-test --l2chaininfo /config/deployed_l3_chain_info.json --maxDataSize 104857 $EXTRA_L3_DEPLOY_FLAG
@@ -413,7 +420,7 @@ if $force_init; then
 
         if $l3_token_bridge; then
             echo == Deploying L2-L3 token bridge
-            deployer_key=`printf "%s" "user_token_bridge_deployer" | openssl dgst -sha256 | sed 's/^.*= //'`
+            l3_token_bridge_deployer_key=`docker compose run scripts print-private-key --account user_token_bridge_deployer | tail -n 1 | tr -d '\r\n'`
             rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_l3_chain_info.json | tail -n 1 | tr -d '\r\n'"`
             l2Weth=""
             if $tokenbridge; then
@@ -421,8 +428,12 @@ if $force_init; then
                 # we need to pull out the L2 WETH address and pass it as an override to the L2 L3 token bridge deployment
                 l2Weth=`docker compose run --entrypoint sh tokenbridge -c "cat l1l2_network.json" | jq -r '.l2Network.tokenBridge.l2Weth'`
             fi
-            docker compose run -e PARENT_WETH_OVERRIDE=$l2Weth -e ROLLUP_OWNER_KEY=$l3ownerkey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_RPC=http://sequencer:8547 -e PARENT_KEY=$deployer_key  -e CHILD_RPC=http://l3node:3347 -e CHILD_KEY=$deployer_key tokenbridge deploy:local:token-bridge
+            docker compose run -e PARENT_WETH_OVERRIDE=$l2Weth -e ROLLUP_OWNER_KEY=$l3ownerkey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_RPC=http://sequencer:8547 -e PARENT_KEY=$l3_token_bridge_deployer_key  -e CHILD_RPC=http://l3node:3347 -e CHILD_KEY=$l3_token_bridge_deployer_key tokenbridge deploy:local:token-bridge
             docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json l2l3_network.json"
+
+            # set L3 UpgradeExecutor, deployed by token bridge creator in previous step, to be the L3 chain owner. L3owner (EOA) and alias of L2 UpgradeExectuor have the executor role on the L3 UpgradeExecutor
+            tokenBridgeCreator=`docker compose run --entrypoint sh tokenbridge -c "cat l2l3_network.json" | jq -r '.l1TokenBridgeCreator'`
+            docker compose run scripts transfer-l3-chain-ownership --creator $tokenBridgeCreator
             echo
         fi
 
@@ -436,6 +447,8 @@ if $force_init; then
             docker compose run scripts bridge-to-l3 --ethamount 500 --wait --from "key_0x$devprivkey"
         fi
 
+        echo == Funding user on L3
+        docker compose run scripts send-l3 --ethamount 100 --to user_user --wait
     fi
 fi
 

@@ -18,6 +18,7 @@ import {
   sendL2Command,
   sendL3Command,
   sendRPCCommand,
+  transferL3ChainOwnershipCommand
 } from "./ethcommands";
 
 async function main() {
@@ -28,7 +29,8 @@ async function main() {
       l2url: { string: true, default: "ws://sequencer:8548" },
       l3url: { string: true, default: "ws://l3node:3348" },
       validationNodeUrl: { string: true, default: "ws://validation_node:8549" },
-      l2owner: { string: true, default: "0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E" },
+      l2owner: { string: true, default: "0x0000000000000000000000000000000000000000" },
+      l3owner: { string: true, default: "0x0000000000000000000000000000000000000000" },
     })
     .options(stressOptions)
     .command(bridgeFundsCommand)
@@ -39,6 +41,7 @@ async function main() {
     .command(sendL2Command)
     .command(sendL3Command)
     .command(sendRPCCommand)
+    .command(transferL3ChainOwnershipCommand)
     .command(writeConfigCommand)
     .command(writeGethGenesisCommand)
     .command(writeL2ChainConfigCommand)
