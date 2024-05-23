@@ -5,6 +5,7 @@
 # Start the test node and get PID, to terminate it once send-l2 is done.
 cd ${GITHUB_WORKSPACE}
 
+# TODO once develop is merged into nitro-contract's master, remove the NITRO_CONTRACTS_BRANCH env var
 ./test-node.bash --init-force --detach
 
 START=$(date +%s)
