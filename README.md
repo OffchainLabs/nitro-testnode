@@ -1,6 +1,6 @@
 # Nitro Testnode
 
-Nitro-testnode brings up a full environment for local nitro testing (with or without Stylus support) including a dev-mode geth L1, and multiple instances with different roles.
+Nitro-testnode brings up a full environment for local nitro testing (with Stylus support) including a dev-mode geth L1, and multiple instances with different roles.
 
 ### Requirements
 
@@ -10,8 +10,6 @@ Nitro-testnode brings up a full environment for local nitro testing (with or wit
 All must be installed in PATH.
 
 ## Using latest nitro release (recommended)
-
-### Without Stylus support
 
 Check out the release branch of the repository.
 
@@ -29,45 +27,15 @@ Initialize the node
 ```
 To see more options, use `--help`.
 
-### With Stylus support
-
-Check out the stylus branch of the repository.
-> Notice: stylus branch may be force-pushed at any time.
-
-```bash
-git clone -b stylus --recurse-submodules https://github.com/OffchainLabs/nitro-testnode.git
-cd nitro-testnode
-```
-
-Initialize the node
-
-```bash
-./test-node.bash --init
-```
-To see more options, use `--help`.
-
 ## Using current nitro code (local compilation)
 
-Check out the nitro or stylus repository. Use the test-node submodule of nitro repository.
+Check out the nitro repository. Use the test-node submodule of nitro repository.
 
 > Notice: testnode may not always be up-to-date with config options of current nitro node, and is not considered stable when operated in that way.
 
-### Without Stylus support
 ```bash
 git clone --recurse-submodules https://github.com/OffchainLabs/nitro.git
 cd nitro/nitro-testnode
-```
-
-Initialize the node in dev-mode (this will build the docker images from source)
-```bash
-./test-node.bash --init --dev
-```
-To see more options, use `--help`.
-
-### With Stylus support
-```bash
-git clone --recurse-submodules https://github.com/OffchainLabs/stylus.git
-cd stylus/nitro-testnode
 ```
 
 Initialize the node in dev-mode (this will build the docker images from source)
