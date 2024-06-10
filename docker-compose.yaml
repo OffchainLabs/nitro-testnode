@@ -317,7 +317,6 @@ services:
     volumes:
       - "config:/config"
     command: --conf.file /config/validation_node_config.json
-    entrypoint: /usr/local/bin/nitro-val
 
   scripts:
     build: scripts/
@@ -332,7 +331,6 @@ services:
     entrypoint: /usr/local/bin/nitro
     ports:
       - "127.0.0.1:9652:9652"
-    entrypoint: /usr/local/bin/relay
     command: --chain.id 412346 --node.feed.input.url ws://sequencer:9642 --node.feed.output.port 9652
 
   tokenbridge:
