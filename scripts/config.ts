@@ -211,7 +211,8 @@ function writeConfigs(argv: any) {
                     "redis-signer": {
                         "signing-key": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
                     },
-                    "wait-for-l1-finality": false
+                    "wait-for-l1-finality": false,
+                    "max-tip-cap-gwei" : 1,
                 }
             },
             "block-validator": {
