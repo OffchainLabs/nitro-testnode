@@ -354,11 +354,12 @@ if $force_init; then
     docker compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
     docker compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 1000000 > /dev/null &
 
+    l2ownerAddress=`docker compose run scripts print-address --account l2owner | tail -n 1 | tr -d '\r\n'`
+
     echo == Writing l2 chain config
-    docker compose run scripts write-l2-chain-config
+    docker compose run scripts --l2owner $l2ownerAddress  write-l2-chain-config
 
     sequenceraddress=`docker compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
-    l2ownerAddress=`docker compose run scripts print-address --account l2owner | tail -n 1 | tr -d '\r\n'`
     l2ownerKey=`docker compose run scripts print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
     wasmroot=`docker compose run --entrypoint sh sequencer -c "cat /home/user/target/machines/latest/module-root.txt"`
 
@@ -381,7 +382,7 @@ if $force_init; then
     echo == Funding l2 funnel and dev key
     docker compose up --wait $INITIAL_SEQ_NODES
     docker compose run scripts bridge-funds --ethamount 100000 --wait
-    docker compose run scripts bridge-funds --ethamount 1000 --wait --from "key_0x$devprivkey"
+    docker compose run scripts send-l2 --ethamount 100 --to l2owner --wait
 
     if $tokenbridge; then
         echo == Deploying L1-L2 token bridge
@@ -391,6 +392,10 @@ if $force_init; then
         docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json l1l2_network.json && cp network.json localNetwork.json"
         echo
     fi
+
+    echo == Deploy CacheManager on L2
+    docker compose run -e CHILD_CHAIN_RPC="http://sequencer:8547" -e CHAIN_OWNER_PRIVKEY=$l2ownerKey rollupcreator deploy-cachemanager-testnode
+
 
     if $l3node; then
         echo == Funding l3 users
