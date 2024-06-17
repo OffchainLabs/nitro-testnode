@@ -311,7 +311,7 @@ services:
   validation_node:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
-    entrypoint: /usr/local/bin/nitro
+    entrypoint: /usr/local/bin/nitro-val
     ports:
       - "127.0.0.1:8949:8549"
     volumes:
@@ -328,7 +328,7 @@ services:
   relay:
     pid: host
     image: nitro-node-dev-testnode
-    entrypoint: /usr/local/bin/nitro
+    entrypoint: /usr/local/bin/relay
     ports:
       - "127.0.0.1:9652:9652"
     command: --chain.id 412346 --node.feed.input.url ws://sequencer:9642 --node.feed.output.port 9652
