@@ -378,7 +378,7 @@ function writeL3ChainConfig(argv: any) {
             "AllowDebugPrecompiles": true,
             "DataAvailabilityCommittee": false,
             "InitialArbOSVersion": 30,
-            "InitialChainOwner": "0x0000000000000000000000000000000000000000",
+            "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
     }

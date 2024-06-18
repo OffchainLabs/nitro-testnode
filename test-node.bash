@@ -415,7 +415,9 @@ if $force_init; then
         docker compose run scripts send-l2 --ethamount 0.0001 --from user_traffic_generator --to user_fee_token_deployer --wait --delay 500 --times 1000000 > /dev/null &
 
         echo == Writing l3 chain config
-        docker compose run scripts write-l3-chain-config
+        l3owneraddress=`docker compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
+        echo l3owneraddress $l3owneraddress
+        docker compose run scripts --l2owner $l3owneraddress  write-l3-chain-config
 
         if $l3_custom_fee_token; then
             echo == Deploying custom fee token
@@ -425,7 +427,6 @@ if $force_init; then
         fi
 
         echo == Deploying L3
-        l3owneraddress=`docker compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
         l3ownerkey=`docker compose run scripts print-private-key --account l3owner | tail -n 1 | tr -d '\r\n'`
         l3sequenceraddress=`docker compose run scripts print-address --account l3sequencer | tail -n 1 | tr -d '\r\n'`
 
@@ -457,8 +458,12 @@ if $force_init; then
             docker compose run scripts send-l3 --ethamount 500 --from user_token_bridge_deployer --to "key_0x$devprivkey" --wait
         else
             docker compose run scripts bridge-to-l3 --ethamount 50000 --wait
-            docker compose run scripts bridge-to-l3 --ethamount 500 --wait --from "key_0x$devprivkey"
         fi
+        docker compose run scripts send-l3 --ethamount 100 --to l3owner --wait
+
+
+        echo == Deploy CacheManager on L3
+        docker compose run -e CHILD_CHAIN_RPC="http://l3node:3347" -e CHAIN_OWNER_PRIVKEY=$l3ownerkey rollupcreator deploy-cachemanager-testnode
 
     fi
 fi
