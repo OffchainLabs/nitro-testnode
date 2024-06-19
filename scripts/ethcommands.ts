@@ -82,7 +82,7 @@ async function bridgeNativeToken(argv: any, parentChainUrl: string, chainUrl: st
     const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
     while (true) {
       const balance = await bridger.getBalance()
-      if (balance.gte(depositAmount)) {
+      if (balance.gte(0)) {
         return
       }
       await sleep(100)

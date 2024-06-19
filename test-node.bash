@@ -463,9 +463,9 @@ if $force_init; then
 
         echo == Fund L3 accounts
         if $l3_custom_fee_token; then
-            docker compose run scripts bridge-native-token-to-l3 --amount 5000 --from user_token_bridge_deployer --wait
-            docker compose run scripts send-l3 --ethamount 5 --from user_token_bridge_deployer --wait
-            docker compose run scripts send-l3 --ethamount 5 --from user_token_bridge_deployer --to "key_0x$devprivkey" --wait
+            docker compose run scripts bridge-native-token-to-l3 --amount 5000 --from user_fee_token_deployer --wait
+            docker compose run scripts send-l3 --ethamount 5 --from user_fee_token_deployer --wait
+            docker compose run scripts send-l3 --ethamount 5 --from user_fee_token_deployer --to "key_0x$devprivkey" --wait
         else
             docker compose run scripts bridge-to-l3 --ethamount 50000 --wait
             docker compose run scripts bridge-to-l3 --ethamount 500 --wait --from "key_0x$devprivkey"
