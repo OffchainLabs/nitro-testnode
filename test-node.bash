@@ -49,6 +49,7 @@ dev_build_nitro=false
 dev_build_blockscout=false
 l3_custom_fee_token=false
 l3_token_bridge=false
+l3_custom_fee_token_decimals=18
 batchposters=1
 devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
@@ -146,6 +147,19 @@ while [[ $# -gt 0 ]]; do
             l3_custom_fee_token=true
             shift
             ;;
+        --l3-fee-token-decimals)
+            if ! $l3_custom_fee_token; then
+                echo "Error: --l3-fee-token-decimals requires --l3-fee-token to be provided."
+                exit 1
+            fi
+            l3_custom_fee_token_decimals=$2
+            if [[ $l3_custom_fee_token_decimals -lt 0 || $l3_custom_fee_token_decimals -gt 36 ]]; then
+                echo "l3-fee-token-decimals must be in range [0,36], value: $l3_custom_fee_token_decimals."
+                exit 1
+            fi
+            shift
+            shift
+            ;;
         --l3-token-bridge)
             if ! $l3node; then
                 echo "Error: --l3-token-bridge requires --l3node to be provided."
@@ -184,6 +198,7 @@ while [[ $# -gt 0 ]]; do
             echo --validate        heavy computation, validating all blocks in WASM
             echo --l3node          deploys an L3 node on top of the L2
             echo --l3-fee-token    L3 chain is set up to use custom fee token. Only valid if also '--l3node' is provided
+            echo --l3-fee-token-decimals Number of decimals to use for custom fee token. Only valid if also '--l3-fee-token' is provided
             echo --l3-token-bridge Deploy L2-L3 token bridge. Only valid if also '--l3node' is provided
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
@@ -421,8 +436,9 @@ if $force_init; then
 
         if $l3_custom_fee_token; then
             echo == Deploying custom fee token
-            nativeTokenAddress=`docker compose run scripts create-erc20 --deployer user_fee_token_deployer --mintTo user_token_bridge_deployer --bridgeable $tokenbridge | tail -n 1 | awk '{ print $NF }'`
-            docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 100 --from user_token_bridge_deployer --to l3owner
+            nativeTokenAddress=`docker compose run scripts create-erc20 --deployer user_fee_token_deployer --bridgeable $tokenbridge --decimals $l3_custom_fee_token_decimals | tail -n 1 | awk '{ print $NF }'`
+            docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 10000 --from user_fee_token_deployer --to l3owner
+            docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 10000 --from user_fee_token_deployer --to user_token_bridge_deployer
             EXTRA_L3_DEPLOY_FLAG="-e FEE_TOKEN_ADDRESS=$nativeTokenAddress"
         fi
 
@@ -453,9 +469,9 @@ if $force_init; then
 
         echo == Fund L3 accounts
         if $l3_custom_fee_token; then
-            docker compose run scripts bridge-native-token-to-l3 --amount 50000 --from user_token_bridge_deployer --wait
-            docker compose run scripts send-l3 --ethamount 500 --from user_token_bridge_deployer --wait
-            docker compose run scripts send-l3 --ethamount 500 --from user_token_bridge_deployer --to "key_0x$devprivkey" --wait
+            docker compose run scripts bridge-native-token-to-l3 --amount 5000 --from user_fee_token_deployer --wait
+            docker compose run scripts send-l3 --ethamount 5 --from user_fee_token_deployer --wait
+            docker compose run scripts send-l3 --ethamount 5 --from user_fee_token_deployer --to "key_0x$devprivkey" --wait
         else
             docker compose run scripts bridge-to-l3 --ethamount 50000 --wait
         fi
