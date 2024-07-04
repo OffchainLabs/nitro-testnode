@@ -5,9 +5,9 @@ set -e
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.0.1-cf4b74e-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
 
-# This commit matches the v1.2.1 contracts, with additional fixes for rollup deployment script.
+# This commit matches the v1.2.1 contracts, with additional support for CacheManger deployment.
 # Once v1.2.2 is released, we can switch to that version.
-DEFAULT_NITRO_CONTRACTS_VERSION="a00d2faac01e050339ff7b0ac5bc91df06e8dbff"
+DEFAULT_NITRO_CONTRACTS_VERSION="867663657b98a66b60ff244e46226e0cb368ab94"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.1"
 
 # Set default versions if not overriden by provided env vars
@@ -369,11 +369,12 @@ if $force_init; then
     docker compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
     docker compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 1000000 > /dev/null &
 
+    l2ownerAddress=`docker compose run scripts print-address --account l2owner | tail -n 1 | tr -d '\r\n'`
+
     echo == Writing l2 chain config
-    docker compose run scripts write-l2-chain-config
+    docker compose run scripts --l2owner $l2ownerAddress  write-l2-chain-config
 
     sequenceraddress=`docker compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
-    l2ownerAddress=`docker compose run scripts print-address --account l2owner | tail -n 1 | tr -d '\r\n'`
     l2ownerKey=`docker compose run scripts print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
     wasmroot=`docker compose run --entrypoint sh sequencer -c "cat /home/user/target/machines/latest/module-root.txt"`
 
@@ -396,7 +397,7 @@ if $force_init; then
     echo == Funding l2 funnel and dev key
     docker compose up --wait $INITIAL_SEQ_NODES
     docker compose run scripts bridge-funds --ethamount 100000 --wait
-    docker compose run scripts bridge-funds --ethamount 1000 --wait --from "key_0x$devprivkey"
+    docker compose run scripts send-l2 --ethamount 100 --to l2owner --wait
 
     if $tokenbridge; then
         echo == Deploying L1-L2 token bridge
@@ -406,6 +407,10 @@ if $force_init; then
         docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json l1l2_network.json && cp network.json localNetwork.json"
         echo
     fi
+
+    echo == Deploy CacheManager on L2
+    docker compose run -e CHILD_CHAIN_RPC="http://sequencer:8547" -e CHAIN_OWNER_PRIVKEY=$l2ownerKey rollupcreator deploy-cachemanager-testnode
+
 
     if $l3node; then
         echo == Funding l3 users
@@ -425,7 +430,9 @@ if $force_init; then
         docker compose run scripts send-l2 --ethamount 0.0001 --from user_traffic_generator --to user_fee_token_deployer --wait --delay 500 --times 1000000 > /dev/null &
 
         echo == Writing l3 chain config
-        docker compose run scripts write-l3-chain-config
+        l3owneraddress=`docker compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
+        echo l3owneraddress $l3owneraddress
+        docker compose run scripts --l2owner $l3owneraddress  write-l3-chain-config
 
         if $l3_custom_fee_token; then
             echo == Deploying custom fee token
@@ -436,7 +443,6 @@ if $force_init; then
         fi
 
         echo == Deploying L3
-        l3owneraddress=`docker compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
         l3ownerkey=`docker compose run scripts print-private-key --account l3owner | tail -n 1 | tr -d '\r\n'`
         l3sequenceraddress=`docker compose run scripts print-address --account l3sequencer | tail -n 1 | tr -d '\r\n'`
 
@@ -468,8 +474,11 @@ if $force_init; then
             docker compose run scripts send-l3 --ethamount 5 --from user_fee_token_deployer --to "key_0x$devprivkey" --wait
         else
             docker compose run scripts bridge-to-l3 --ethamount 50000 --wait
-            docker compose run scripts bridge-to-l3 --ethamount 500 --wait --from "key_0x$devprivkey"
         fi
+        docker compose run scripts send-l3 --ethamount 100 --to l3owner --wait
+
+        echo == Deploy CacheManager on L3
+        docker compose run -e CHILD_CHAIN_RPC="http://l3node:3347" -e CHAIN_OWNER_PRIVKEY=$l3ownerkey rollupcreator deploy-cachemanager-testnode
 
     fi
 fi
