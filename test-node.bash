@@ -470,12 +470,11 @@ if $force_init; then
         echo == Fund L3 accounts
         if $l3_custom_fee_token; then
             docker compose run scripts bridge-native-token-to-l3 --amount 5000 --from user_fee_token_deployer --wait
-            docker compose run scripts send-l3 --ethamount 5 --from user_fee_token_deployer --wait
-            docker compose run scripts send-l3 --ethamount 5 --from user_fee_token_deployer --to "key_0x$devprivkey" --wait
+            docker compose run scripts send-l3 --ethamount 100 --from user_fee_token_deployer --wait
         else
             docker compose run scripts bridge-to-l3 --ethamount 50000 --wait
         fi
-        docker compose run scripts send-l3 --ethamount 100 --to l3owner --wait
+        docker compose run scripts send-l3 --ethamount 10 --to l3owner --wait
 
         echo == Deploy CacheManager on L3
         docker compose run -e CHILD_CHAIN_RPC="http://l3node:3347" -e CHAIN_OWNER_PRIVKEY=$l3ownerkey rollupcreator deploy-cachemanager-testnode
