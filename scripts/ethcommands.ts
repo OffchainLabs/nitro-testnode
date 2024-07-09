@@ -58,6 +58,11 @@ async function bridgeNativeToken(argv: any, parentChainUrl: string, chainUrl: st
 
   argv.to = "address_" + inboxAddr;
 
+  // snapshot balance before deposit
+  const childProvider = new ethers.providers.WebSocketProvider(chainUrl);
+  const bridger = namedAccount(argv.from, argv.threadId).connect(childProvider)
+  const bridgerBalanceBefore = await bridger.getBalance()
+
   // get token contract
   const bridgerParentChain = namedAccount(argv.from, argv.threadId).connect(argv.provider)
   const nativeTokenContract = new ethers.Contract(token, ERC20.abi, bridgerParentChain)
@@ -77,12 +82,25 @@ async function bridgeNativeToken(argv: any, parentChainUrl: string, chainUrl: st
 
   argv.provider.destroy();
   if (argv.wait) {
-    const childProvider = new ethers.providers.WebSocketProvider(chainUrl);
-    const bridger = namedAccount(argv.from, argv.threadId).connect(childProvider)
     const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+    // calculate amount being minted on child chain
+    let expectedMintedAmount = depositAmount
+    if(decimals < 18) {
+      // inflate up to 18 decimals
+      expectedMintedAmount = depositAmount.mul(BigNumber.from('10').pow(18 - decimals))
+    } else if(decimals > 18) {
+      // deflate down to 18 decimals, rounding up
+      const quotient = BigNumber.from('10').pow(decimals - 18)
+      expectedMintedAmount = depositAmount.div(quotient)
+      if(expectedMintedAmount.mul(quotient).lt(depositAmount)) {
+        expectedMintedAmount = expectedMintedAmount.add(1)
+      }
+    }
+
     while (true) {
-      const balance = await bridger.getBalance()
-      if (balance.gte(0)) {
+      const bridgerBalanceAfter = await bridger.getBalance()
+      if (bridgerBalanceAfter.sub(bridgerBalanceBefore).eq(expectedMintedAmount)) {
         return
       }
       await sleep(100)
