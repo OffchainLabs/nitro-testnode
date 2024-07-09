@@ -5,8 +5,6 @@ set -e
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.0.1-cf4b74e-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
 
-# This commit matches the v1.2.1 contracts, with additional support for CacheManger deployment.
-# Once v1.2.2 is released, we can switch to that version.
 DEFAULT_NITRO_CONTRACTS_VERSION="v2.0.0-beta.1"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
