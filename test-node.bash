@@ -5,10 +5,8 @@ set -e
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.0.1-cf4b74e-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
 
-# This commit matches the v1.2.1 contracts, with additional support for CacheManger deployment.
-# Once v1.2.2 is released, we can switch to that version.
-DEFAULT_NITRO_CONTRACTS_VERSION="867663657b98a66b60ff244e46226e0cb368ab94"
-DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.1"
+DEFAULT_NITRO_CONTRACTS_VERSION="v2.0.0-beta.1"
+DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
 # Set default versions if not overriden by provided env vars
 : ${NITRO_CONTRACTS_BRANCH:=$DEFAULT_NITRO_CONTRACTS_VERSION}
@@ -470,12 +468,11 @@ if $force_init; then
         echo == Fund L3 accounts
         if $l3_custom_fee_token; then
             docker compose run scripts bridge-native-token-to-l3 --amount 5000 --from user_fee_token_deployer --wait
-            docker compose run scripts send-l3 --ethamount 5 --from user_fee_token_deployer --wait
-            docker compose run scripts send-l3 --ethamount 5 --from user_fee_token_deployer --to "key_0x$devprivkey" --wait
+            docker compose run scripts send-l3 --ethamount 100 --from user_fee_token_deployer --wait
         else
             docker compose run scripts bridge-to-l3 --ethamount 50000 --wait
         fi
-        docker compose run scripts send-l3 --ethamount 100 --to l3owner --wait
+        docker compose run scripts send-l3 --ethamount 10 --to l3owner --wait
 
         echo == Deploy CacheManager on L3
         docker compose run -e CHILD_CHAIN_RPC="http://l3node:3347" -e CHAIN_OWNER_PRIVKEY=$l3ownerkey rollupcreator deploy-cachemanager-testnode
