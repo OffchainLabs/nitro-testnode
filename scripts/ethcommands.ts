@@ -279,8 +279,10 @@ export const createERC20Command = {
       const l1GatewayRouter = new ethers.Contract(l1l2tokenbridge.l2Network.tokenBridge.l1GatewayRouter, L1GatewayRouter.abi, deployerWallet);
       await (await token.functions.approve(l1l2tokenbridge.l2Network.tokenBridge.l1ERC20Gateway, ethers.constants.MaxUint256)).wait();
       const supply = await token.totalSupply();
+      // transfer 90% of supply to l2
+      const transferAmount = supply.mul(9).div(10);
       await (await l1GatewayRouter.functions.outboundTransfer(
-        token.address, deployerWallet.address, supply, 100000000, 1000000000, "0x000000000000000000000000000000000000000000000000000fffffffffff0000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000", {
+        token.address, deployerWallet.address, transferAmount, 100000000, 1000000000, "0x000000000000000000000000000000000000000000000000000fffffffffff0000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000", {
           value: ethers.utils.parseEther("1"),
         }
       )).wait();
