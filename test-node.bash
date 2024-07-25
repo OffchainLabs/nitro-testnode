@@ -291,7 +291,7 @@ if $force_build; then
   if $tokenbridge || $l3_token_bridge; then
     LOCAL_BUILD_NODES="$LOCAL_BUILD_NODES tokenbridge"
   fi
-  docker compose build --no-rm $LOCAL_BUILD_NODES
+  docker compose build $LOCAL_BUILD_NODES
 fi
 
 if $dev_build_nitro; then
@@ -313,7 +313,7 @@ else
 fi
 
 if $force_build; then
-    docker compose build --no-rm $NODES scripts
+    docker compose build $NODES scripts
 fi
 
 if $force_init; then
