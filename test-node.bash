@@ -5,7 +5,7 @@ set -e
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.0.1-cf4b74e-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
 
-DEFAULT_NITRO_CONTRACTS_VERSION="v2.0.0-beta.1"
+DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.0"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
 # Set default versions if not overriden by provided env vars
