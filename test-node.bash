@@ -329,6 +329,29 @@ if $force_init; then
         docker volume rm $leftoverVolumes
     fi
 
+            echo "Creating Docker volumes if they don't exist..."
+    volumes=(
+        "l1data"
+        "consensus"
+        "l1keystore"
+        "seqdata"
+        "seqdata_b"
+        "seqdata_c"
+        "seqdata_d"
+        "unsafestaker-data"
+        "validator-data"
+        "poster-data"
+        "poster-data-b"
+        "poster-data-c"
+        "config"
+        "postgres-data"
+        "tokenbridge-data"
+    )
+    for volume in "${volumes[@]}"; do
+        docker volume create $volume
+    done
+
+
     echo == Generating l1 keys
     docker compose run scripts write-accounts
     docker compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"

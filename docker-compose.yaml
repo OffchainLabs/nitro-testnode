@@ -363,17 +363,32 @@ services:
 
 volumes:
   l1data:
+    external: true
   consensus:
+    external: true
   l1keystore:
+    external: true
   seqdata:
+    external: true
   seqdata_b:
+    external: true
   seqdata_c:
+    external: true
   seqdata_d:
+    external: true
   unsafestaker-data:
+    external: true
   validator-data:
+    external: true
   poster-data:
+    external: true
   poster-data-b:
+    external: true
   poster-data-c:
+    external: true
   config:
+    external: true
   postgres-data:
+    external: true
   tokenbridge-data:
+    external: true
