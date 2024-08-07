@@ -38,6 +38,7 @@ fi
 
 run=true
 force_build=false
+skip_build=false
 validate=false
 detach=false
 blockscout=false
@@ -91,8 +92,19 @@ while [[ $# -gt 0 ]]; do
             fi
             ;;
         --build)
-            force_build=true
             shift
+            if [[ $# -eq 0 || $1 == -* ]]; then
+                # If no argument after --build, set flag to true
+                force_build=true
+            else
+                while [[ $# -gt 0 && $1 != -* ]]; do
+                    if [[ $1 == "false" ]]; then
+                        force_build=false
+                        skip_build=true
+                    fi
+                    shift
+                done
+            fi
             ;;
         --validate)
             simple=false
@@ -177,7 +189,7 @@ while [[ $# -gt 0 ]]; do
             echo        $0 script [SCRIPT-ARGS]
             echo
             echo OPTIONS:
-            echo --build           rebuild docker images
+            echo --build           rebuild docker images. --build false disables rebuild
             echo --dev             build nitro and blockscout dockers from source instead of pulling them. Disables simple mode
             echo --init            remove all data, rebuild, deploy new rollup
             echo --pos             l1 is a proof-of-stake chain \(using prysm for consensus\)
@@ -200,17 +212,17 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if $force_init; then
+if ! $skip_build && $force_init; then
   force_build=true
 fi
 
-if $dev_build_nitro; then
+if ! $skip_build && $dev_build_nitro; then
   if [[ "$(docker images -q nitro-node-dev:latest 2> /dev/null)" == "" ]]; then
     force_build=true
   fi
 fi
 
-if $dev_build_blockscout; then
+if ! $skip_build && $dev_build_blockscout; then
   if [[ "$(docker images -q blockscout:latest 2> /dev/null)" == "" ]]; then
     force_build=true
   fi
