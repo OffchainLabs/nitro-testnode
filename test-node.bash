@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -eu
 
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.0.1-cf4b74e-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
@@ -37,7 +37,6 @@ else
 fi
 
 run=true
-force_build=false
 skip_build=false
 validate=false
 detach=false
@@ -46,14 +45,23 @@ tokenbridge=false
 l3node=false
 consensusclient=false
 redundantsequencers=0
-dev_build_nitro=false
-dev_build_blockscout=false
 l3_custom_fee_token=false
 l3_token_bridge=false
 batchposters=1
 devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
 simple=true
+
+# Use the dev versions of nitro/blockscout
+dev_nitro=false
+dev_blockscout=false
+
+# Rebuild docker images
+build_dev_nitro=false
+build_dev_blockscout=false
+build_contracts=false
+build_node_images=false
+
 while [[ $# -gt 0 ]]; do
     case $1 in
         --init)
@@ -78,33 +86,60 @@ while [[ $# -gt 0 ]]; do
             shift
             if [[ $# -eq 0 || $1 == -* ]]; then
                 # If no argument after --dev, set both flags to true
-                dev_build_nitro=true
-                dev_build_blockscout=true
+                dev_nitro=true
+                build_dev_nitro=true
+                dev_blockscout=true
+                build_dev_blockscout=true
             else
                 while [[ $# -gt 0 && $1 != -* ]]; do
                     if [[ $1 == "nitro" ]]; then
-                        dev_build_nitro=true
+                        dev_nitro=true
+                        build_dev_nitro=true
                     elif [[ $1 == "blockscout" ]]; then
-                        dev_build_blockscout=true
+                        dev_blockscout=true
+                        build_dev_blockscout=true
                     fi
                     shift
                 done
             fi
             ;;
         --build)
+            build_dev_nitro=true
+            build_dev_blockscout=true
+            build_contracts=true
+            build_node_images=true
             shift
-            if [[ $# -eq 0 || $1 == -* ]]; then
-                # If no argument after --build, set flag to true
-                force_build=true
-            else
-                while [[ $# -gt 0 && $1 != -* ]]; do
-                    if [[ $1 == "false" ]]; then
-                        force_build=false
-                        skip_build=true
-                    fi
-                    shift
-                done
-            fi
+            ;;
+        --no-build)
+            build_dev_nitro=false
+            build_dev_blockscout=false
+            build_contracts=false
+            build_node_images=false
+            shift
+            ;;
+        --build-dev-nitro)
+            build_dev_nitro=true
+            shift
+            ;;
+        --no-build-dev-nitro)
+            build_dev_nitro=false
+            shift
+            ;;
+        --build-dev-blockscout)
+            build_dev_blockscout=true
+            shift
+            ;;
+        --no-build-dev-blockscout)
+            build_dev_blockscout=false
+            shift
+            ;;
+        --build-contracts)
+            build_contracts=true
+            shift
+            ;;
+        --no-build-contracts)
+            build_contracts=false
+            shift
             ;;
         --validate)
             simple=false
@@ -189,7 +224,8 @@ while [[ $# -gt 0 ]]; do
             echo        $0 script [SCRIPT-ARGS]
             echo
             echo OPTIONS:
-            echo --build           rebuild docker images. --build false disables rebuild
+            echo --build           rebuild docker images
+            echo --no-build        don\'t rebuild docker images
             echo --dev             build nitro and blockscout dockers from source instead of pulling them. Disables simple mode
             echo --init            remove all data, rebuild, deploy new rollup
             echo --pos             l1 is a proof-of-stake chain \(using prysm for consensus\)
@@ -206,27 +242,17 @@ while [[ $# -gt 0 ]]; do
             echo --no-tokenbridge  don\'t build or launch tokenbridge
             echo --no-run          does not launch nodes \(useful with build or init\)
             echo --no-simple       run a full configuration with separate sequencer/batch-poster/validator/relayer
+            echo --build-dev-nitro     rebuild dev nitro docker image
+            echo --no-build-dev-nitro  don\'t rebuild dev nitro docker image
+            echo --build-dev-blockscout     rebuild dev blockscout docker image
+            echo --no-build-dev-blockscout  don\'t rebuild dev blockscout docker image
+            echo --build-contracts      rebuild contracts related docker images
+            echo --no-build-contracts   rebuild contracts related docker images
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
             exit 0
     esac
 done
-
-if ! $skip_build && $force_init; then
-  force_build=true
-fi
-
-if ! $skip_build && $dev_build_nitro; then
-  if [[ "$(docker images -q nitro-node-dev:latest 2> /dev/null)" == "" ]]; then
-    force_build=true
-  fi
-fi
-
-if ! $skip_build && $dev_build_blockscout; then
-  if [[ "$(docker images -q blockscout:latest 2> /dev/null)" == "" ]]; then
-    force_build=true
-  fi
-fi
 
 NODES="sequencer"
 INITIAL_SEQ_NODES="sequencer"
@@ -267,25 +293,28 @@ fi
 if $blockscout; then
     NODES="$NODES blockscout"
 fi
-if $force_build; then
-  echo == Building..
-  if $dev_build_nitro; then
-    if ! [ -n "${NITRO_SRC+set}" ]; then
-        NITRO_SRC=`dirname $PWD`
-    fi
-    if ! grep ^FROM "${NITRO_SRC}/Dockerfile" | grep nitro-node 2>&1 > /dev/null; then
-        echo nitro source not found in "$NITRO_SRC"
-        echo execute from a sub-directory of nitro or use NITRO_SRC environment variable
-        exit 1
-    fi
-    docker build "$NITRO_SRC" -t nitro-node-dev --target nitro-node-dev
-  fi
-  if $dev_build_blockscout; then
-    if $blockscout; then
-      docker build blockscout -t blockscout -f blockscout/docker/Dockerfile
-    fi
-  fi
 
+
+if $dev_nitro && $build_dev_nitro; then
+  echo == Building Nitro
+  if ! [ -n "${NITRO_SRC+set}" ]; then
+      NITRO_SRC=`dirname $PWD`
+  fi
+  if ! grep ^FROM "${NITRO_SRC}/Dockerfile" | grep nitro-node 2>&1 > /dev/null; then
+      echo nitro source not found in "$NITRO_SRC"
+      echo execute from a sub-directory of nitro or use NITRO_SRC environment variable
+      exit 1
+  fi
+  docker build "$NITRO_SRC" -t nitro-node-dev --target nitro-node-dev
+fi
+if $dev_blockscout && $build_dev_blockscout; then
+  if $blockscout; then
+    echo == Building Blockscout
+    docker build blockscout -t blockscout -f blockscout/docker/Dockerfile
+  fi
+fi
+
+if $build_contracts; then
   LOCAL_BUILD_NODES="scripts rollupcreator"
   if $tokenbridge || $l3_token_bridge; then
     LOCAL_BUILD_NODES="$LOCAL_BUILD_NODES tokenbridge"
@@ -293,25 +322,23 @@ if $force_build; then
   docker compose build --no-rm $LOCAL_BUILD_NODES
 fi
 
-if $dev_build_nitro; then
+if $dev_nitro; then
   docker tag nitro-node-dev:latest nitro-node-dev-testnode
 else
   docker pull $NITRO_NODE_VERSION
   docker tag $NITRO_NODE_VERSION nitro-node-dev-testnode
 fi
 
-if $dev_build_blockscout; then
-  if $blockscout; then
+if $blockscout; then
+  if $dev_blockscout; then
     docker tag blockscout:latest blockscout-testnode
-  fi
-else
-  if $blockscout; then
+  else
     docker pull $BLOCKSCOUT_VERSION
     docker tag $BLOCKSCOUT_VERSION blockscout-testnode
   fi
 fi
 
-if $force_build; then
+if $build_node_images; then
     docker compose build --no-rm $NODES scripts
 fi
 
