@@ -3,8 +3,10 @@ import { BigNumber, ContractFactory, ethers, Wallet } from "ethers";
 import * as consts from "./consts";
 import { namedAccount, namedAddress } from "./accounts";
 import * as L1GatewayRouter from "@arbitrum/token-bridge-contracts/build/contracts/contracts/tokenbridge/ethereum/gateway/L1GatewayRouter.sol/L1GatewayRouter.json";
+import * as L1AtomicTokenBridgeCreator from "@arbitrum/token-bridge-contracts/build/contracts/contracts/tokenbridge/ethereum/L1AtomicTokenBridgeCreator.sol/L1AtomicTokenBridgeCreator.json";
 import * as ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
 import * as fs from "fs";
+import { ARB_OWNER } from "./consts";
 const path = require("path");
 
 async function sendTransaction(argv: any, threadId: number) {
@@ -233,6 +235,56 @@ export const bridgeNativeTokenToL3Command = {
     argv.ethamount = "0"
     await bridgeNativeToken(argv, argv.l2url, argv.l3url, inboxAddr, nativeTokenAddr)
   },
+};
+
+export const transferL3ChainOwnershipCommand = {
+  command: "transfer-l3-chain-ownership",
+  describe: "transfer L3 chain ownership to upgrade executor",
+  builder: {
+    creator: {
+      string: true,
+      describe: "address of the token bridge creator",
+    },
+    wait: {
+      boolean: true,
+      describe: "wait till ownership is transferred",
+      default: false,
+    },
+  },
+  handler: async (argv: any) => {
+    // get inbox address from config file
+    const deploydata = JSON.parse(
+      fs
+        .readFileSync(path.join(consts.configpath, "l3deployment.json"))
+        .toString()
+    );
+    const inboxAddr = ethers.utils.hexlify(deploydata.inbox);
+
+    // get L3 upgrade executor address from token bridge creator
+    const l2provider = new ethers.providers.WebSocketProvider(argv.l2url);
+    const tokenBridgeCreator = new ethers.Contract(argv.creator, L1AtomicTokenBridgeCreator.abi, l2provider);
+    const [,,,,,,,l3UpgradeExecutorAddress,] = await tokenBridgeCreator.inboxToL2Deployment(inboxAddr);
+
+    // set TX params
+    argv.provider = new ethers.providers.WebSocketProvider(argv.l3url);
+    argv.to = "address_" + ARB_OWNER;
+    argv.from = "l3owner";
+    argv.ethamount = "0";
+
+    // add L3 UpgradeExecutor to chain owners
+    const arbOwnerIface = new ethers.utils.Interface([
+      "function addChainOwner(address newOwner) external",
+      "function removeChainOwner(address ownerToRemove) external"
+    ])
+    argv.data = arbOwnerIface.encodeFunctionData("addChainOwner", [l3UpgradeExecutorAddress]);
+    await runStress(argv, sendTransaction);
+
+    // remove L3 owner from chain owners
+    argv.data = arbOwnerIface.encodeFunctionData("removeChainOwner", [namedAccount("l3owner").address]);
+    await runStress(argv, sendTransaction);
+
+    argv.provider.destroy();
+  }
 };
 
 export const createERC20Command = {

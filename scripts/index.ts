@@ -19,6 +19,7 @@ import {
   sendL2Command,
   sendL3Command,
   sendRPCCommand,
+  transferL3ChainOwnershipCommand,
 } from "./ethcommands";
 
 async function main() {
@@ -41,6 +42,7 @@ async function main() {
     .command(sendL2Command)
     .command(sendL3Command)
     .command(sendRPCCommand)
+    .command(transferL3ChainOwnershipCommand)
     .command(writeConfigCommand)
     .command(writeGethGenesisCommand)
     .command(writeL2ChainConfigCommand)
