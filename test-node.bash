@@ -69,6 +69,8 @@ while [[ $# -gt 0 ]]; do
                 read -p "are you sure? [y/n]" -n 1 response
                 if [[ $response == "y" ]] || [[ $response == "Y" ]]; then
                     force_init=true
+                    build_contracts=true
+                    build_node_images=true
                     echo
                 else
                     exit 0
@@ -78,6 +80,8 @@ while [[ $# -gt 0 ]]; do
             ;;
         --init-force)
             force_init=true
+            build_contracts=true
+            build_node_images=true
             shift
             ;;
         --dev)
