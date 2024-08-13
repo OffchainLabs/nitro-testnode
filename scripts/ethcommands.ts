@@ -279,6 +279,25 @@ export const createERC20Command = {
   },
 };
 
+// Will revert if the keyset is already valid.
+async function setValidKeyset(argv: any, upgradeExecutorAddr: string, sequencerInboxAddr: string, keyset: string){
+    const innerIface = new ethers.utils.Interface(["function setValidKeyset(bytes)"])
+    const innerData = innerIface.encodeFunctionData("setValidKeyset", [keyset]);
+
+    // The Executor contract is the owner of the SequencerInbox so calls must be made
+    // through it.
+    const outerIface = new ethers.utils.Interface(["function executeCall(address,bytes)"])
+    argv.data = outerIface.encodeFunctionData("executeCall", [sequencerInboxAddr, innerData]);
+
+    argv.from = "l2owner";
+    argv.to = "address_" + upgradeExecutorAddr
+    argv.ethamount = "0"
+
+    await runStress(argv, sendTransaction);
+
+    argv.provider.destroy();
+}
+
 export const transferERC20Command = {
   command: "transfer-erc20",
   describe: "transfers ERC20 token",
@@ -429,5 +448,26 @@ export const sendRPCCommand = {
         const rpcProvider = new ethers.providers.JsonRpcProvider(argv.url)
 
         await rpcProvider.send(argv.method, argv.params)
+    }
+}
+
+export const setValidKeysetCommand = {
+    command: "set-valid-keyset",
+    describe: "sets the anytrust keyset",
+    handler: async (argv: any) => {
+        argv.provider = new ethers.providers.WebSocketProvider(argv.l1url);
+        const deploydata = JSON.parse(
+            fs
+                .readFileSync(path.join(consts.configpath, "deployment.json"))
+                .toString()
+        );
+        const sequencerInboxAddr = ethers.utils.hexlify(deploydata["sequencer-inbox"]);
+        const upgradeExecutorAddr = ethers.utils.hexlify(deploydata["upgrade-executor"]);
+
+        const keyset = fs
+            .readFileSync(path.join(consts.configpath, "l2_das_keyset.hex"))
+            .toString()
+
+        await setValidKeyset(argv, upgradeExecutorAddr, sequencerInboxAddr, keyset)
     }
 }
