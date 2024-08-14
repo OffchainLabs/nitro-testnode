@@ -58,7 +58,8 @@ dev_blockscout=false
 # Rebuild docker images
 build_dev_nitro=false
 build_dev_blockscout=false
-build_contracts=false
+build_utils=false
+force_build_utils=false
 build_node_images=false
 
 while [[ $# -gt 0 ]]; do
@@ -69,7 +70,7 @@ while [[ $# -gt 0 ]]; do
                 read -p "are you sure? [y/n]" -n 1 response
                 if [[ $response == "y" ]] || [[ $response == "Y" ]]; then
                     force_init=true
-                    build_contracts=true
+                    build_utils=true
                     build_node_images=true
                     echo
                 else
@@ -80,7 +81,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --init-force)
             force_init=true
-            build_contracts=true
+            build_utils=true
             build_node_images=true
             shift
             ;;
@@ -109,14 +110,14 @@ while [[ $# -gt 0 ]]; do
         --build)
             build_dev_nitro=true
             build_dev_blockscout=true
-            build_contracts=true
+            build_utils=true
             build_node_images=true
             shift
             ;;
         --no-build)
             build_dev_nitro=false
             build_dev_blockscout=false
-            build_contracts=false
+            build_utils=false
             build_node_images=false
             shift
             ;;
@@ -136,12 +137,16 @@ while [[ $# -gt 0 ]]; do
             build_dev_blockscout=false
             shift
             ;;
-        --build-contracts)
-            build_contracts=true
+        --build-utils)
+            build_utils=true
             shift
             ;;
-        --no-build-contracts)
-            build_contracts=false
+        --no-build-utils)
+            build_utils=false
+            shift
+            ;;
+        --force-build-utils)
+            force_build_utils=true
             shift
             ;;
         --validate)
@@ -249,8 +254,9 @@ while [[ $# -gt 0 ]]; do
             echo --no-build-dev-nitro  don\'t rebuild dev nitro docker image
             echo --build-dev-blockscout     rebuild dev blockscout docker image
             echo --no-build-dev-blockscout  don\'t rebuild dev blockscout docker image
-            echo --build-contracts      rebuild contracts related docker images
-            echo --no-build-contracts   rebuild contracts related docker images
+            echo --build-utils         rebuild scripts, rollupcreator, token bridge docker images
+            echo --no-build-utils      don\'t rebuild scripts, rollupcreator, token bridge docker images
+            echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_ or TOKEN_BRIDGE_BRANCH changes
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
             exit 0
@@ -317,12 +323,16 @@ if $dev_blockscout && $build_dev_blockscout; then
   fi
 fi
 
-if $build_contracts; then
+if $build_utils; then
   LOCAL_BUILD_NODES="scripts rollupcreator"
   if $tokenbridge || $l3_token_bridge; then
     LOCAL_BUILD_NODES="$LOCAL_BUILD_NODES tokenbridge"
   fi
-  docker compose build --no-rm $LOCAL_BUILD_NODES
+  UTILS_NOCACHE=""
+  if $force_build_utils; then
+      UTILS_NOCACHE="--no-cache"
+  fi
+  docker compose build --no-rm $UTILS_NOCACHE $LOCAL_BUILD_NODES
 fi
 
 if $dev_nitro; then
