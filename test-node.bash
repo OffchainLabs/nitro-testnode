@@ -339,8 +339,8 @@ if $force_init; then
       echo == Writing configs
       docker compose run scripts write-geth-genesis-config
 
-      echo == Writing configs
-      docker compose run scripts write-prysm-config
+#      echo == Writing configs
+#      docker compose run scripts write-prysm-config
 
       echo == Initializing go-ethereum genesis configuration
       docker compose run geth init --datadir /datadir/ /config/geth_genesis.json
@@ -349,7 +349,7 @@ if $force_init; then
       docker compose up --wait geth
 
       echo == Creating prysm genesis
-      docker compose up create_beacon_chain_genesis
+      docker compose run create_beacon_chain_genesis
 
       echo == Running prysm
       docker compose up --wait prysm_beacon_chain
