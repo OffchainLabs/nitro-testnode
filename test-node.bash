@@ -119,6 +119,9 @@ while [[ $# -gt 0 ]]; do
             shift
             shift
             ;;
+        --no-simple)
+            # newer testnode actions default to no-simple, this supress the error
+            ;;
         *)
             echo Usage: $0 \[OPTIONS..]
             echo        $0 script [SCRIPT-ARGS]
