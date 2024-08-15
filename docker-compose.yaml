@@ -94,6 +94,7 @@ services:
       - --num-validators=64
       - --output-ssz=/consensus/genesis.ssz
       - --config-name=interop
+      - --chain-config-file=/config/prysm.yaml
     volumes:
       - "consensus:/consensus"
       - "config:/config"
@@ -111,6 +112,7 @@ services:
       - --genesis-state=/consensus/genesis.ssz
       - --interop-eth1data-votes
       - --bootstrap-node=
+      - --chain-config-file=/config/prysm.yaml
       - --rpc-host=0.0.0.0
       - --grpc-gateway-host=0.0.0.0
       - --chain-id=32382
@@ -137,6 +139,7 @@ services:
       - --accept-terms-of-use
       - --interop-num-validators=64
       - --interop-start-index=0
+      - --chain-config-file=/config/prysm.yaml
     depends_on:
       prysm_beacon_chain:
         condition: service_started
