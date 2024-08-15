@@ -8,16 +8,9 @@ BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
 mydir=`dirname $0`
 cd "$mydir"
 
-if ! which docker-compose > /dev/null; then
-    echo == Error! docker-compose not installed
-    echo please install docker-compose and have it in PATH
-    echo see https://docs.docker.com/compose/install/
-    exit 1
-fi
-
 if [[ $# -gt 0 ]] && [[ $1 == "script" ]]; then
     shift
-    docker-compose run scripts "$@"
+    docker compose run scripts "$@"
     exit $?
 fi
 
@@ -222,7 +215,7 @@ if $force_build; then
   if $tokenbridge; then
     LOCAL_BUILD_NODES="$LOCAL_BUILD_NODES tokenbridge"
   fi
-  docker-compose build --no-rm $LOCAL_BUILD_NODES
+  docker compose build --no-rm $LOCAL_BUILD_NODES
 fi
 
 if $dev_build_nitro; then
@@ -244,12 +237,12 @@ else
 fi
 
 if $force_build; then
-    docker-compose build --no-rm $NODES scripts
+    docker compose build --no-rm $NODES scripts
 fi
 
 if $force_init; then
     echo == Removing old data..
-    docker-compose down
+    docker compose down
     leftoverContainers=`docker container ls -a --filter label=com.docker.compose.project=nitro-testnode -q | xargs echo`
     if [ `echo $leftoverContainers | wc -w` -gt 0 ]; then
         docker rm $leftoverContainers
@@ -261,93 +254,93 @@ if $force_init; then
     fi
 
     echo == Generating l1 keys
-    docker-compose run scripts write-accounts
-    docker-compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
-    docker-compose run --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
-    docker-compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
+    docker compose run scripts write-accounts
+    docker compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
+    docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
+    docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
 
     if $consensusclient; then
       echo == Writing configs
-      docker-compose run scripts write-geth-genesis-config
+      docker compose run scripts write-geth-genesis-config
 
       echo == Writing configs
-      docker-compose run scripts write-prysm-config
+      docker compose run scripts write-prysm-config
 
       echo == Creating prysm genesis
-      docker-compose up create_beacon_chain_genesis
+      docker compose up create_beacon_chain_genesis
 
       echo == Initializing go-ethereum genesis configuration
-      docker-compose run geth init --datadir /datadir/ /config/geth_genesis.json
+      docker compose run geth init --datadir /datadir/ /config/geth_genesis.json
 
       echo == Running prysm
-      docker-compose up -d prysm_beacon_chain
+      docker compose up -d prysm_beacon_chain
 
       echo == Starting geth
-      docker-compose up -d geth
+      docker compose up -d geth
 
       echo == Running validator
-      docker-compose up -d prysm_validator
+      docker compose up -d prysm_validator
     else
-      docker-compose up -d geth
+      docker compose up -d geth
     fi
 
     echo == Funding validator and sequencer
-    docker-compose run scripts send-l1 --ethamount 1000 --to validator --wait
-    docker-compose run scripts send-l1 --ethamount 1000 --to sequencer --wait
+    docker compose run scripts send-l1 --ethamount 1000 --to validator --wait
+    docker compose run scripts send-l1 --ethamount 1000 --to sequencer --wait
 
     echo == create l1 traffic
-    docker-compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
-    docker-compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 500 > /dev/null &
+    docker compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
+    docker compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 500 > /dev/null &
 
     echo == Writing l2 chain config
-    docker-compose run scripts write-l2-chain-config
+    docker compose run scripts write-l2-chain-config
 
     echo == Deploying L2
-    sequenceraddress=`docker-compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
+    sequenceraddress=`docker compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
 
-    docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
-    docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
+    docker compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://geth:8546 --l1keystore /home/user/l1keystore --sequencerAddress $sequenceraddress --ownerAddress $sequenceraddress --l1DeployAccount $sequenceraddress --l1deployment /config/deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=$l1chainid --l2chainconfig /config/l2_chain_config.json --l2chainname arb-dev-test --l2chaininfo /config/deployed_chain_info.json
+    docker compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
     echo == Writing configs
-    docker-compose run scripts write-config
+    docker compose run scripts write-config
 
     echo == Initializing redis
-    docker-compose run scripts redis-init --redundancy $redundantsequencers
+    docker compose run scripts redis-init --redundancy $redundantsequencers
 
     echo == Funding l2 funnel
-    docker-compose up -d $INITIAL_SEQ_NODES
-    docker-compose run scripts bridge-funds --ethamount 100000 --wait
+    docker compose up -d $INITIAL_SEQ_NODES
+    docker compose run scripts bridge-funds --ethamount 100000 --wait
 
     if $tokenbridge; then
         echo == Deploying token bridge
-        docker-compose run -e ARB_KEY=$devprivkey -e ETH_KEY=$devprivkey tokenbridge gen:network
-        docker-compose run --entrypoint sh tokenbridge -c "cat localNetwork.json"
+        docker compose run -e ARB_KEY=$devprivkey -e ETH_KEY=$devprivkey tokenbridge gen:network
+        docker compose run --entrypoint sh tokenbridge -c "cat localNetwork.json"
         echo
     fi
 
     if $l3node; then
         echo == Funding l3 users
-        docker-compose run scripts send-l2 --ethamount 1000 --to l3owner --wait
-        docker-compose run scripts send-l2 --ethamount 1000 --to l3sequencer --wait
+        docker compose run scripts send-l2 --ethamount 1000 --to l3owner --wait
+        docker compose run scripts send-l2 --ethamount 1000 --to l3sequencer --wait
 
 
         echo == create l2 traffic
-        docker-compose run scripts send-l2 --ethamount 100 --to user_l2user --wait
-        docker-compose run scripts send-l2 --ethamount 0.0001 --from user_l2user --to user_l2user_b --wait --delay 500 --times 500 > /dev/null &
+        docker compose run scripts send-l2 --ethamount 100 --to user_l2user --wait
+        docker compose run scripts send-l2 --ethamount 0.0001 --from user_l2user --to user_l2user_b --wait --delay 500 --times 500 > /dev/null &
 
         echo == Writing l3 chain config
-        docker-compose run scripts write-l3-chain-config
+        docker compose run scripts write-l3-chain-config
 
         echo == Deploying L3
-        l3owneraddress=`docker-compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
+        l3owneraddress=`docker compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
 
-        l3sequenceraddress=`docker-compose run scripts print-address --account l3sequencer | tail -n 1 | tr -d '\r\n'`
+        l3sequenceraddress=`docker compose run scripts print-address --account l3sequencer | tail -n 1 | tr -d '\r\n'`
 
-        docker-compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://sequencer:8548 --l1keystore /home/user/l1keystore --sequencerAddress $l3sequenceraddress --ownerAddress $l3owneraddress --l1DeployAccount $l3owneraddress --l1deployment /config/l3deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=412346 --l2chainconfig /config/l3_chain_config.json --l2chainname orbit-dev-test --l2chaininfo /config/deployed_l3_chain_info.json
-        docker-compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
+        docker compose run --entrypoint /usr/local/bin/deploy poster --l1conn ws://sequencer:8548 --l1keystore /home/user/l1keystore --sequencerAddress $l3sequenceraddress --ownerAddress $l3owneraddress --l1DeployAccount $l3owneraddress --l1deployment /config/l3deployment.json --authorizevalidators 10 --wasmrootpath /home/user/target/machines --l1chainid=412346 --l2chainconfig /config/l3_chain_config.json --l2chainname orbit-dev-test --l2chaininfo /config/deployed_l3_chain_info.json
+        docker compose run --entrypoint sh poster -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
         echo == Funding l3 funnel
-        docker-compose up -d l3node poster
-        docker-compose run scripts bridge-to-l3 --ethamount 50000 --wait
+        docker compose up -d l3node poster
+        docker compose run scripts bridge-to-l3 --ethamount 50000 --wait
 
     fi
 fi
@@ -362,5 +355,5 @@ if $run; then
     echo if things go wrong - use --init to create a new chain
     echo
 
-    docker-compose up $UP_FLAG $NODES
+    docker compose up $UP_FLAG $NODES
 fi
