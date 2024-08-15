@@ -47,7 +47,7 @@ services:
       - "127.0.0.1:6379:6379"
 
   geth:
-    image: ethereum/client-go:v1.10.23
+    image: ethereum/client-go:v1.13.15
     ports:
       - "127.0.0.1:8545:8545"
       - "127.0.0.1:8551:8551"
@@ -77,10 +77,6 @@ services:
       - --authrpc.jwtsecret=/config/jwt.hex
       - --nodiscover
       - --syncmode=full
-      - --dev
-      - --dev.period=1
-      - --mine
-      - --miner.etherbase=0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E
       - --gcmode=archive
 
   # Creates a genesis state for the beacon chain using a YAML configuration file and

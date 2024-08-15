@@ -50,7 +50,6 @@ function writeGethGenesisConfig(argv: any) {
         "config": {
             "ChainName": "l1_chain",
                 "chainId": 32382,
-                "consensus": "clique",
                 "homesteadBlock": 0,
                 "daoForkSupport": true,
                 "eip150Block": 0,
@@ -67,11 +66,10 @@ function writeGethGenesisConfig(argv: any) {
                 "terminalBlockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
                 "arrowGlacierBlock": 0,
                 "grayGlacierBlock": 0,
-                "clique": {
-                "period": 5,
-                    "epoch": 30000
-            },
-            "terminalTotalDifficulty": 50
+                "shanghaiTime": 1691701126,
+                "cancunTime": 1691701198,
+                "terminalTotalDifficulty": 0,
+                "terminalTotalDifficultyPassed": true
         },
         "difficulty": "1",
         "extradata": "0x00000000000000000000000000000000000000000000000000000000000000003f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E0B0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
