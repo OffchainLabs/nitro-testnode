@@ -121,6 +121,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-simple)
             # newer testnode actions default to no-simple, this supress the error
+            shift
             ;;
         *)
             echo Usage: $0 \[OPTIONS..]
