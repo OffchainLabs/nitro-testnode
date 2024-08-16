@@ -127,6 +127,8 @@ services:
     depends_on:
       geth:
         condition: service_started
+      create_beacon_chain_genesis:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:5000:5000"
       - "127.0.0.1:3500:3500"
