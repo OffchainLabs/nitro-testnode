@@ -5,7 +5,8 @@ set -e
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.0.1-cf4b74e-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.0.0-c8db5b1
 
-DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.0"
+# This commit matches v2.1.0 release of nitro-contracts, with additional support to set arb owner through upgrade executor
+DEFAULT_NITRO_CONTRACTS_VERSION="99c07a7db2fcce75b751c5a2bd4936e898cda065"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
 # Set default versions if not overriden by provided env vars
@@ -462,6 +463,11 @@ if $force_init; then
             fi
             docker compose run -e PARENT_WETH_OVERRIDE=$l2Weth -e ROLLUP_OWNER_KEY=$l3ownerkey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_RPC=http://sequencer:8547 -e PARENT_KEY=$deployer_key  -e CHILD_RPC=http://l3node:3347 -e CHILD_KEY=$deployer_key tokenbridge deploy:local:token-bridge
             docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json l2l3_network.json"
+
+            # set L3 UpgradeExecutor, deployed by token bridge creator in previous step, to be the L3 chain owner. L3owner (EOA) and alias of L2 UpgradeExectuor have the executor role on the L3 UpgradeExecutor
+            echo == Set L3 UpgradeExecutor to be chain owner
+            tokenBridgeCreator=`docker compose run --entrypoint sh tokenbridge -c "cat l2l3_network.json" | jq -r '.l1TokenBridgeCreator'`
+            docker compose run scripts transfer-l3-chain-ownership --creator $tokenBridgeCreator
             echo
         fi
 
