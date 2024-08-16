@@ -65,7 +65,7 @@ function writeGethGenesisConfig(argv: any) {
                 "terminalBlockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
                 "arrowGlacierBlock": 0,
                 "grayGlacierBlock": 0,
-		        "shanghaiTime": 0,
+                "shanghaiTime": 0,
                 "cancunTime": 1706778826,
                 "terminalTotalDifficulty": 0,
                 "terminalTotalDifficultyPassed": true
