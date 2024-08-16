@@ -339,8 +339,11 @@ if $force_init; then
       echo == Writing configs
       docker compose run scripts write-geth-genesis-config
 
-     echo == Writing configs
-     docker compose run scripts write-prysm-config
+      echo == Writing configs
+      docker compose run scripts write-prysm-config
+
+      echo == Creating prysm genesis
+      docker compose run create_beacon_chain_genesis
 
       echo == Initializing go-ethereum genesis configuration
       docker compose run geth init --state.scheme hash --datadir /datadir/ /config/geth_genesis.json
@@ -348,15 +351,15 @@ if $force_init; then
       echo == Starting geth
       docker compose up --wait geth
 
-      echo == Creating prysm genesis
-      docker compose run create_beacon_chain_genesis
-
       echo == Running prysm
       docker compose up --wait prysm_beacon_chain
       docker compose up --wait prysm_validator
     else
       docker compose up --wait geth
     fi
+
+    echo == Waiting for geth to sync
+    docker compose run scripts wait-for-sync --url http://geth:8545
 
     echo == Funding validator, sequencer and l2owner
     docker compose run scripts send-l1 --ethamount 1000 --to validator --wait
