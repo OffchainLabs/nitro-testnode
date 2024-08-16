@@ -335,28 +335,28 @@ if $force_init; then
     docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
     docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
 
-    if $consensusclient; then
-      echo == Writing configs
-      docker compose run scripts write-geth-genesis-config
+    echo == Writing geth configs
+    docker compose run scripts write-geth-genesis-config
 
-      echo == Writing configs
+    if $consensusclient; then
+      echo == Writing prysm configs
       docker compose run scripts write-prysm-config
 
       echo == Creating prysm genesis
       docker compose run create_beacon_chain_genesis
+    fi
 
-      echo == Initializing go-ethereum genesis configuration
-      docker compose run geth init --state.scheme hash --datadir /datadir/ /config/geth_genesis.json
+    echo == Initializing go-ethereum genesis configuration
+    docker compose run geth init --state.scheme hash --datadir /datadir/ /config/geth_genesis.json
 
-      echo == Starting geth
-      docker compose up --wait geth
-
+    if $consensusclient; then
       echo == Running prysm
       docker compose up --wait prysm_beacon_chain
       docker compose up --wait prysm_validator
-    else
-      docker compose up --wait geth
     fi
+
+    echo == Starting geth
+    docker compose up --wait geth
 
     echo == Waiting for geth to sync
     docker compose run scripts wait-for-sync --url http://geth:8545

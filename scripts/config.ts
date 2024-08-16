@@ -70,7 +70,7 @@ function writeGethGenesisConfig(argv: any) {
                 "terminalTotalDifficulty": 0,
                 "terminalTotalDifficultyPassed": true
         },
-        "difficulty": "1",
+        "difficulty": "0",
         "extradata": "0x00000000000000000000000000000000000000000000000000000000000000003f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E0B0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
         "nonce": "0x42",
         "timestamp": "0x0",
