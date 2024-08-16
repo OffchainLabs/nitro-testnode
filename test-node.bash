@@ -131,7 +131,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --pos)
             consensusclient=true
-            l1chainid=32382
+            l1chainid=1337
             shift
             ;;
         --l3node)
