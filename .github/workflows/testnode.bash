@@ -28,6 +28,7 @@ fi
 
 if [ $? -ne 0 ]; then
     echo "test-node.bash failed"
+    docker compose logs --tail=1000
     exit 1
 fi
 
