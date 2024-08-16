@@ -31,7 +31,6 @@ DENEB_FORK_EPOCH: 0
 DENEB_FORK_VERSION: 0x20000093
 
 # ELECTRA
-ELECTRA_FORK_EPOCH: 18446744073709551615
 ELECTRA_FORK_VERSION: 0x20000094
 
 # Time parameters
@@ -66,8 +65,8 @@ function writeGethGenesisConfig(argv: any) {
                 "terminalBlockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
                 "arrowGlacierBlock": 0,
                 "grayGlacierBlock": 0,
-                "shanghaiTime": 1691701126,
-                "cancunTime": 1691701198,
+		        "shanghaiTime": 0,
+                "cancunTime": 1706778826,
                 "terminalTotalDifficulty": 0,
                 "terminalTotalDifficultyPassed": true
         },
