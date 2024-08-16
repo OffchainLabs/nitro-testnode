@@ -89,7 +89,6 @@ services:
       - generate-genesis
       - --num-validators=64
       - --output-ssz=/consensus/genesis.ssz
-      - --config-name=interop
       - --chain-config-file=/config/prysm.yaml
     volumes:
       - "consensus:/consensus"
