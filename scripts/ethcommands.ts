@@ -525,3 +525,22 @@ export const sendRPCCommand = {
         await rpcProvider.send(argv.method, argv.params)
     }
 }
+
+export const waitForSyncCommand = {
+  command: "wait-for-sync",
+  describe: "wait for rpc to sync",
+  builder: {
+    url: { string: true, describe: "url to send rpc call", default: "http://sequencer:8547"},
+  },
+  handler: async (argv: any) => {
+    const rpcProvider = new ethers.providers.JsonRpcProvider(argv.url)
+    let syncStatus;
+    do {
+        syncStatus = await rpcProvider.send("eth_syncing", [])
+        if (syncStatus !== false) {
+            // Wait for a short interval before checking again
+            await new Promise(resolve => setTimeout(resolve, 5000))
+        }
+    } while (syncStatus !== false)
+  },
+};

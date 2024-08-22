@@ -19,6 +19,7 @@ import {
   sendL2Command,
   sendL3Command,
   sendRPCCommand,
+  waitForSyncCommand,
   transferL3ChainOwnershipCommand,
 } from "./ethcommands";
 
@@ -53,6 +54,7 @@ async function main() {
     .command(printPrivateKeyCommand)
     .command(redisReadCommand)
     .command(redisInitCommand)
+    .command(waitForSyncCommand)
     .strict()
     .demandCommand(1, "a command must be specified")
     .epilogue(namedAccountHelpString)

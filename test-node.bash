@@ -131,7 +131,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --pos)
             consensusclient=true
-            l1chainid=32382
+            l1chainid=1337
             shift
             ;;
         --l3node)
@@ -336,28 +336,31 @@ if $force_init; then
     docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
     docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
 
-    if $consensusclient; then
-      echo == Writing configs
-      docker compose run scripts write-geth-genesis-config
+    echo == Writing geth configs
+    docker compose run scripts write-geth-genesis-config
 
-      echo == Writing configs
+    if $consensusclient; then
+      echo == Writing prysm configs
       docker compose run scripts write-prysm-config
 
-      echo == Initializing go-ethereum genesis configuration
-      docker compose run geth init --datadir /datadir/ /config/geth_genesis.json
-
-      echo == Starting geth
-      docker compose up --wait geth
-
       echo == Creating prysm genesis
-      docker compose up create_beacon_chain_genesis
+      docker compose run create_beacon_chain_genesis
+    fi
 
+    echo == Initializing go-ethereum genesis configuration
+    docker compose run geth init --state.scheme hash --datadir /datadir/ /config/geth_genesis.json
+
+    if $consensusclient; then
       echo == Running prysm
       docker compose up --wait prysm_beacon_chain
       docker compose up --wait prysm_validator
-    else
-      docker compose up --wait geth
     fi
+
+    echo == Starting geth
+    docker compose up --wait geth
+
+    echo == Waiting for geth to sync
+    docker compose run scripts wait-for-sync --url http://geth:8545
 
     echo == Funding validator, sequencer and l2owner
     docker compose run scripts send-l1 --ethamount 1000 --to validator --wait
