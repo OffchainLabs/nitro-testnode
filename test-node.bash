@@ -366,7 +366,7 @@ if $blockscout; then
 fi
 
 if $build_node_images; then
-    docker compose build --no-rm $NODES scripts
+    docker compose build --no-rm $NODES
 fi
 
 if $force_init; then
