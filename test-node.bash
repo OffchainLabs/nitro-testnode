@@ -36,6 +36,7 @@ else
 fi
 
 run=true
+ci=false
 validate=false
 detach=false
 blockscout=false
@@ -106,6 +107,10 @@ while [[ $# -gt 0 ]]; do
                     shift
                 done
             fi
+            ;;
+        --ci)
+            ci=true
+            shift
             ;;
         --build)
             build_dev_nitro=true
@@ -342,11 +347,17 @@ if $build_utils; then
   if $tokenbridge || $l3_token_bridge; then
     LOCAL_BUILD_NODES="$LOCAL_BUILD_NODES tokenbridge"
   fi
-  UTILS_NOCACHE=""
-  if $force_build_utils; then
+
+  if [ "$ci" == true ]; then
+    # workaround to cache docker layers and keep using docker-compose in CI
+    docker buildx bake --file docker-compose.yaml --file docker-compose-ci-cache.json $LOCAL_BUILD_NODES
+  else
+    UTILS_NOCACHE=""
+    if $force_build_utils; then
       UTILS_NOCACHE="--no-cache"
+    fi
+    docker compose build --no-rm $UTILS_NOCACHE $LOCAL_BUILD_NODES
   fi
-  docker compose build --no-rm $UTILS_NOCACHE $LOCAL_BUILD_NODES
 fi
 
 if $dev_nitro; then
