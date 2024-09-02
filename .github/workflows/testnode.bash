@@ -5,29 +5,7 @@
 # Start the test node and get PID, to terminate it once send-l2 is done.
 cd ${GITHUB_WORKSPACE}
 
-# while [[ $# -gt 0 ]]; do
-#     case $1 in
-#         --pos)
-#             pos=true
-#             shift
-#             ;;
-#         *)
-#             echo "Unknown option $1"
-#             exit 1
-#             ;;
-#     esac
-# done
-
-
 ./test-node.bash "$@"
-
-# # TODO once develop is merged into nitro-contract's master, remove the NITRO_CONTRACTS_BRANCH env var
-# if [ "$pos" = true ]; then
-#     echo "Running with --pos"
-#     ./test-node.bash --init-force --l3node --no-simple --detach --pos
-# else
-#     ./test-node.bash --init-force --l3node --no-simple --detach
-# fi
 
 if [ $? -ne 0 ]; then
     echo "test-node.bash failed"
