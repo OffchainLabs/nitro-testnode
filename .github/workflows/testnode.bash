@@ -16,6 +16,7 @@ fi
 
 START=$(date +%s)
 L2_TRANSACTION_SUCCEEDED=false
+# if we're not running an l3node then we just set l3 to success by default
 L3_TRANSACTION_SUCCEEDED=true
 for arg in "$@"; do
     if [ "$arg" = "--l3node" ]; then
