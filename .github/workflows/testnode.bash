@@ -18,6 +18,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+
 # TODO once develop is merged into nitro-contract's master, remove the NITRO_CONTRACTS_BRANCH env var
 if [ "$pos" = true ]; then
     echo "Running with --pos"
