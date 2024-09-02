@@ -13,9 +13,15 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+
 START=$(date +%s)
 L2_TRANSACTION_SUCCEEDED=false
-L3_TRANSACTION_SUCCEEDED=false
+L3_TRANSACTION_SUCCEEDED=true
+for arg in "$@"; do
+    if [ "$arg" = "--l3node" ]; then
+        L3_TRANSACTION_SUCCEEDED=false
+    fi
+done
 SUCCEEDED=false
 
 while true; do
