@@ -5,8 +5,32 @@
 # Start the test node and get PID, to terminate it once send-l2 is done.
 cd ${GITHUB_WORKSPACE}
 
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --pos)
+            pos=true
+            shift
+            ;;
+        *)
+            echo "Unknown option $1"
+            exit 1
+            ;;
+    esac
+done
+
 # TODO once develop is merged into nitro-contract's master, remove the NITRO_CONTRACTS_BRANCH env var
-./test-node.bash --init-force --l3node --no-simple --detach
+if [ "$pos" = true ]; then
+    echo "Running with --pos"
+    ./test-node.bash --init-force --l3node --no-simple --detach --pos
+else
+    ./test-node.bash --init-force --l3node --no-simple --detach
+fi
+
+if [ $? -ne 0 ]; then
+    echo "test-node.bash failed"
+    docker compose logs --tail=1000
+    exit 1
+fi
 
 START=$(date +%s)
 L2_TRANSACTION_SUCCEEDED=false
@@ -44,10 +68,10 @@ while true; do
     sleep 10
 done
 
-docker-compose stop
+docker compose stop
 
 if [ "$SUCCEEDED" = false ]; then
-    docker-compose logs
+    docker compose logs
     exit 1
 fi
 
