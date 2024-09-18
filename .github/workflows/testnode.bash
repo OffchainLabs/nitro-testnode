@@ -27,14 +27,14 @@ SUCCEEDED=false
 
 while true; do
     if [ "$L2_TRANSACTION_SUCCEEDED" = false ]; then
-        if ${GITHUB_WORKSPACE}/test-node.bash script send-l2 --ethamount 100 --to user_l2user --wait; then
+        if ${GITHUB_WORKSPACE}/test-node.bash script send-l2 --ethamount 2 --to user_l2user --wait; then
             echo "Sending l2 transaction succeeded"
             L2_TRANSACTION_SUCCEEDED=true
         fi
     fi
 
     if [ "$L3_TRANSACTION_SUCCEEDED" = false ]; then
-        if ${GITHUB_WORKSPACE}/test-node.bash script send-l3 --ethamount 100 --to user_l3user --wait; then
+        if ${GITHUB_WORKSPACE}/test-node.bash script send-l3 --ethamount 2 --to user_l3user --wait; then
             echo "Sending l3 transaction succeeded"
             L3_TRANSACTION_SUCCEEDED=true
         fi
