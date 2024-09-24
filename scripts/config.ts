@@ -344,7 +344,7 @@ function writeL2ChainConfig(argv: any) {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
             "DataAvailabilityCommittee": false,
-            "InitialArbOSVersion": 31,
+            "InitialArbOSVersion": 32,
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
