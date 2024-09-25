@@ -1,4 +1,4 @@
-FROM node:16-bullseye-slim
+FROM node:18-bullseye-slim
 WORKDIR /workspace
 COPY ./package.json ./yarn.lock ./
 RUN yarn

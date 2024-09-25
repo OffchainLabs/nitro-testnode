@@ -2,36 +2,40 @@ name: CI
 run-name: CI triggered from @${{ github.actor }} of ${{ github.head_ref }}
 
 on:
-    workflow_dispatch:
-    merge_group:
-    pull_request:
-    push:
-      branches:
-        - master
-        - develop
-  
+  workflow_dispatch:
+  merge_group:
+  pull_request:
+  push:
+    branches:
+      - master
+      - develop
 
 jobs:
   build_and_run:
     runs-on: ubuntu-8
+    strategy:
+      matrix:
+        pos: [pos, no-pos]
+        l3node: [l3node, l3node-token-6, no-l3node]
+        tokenbridge: [tokenbridge, no-tokenbridge]
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      with:
-        driver-opts: network=host
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
 
-    - name: Cache Docker layers
-      uses: actions/cache@v3
-      with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-buildx-${{ hashFiles('Dockerfile') }}
-        restore-keys: ${{ runner.os }}-buildx-
-          
-    - name:  Startup Nitro testnode
-      run: ${{ github.workspace }}/.github/workflows/testnode.bash
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ hashFiles('Dockerfile') }}
+          restore-keys: ${{ runner.os }}-buildx-
+
+      - name: Startup Nitro testnode
+        run: ${{ github.workspace }}/.github/workflows/testnode.bash --init-force ${{ (matrix.l3node == 'l3node' && '--l3node') || (matrix.l3node == 'l3node-token-6' && '--l3node --l3-fee-token --l3-token-bridge --l3-fee-token-decimals 6') || '' }} ${{ matrix.tokenbridge == 'tokenbridge' && '--tokenbridge' || '--no-tokenbridge' }} --no-simple --detach ${{ matrix.pos == 'pos' && '--pos' || '' }}
