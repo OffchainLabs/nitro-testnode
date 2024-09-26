@@ -424,7 +424,7 @@ export const createFeeTokenPricerCommand = {
       ethers.utils.sha256(ethers.utils.toUtf8Bytes(argv.deployer)),
       argv.provider
     );
-    const feeTokenPricerAddress = await deployFeeTokenPricerContract(deployerWallet, BigNumber.from("10000000000000000000"));
+    const feeTokenPricerAddress = await deployFeeTokenPricerContract(deployerWallet, BigNumber.from("15000000000000000000"));
     console.log("Contract deployed at address:", feeTokenPricerAddress);
 
     argv.provider.destroy();
