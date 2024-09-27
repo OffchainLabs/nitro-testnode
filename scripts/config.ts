@@ -14,16 +14,28 @@ PRESET_BASE: interop
 GENESIS_FORK_VERSION: 0x20000089
 
 # Altair
-ALTAIR_FORK_EPOCH: 1
+ALTAIR_FORK_EPOCH: 0
 ALTAIR_FORK_VERSION: 0x20000090
 
 # Merge
-BELLATRIX_FORK_EPOCH: 2
+BELLATRIX_FORK_EPOCH: 0
 BELLATRIX_FORK_VERSION: 0x20000091
 TERMINAL_TOTAL_DIFFICULTY: 50
 
+# Capella
+CAPELLA_FORK_EPOCH: 0
+CAPELLA_FORK_VERSION: 0x20000092
+MAX_WITHDRAWALS_PER_PAYLOAD: 16
+
+# DENEB
+DENEB_FORK_EPOCH: 0
+DENEB_FORK_VERSION: 0x20000093
+
+# ELECTRA
+ELECTRA_FORK_VERSION: 0x20000094
+
 # Time parameters
-SECONDS_PER_SLOT: 12
+SECONDS_PER_SLOT: 2
 SLOTS_PER_EPOCH: 6
 
 # Deposit contract
@@ -37,8 +49,7 @@ function writeGethGenesisConfig(argv: any) {
     {
         "config": {
             "ChainName": "l1_chain",
-                "chainId": 32382,
-                "consensus": "clique",
+                "chainId": 1337,
                 "homesteadBlock": 0,
                 "daoForkSupport": true,
                 "eip150Block": 0,
@@ -55,13 +66,12 @@ function writeGethGenesisConfig(argv: any) {
                 "terminalBlockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
                 "arrowGlacierBlock": 0,
                 "grayGlacierBlock": 0,
-                "clique": {
-                "period": 5,
-                    "epoch": 30000
-            },
-            "terminalTotalDifficulty": 50
+                "shanghaiTime": 0,
+                "cancunTime": 1706778826,
+                "terminalTotalDifficulty": 0,
+                "terminalTotalDifficultyPassed": true
         },
-        "difficulty": "1",
+        "difficulty": "0",
         "extradata": "0x00000000000000000000000000000000000000000000000000000000000000003f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E0B0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
         "nonce": "0x42",
         "timestamp": "0x0",
@@ -380,7 +390,7 @@ function writeL2ChainConfig(argv: any) {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
             "DataAvailabilityCommittee": argv.anytrust,
-            "InitialArbOSVersion": 31,
+            "InitialArbOSVersion": 32,
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
