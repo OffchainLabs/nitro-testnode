@@ -15,7 +15,9 @@ jobs:
     runs-on: ubuntu-8
     strategy:
       matrix:
-        pos: [true, false]
+        pos: [pos, no-pos]
+        l3node: [l3node, l3node-token-6, no-l3node]
+        tokenbridge: [tokenbridge, no-tokenbridge]
 
     steps:
       - name: Checkout
@@ -36,4 +38,4 @@ jobs:
           restore-keys: ${{ runner.os }}-buildx-
 
       - name: Startup Nitro testnode
-        run: ${{ github.workspace }}/.github/workflows/testnode.bash ${{ matrix.pos == true && '--pos' || '' }}
+        run: ${{ github.workspace }}/.github/workflows/testnode.bash --init-force ${{ (matrix.l3node == 'l3node' && '--l3node') || (matrix.l3node == 'l3node-token-6' && '--l3node --l3-fee-token --l3-token-bridge --l3-fee-token-decimals 6') || '' }} ${{ matrix.tokenbridge == 'tokenbridge' && '--tokenbridge' || '--no-tokenbridge' }} --no-simple --detach ${{ matrix.pos == 'pos' && '--pos' || '' }}

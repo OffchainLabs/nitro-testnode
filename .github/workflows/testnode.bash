@@ -5,26 +5,7 @@
 # Start the test node and get PID, to terminate it once send-l2 is done.
 cd ${GITHUB_WORKSPACE}
 
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --pos)
-            pos=true
-            shift
-            ;;
-        *)
-            echo "Unknown option $1"
-            exit 1
-            ;;
-    esac
-done
-
-# TODO once develop is merged into nitro-contract's master, remove the NITRO_CONTRACTS_BRANCH env var
-if [ "$pos" = true ]; then
-    echo "Running with --pos"
-    ./test-node.bash --init-force --l3node --no-simple --detach --pos
-else
-    ./test-node.bash --init-force --l3node --no-simple --detach
-fi
+./test-node.bash "$@"
 
 if [ $? -ne 0 ]; then
     echo "test-node.bash failed"
@@ -32,21 +13,28 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+
 START=$(date +%s)
 L2_TRANSACTION_SUCCEEDED=false
-L3_TRANSACTION_SUCCEEDED=false
+# if we're not running an l3node then we just set l3 to success by default
+L3_TRANSACTION_SUCCEEDED=true
+for arg in "$@"; do
+    if [ "$arg" = "--l3node" ]; then
+        L3_TRANSACTION_SUCCEEDED=false
+    fi
+done
 SUCCEEDED=false
 
 while true; do
     if [ "$L2_TRANSACTION_SUCCEEDED" = false ]; then
-        if ${GITHUB_WORKSPACE}/test-node.bash script send-l2 --ethamount 100 --to user_l2user --wait; then
+        if ${GITHUB_WORKSPACE}/test-node.bash script send-l2 --ethamount 2 --to user_l2user --wait; then
             echo "Sending l2 transaction succeeded"
             L2_TRANSACTION_SUCCEEDED=true
         fi
     fi
 
     if [ "$L3_TRANSACTION_SUCCEEDED" = false ]; then
-        if ${GITHUB_WORKSPACE}/test-node.bash script send-l3 --ethamount 100 --to user_l3user --wait; then
+        if ${GITHUB_WORKSPACE}/test-node.bash script send-l3 --ethamount 2 --to user_l3user --wait; then
             echo "Sending l3 transaction succeeded"
             L3_TRANSACTION_SUCCEEDED=true
         fi
