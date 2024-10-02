@@ -514,6 +514,42 @@ function dasBackendsJsonConfig(argv: any) {
     return backends
 }
 
+function writeAutonomousAuctioneerConfig(argv: any) {
+    const autonomousAuctioneerConfig = {
+        "auctioneer-server": {
+            "auction-contract-address": "TODO",
+            "db-directory": "/data",
+            "redis-url": "redis://redis:6379",
+            "sequencer-endpoint": "http://sequencer:8547",
+            "sequencer-jwt-path": "/config/jwt.hex",
+            "wallet":  {
+                "account": namedAddress("auctioneer"),
+                "password": consts.l1passphrase,
+                "pathname": consts.l1keystore
+            },
+        },
+        "bid-validator": {
+            "enable": false
+        }
+    }
+    const autonomousAuctioneerConfigJSON = JSON.stringify(autonomousAuctioneerConfig)
+    fs.writeFileSync(path.join(consts.configpath, "autonomous_auctioneer_config.json"), autonomousAuctioneerConfigJSON)
+}
+
+function writeBidValidatorConfig(argv: any) {
+    const bidValidatorConfig = {
+        "auctioneer-server": {
+            "enable": false
+        }
+        "bid-validator": {
+            "auction-contract-address": "TODO",
+            "redis-url": "redis://redis:6379"
+        }
+    }
+    const bidValidatorConfigJSON = JSON.stringify(bidValidatorConfig)
+    fs.writeFileSync(path.join(consts.configpath, bid_validator_config.json"), bidValidatorConfigJSON)
+}
+
 export const writeConfigCommand = {
     command: "write-config",
     describe: "writes config files",
@@ -619,4 +655,12 @@ export const writeL2DASKeysetConfigCommand = {
     handler: (argv: any) => {
        writeL2DASKeysetConfig(argv)
     }
+}
+
+function auctioneerServerConfig(argv: any) {
+    const conf = {
+        "auctioneer-server": {
+        }
+    }
+    return conf
 }

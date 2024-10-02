@@ -415,6 +415,25 @@ services:
     command:
       - --conf.file=/config/l2_das_mirror.json
 
+  timeboost-auctioneer:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/autonomous-auctioneer
+    volumes:
+      - "config:/config"
+      - "timeboost-auctioneer-data:/data"
+   command:
+      - --auctioneer-server.redis-url redis://redis:6379
+    depends_on:
+      - redis
+
+  timeboost-bid-validator:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/autonomous-auctioneer
+    depends_on:
+      - redis
+
 volumes:
   l1data:
   consensus:
@@ -434,3 +453,4 @@ volumes:
   das-committee-a-data:
   das-committee-b-data:
   das-mirror-data:
+  timeboost-auctioneer-data:
