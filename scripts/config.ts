@@ -620,3 +620,11 @@ export const writeL2DASKeysetConfigCommand = {
        writeL2DASKeysetConfig(argv)
     }
 }
+
+function auctioneerServerConfig(argv: any) {
+    const conf = {
+        "auctioneer-server": {
+        }
+    }
+    return conf
+}
