@@ -386,7 +386,7 @@ async function setValidKeyset(argv: any, upgradeExecutorAddr: string, sequencerI
     argv.to = "address_" + upgradeExecutorAddr
     argv.ethamount = "0"
 
-    await runStress(argv, sendTransaction);
+    await sendTransaction(argv, 0);
 
     argv.provider.destroy();
 }

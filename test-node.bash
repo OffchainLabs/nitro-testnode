@@ -224,9 +224,9 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --l2-anytrust)
-			l2anytrust=true
-			shift
-			;;
+            l2anytrust=true
+            shift
+            ;;
         --redundantsequencers)
             simple=false
             redundantsequencers=$2
@@ -260,7 +260,7 @@ while [[ $# -gt 0 ]]; do
             echo --l3-fee-token    L3 chain is set up to use custom fee token. Only valid if also '--l3node' is provided
             echo --l3-fee-token-decimals Number of decimals to use for custom fee token. Only valid if also '--l3-fee-token' is provided
             echo --l3-token-bridge Deploy L2-L3 token bridge. Only valid if also '--l3node' is provided
-			echo --l2-anytrust     run the L2 as an AnyTrust chain
+            echo --l2-anytrust     run the L2 as an AnyTrust chain
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
@@ -285,13 +285,6 @@ done
 
 NODES="sequencer"
 INITIAL_SEQ_NODES="sequencer"
-
-#if $l2anytrust; then
-#	#	NODES="$NODES das-committee-a das-committee-b das-mirror"
-#    NODES="$NODES das-committee-a das-committee-b"
-#fi
-
-#NODES="$NODES sequencer"
 
 if ! $simple; then
     NODES="$NODES redis"
@@ -465,27 +458,23 @@ if $l2anytrust; then
         docker compose run --user root --entrypoint sh datool -c "chown -R 1000:1000 /das*"
         docker compose run datool keygen --dir /das-committee-a/keys
         docker compose run datool keygen --dir /das-committee-b/keys
-		sequencerinbox=`docker compose run --entrypoint sh datool -c "cat /config/l2_chain_info.json | jq -r '.[].rollup.\"sequencer-inbox\"'"`
-        docker compose run scripts write-l2-das-committee-config --committeeMember a
-	    docker compose run scripts write-l2-das-committee-config --committeeMember b
+        docker compose run scripts write-l2-das-committee-config
         docker compose run scripts write-l2-das-mirror-config
+
+        das_bls_a=`docker compose run --entrypoint sh datool -c "cat /das-committee-a/keys/das_bls.pub"`
+        das_bls_b=`docker compose run --entrypoint sh datool -c "cat /das-committee-b/keys/das_bls.pub"`
+
+        docker compose run scripts write-l2-das-keyset-config --dasBlsA $das_bls_a --dasBlsB $das_bls_b
+        docker compose run --entrypoint sh datool -c "/usr/local/bin/datool dumpkeyset --conf.file /config/l2_das_keyset.json | grep 'Keyset: ' | awk '{ printf \"%s\", \$2 }' > /config/l2_das_keyset.hex"
+        docker compose run scripts set-valid-keyset
+
+        anytrustNodeConfigLine="--anytrust --dasBlsA $das_bls_a --dasBlsB $das_bls_b"
     fi
 
-    das_bls_a=`docker compose run --entrypoint sh datool -c "cat /das-committee-a/keys/das_bls.pub"`
-    das_bls_b=`docker compose run --entrypoint sh datool -c "cat /das-committee-b/keys/das_bls.pub"`
-
-    docker compose run scripts write-l2-das-keyset-config --dasBlsA $das_bls_a --dasBlsB $das_bls_b
-    docker compose run --entrypoint sh datool -c "/usr/local/bin/datool dumpkeyset --conf.file /config/l2_das_keyset.json | grep 'Keyset: ' | awk '{ printf \"%s\", \$2 }' > /config/l2_das_keyset.hex"
-    docker compose run scripts set-valid-keyset
-
-    anytrustNodeConfigLine="--anytrust --dasBlsA $das_bls_a --dasBlsB $das_bls_b"
-
-	if $run; then
-		echo == Starting AnyTrust committee and mirror
-		docker compose up --wait das-committee-a das-committee-b das-mirror
-        # TODO how to make these containers go down since they are now
-        # run in the background
-	fi
+    if $run; then
+        echo == Starting AnyTrust committee and mirror
+        docker compose up --wait das-committee-a das-committee-b das-mirror
+    fi
 fi
 
 if $force_init; then

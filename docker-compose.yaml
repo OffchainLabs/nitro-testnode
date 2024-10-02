@@ -388,7 +388,7 @@ services:
       - "config:/config"
       - "das-committee-a-data:/das"
     command:
-      - --conf.file=/config/l2_das_committee_a.json
+      - --conf.file=/config/l2_das_committee.json
 
   das-committee-b:
     pid: host # allow debugging
@@ -401,7 +401,7 @@ services:
       - "config:/config"
       - "das-committee-b-data:/das"
     command:
-      - --conf.file=/config/l2_das_committee_b.json
+      - --conf.file=/config/l2_das_committee.json
 
   das-mirror:
     pid: host # allow debugging

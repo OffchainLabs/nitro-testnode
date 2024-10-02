@@ -161,6 +161,18 @@ function writeGethGenesisConfig(argv: any) {
     fs.writeFileSync(path.join(consts.configpath, "val_jwt.hex"), val_jwt)
 }
 
+type ChainInfo = {
+    [key: string]: any;
+};
+
+// Define a function to return ChainInfo
+function getChainInfo(): ChainInfo {
+    const filePath = path.join(consts.configpath, "l2_chain_info.json");
+    const fileContents = fs.readFileSync(filePath).toString();
+    const chainInfo: ChainInfo = JSON.parse(fileContents);
+    return chainInfo;
+}
+
 function writeConfigs(argv: any) {
     const valJwtSecret = path.join(consts.configpath, "val_jwt.hex")
     const chainInfoFile = path.join(consts.configpath, "l2_chain_info.json")
@@ -232,7 +244,7 @@ function writeConfigs(argv: any) {
                 }
             },
             "data-availability": {
-                "enable": false,
+                "enable": argv.anytrust,
                 "rpc-aggregator": dasBackendsJsonConfig(argv),
                 "rest-aggregator": {
                     "enable": true,
@@ -262,12 +274,7 @@ function writeConfigs(argv: any) {
         },
     }
 
-    const deploydata = JSON.parse(
-        fs
-            .readFileSync(path.join(consts.configpath, "deployment.json"))
-            .toString()
-    );
-    baseConfig.node["data-availability"]["sequencer-inbox-address"] = ethers.utils.hexlify(deploydata["sequencer-inbox"]);
+    baseConfig.node["data-availability"]["sequencer-inbox-address"] = ethers.utils.hexlify(getChainInfo()[0]["rollup"]["sequencer-inbox"]);
 
     const baseConfJSON = JSON.stringify(baseConfig)
 
@@ -283,19 +290,13 @@ function writeConfigs(argv: any) {
         simpleConfig.node["batch-poster"]["redis-url"] = ""
         simpleConfig.execution["sequencer"].enable = true
         if (argv.anytrust) {
-            simpleConfig.node["data-availability"].enable = true
             simpleConfig.node["data-availability"]["rpc-aggregator"].enable = true
-            simpleConfig.node["data-availability"]["rest-aggregator"].enable = true
         }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(simpleConfig))
     } else {
         let validatorConfig = JSON.parse(baseConfJSON)
         validatorConfig.node.staker.enable = true
         validatorConfig.node.staker["use-smart-contract-wallet"] = true
-        if (argv.anytrust) {
-            validatorConfig.node["data-availability"].enable = true
-            validatorConfig.node["data-availability"]["rest-aggregator"].enable = true
-        }
         let validconfJSON = JSON.stringify(validatorConfig)
         fs.writeFileSync(path.join(consts.configpath, "validator_config.json"), validconfJSON)
 
@@ -308,19 +309,13 @@ function writeConfigs(argv: any) {
         sequencerConfig.node["seq-coordinator"].enable = true
         sequencerConfig.execution["sequencer"].enable = true
         sequencerConfig.node["delayed-sequencer"].enable = true
-        if (argv.anytrust) {
-            sequencerConfig.node["data-availability"].enable = true
-            sequencerConfig.node["data-availability"]["rest-aggregator"].enable = true
-        }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
 
         let posterConfig = JSON.parse(baseConfJSON)
         posterConfig.node["seq-coordinator"].enable = true
         posterConfig.node["batch-poster"].enable = true
         if (argv.anytrust) {
-            posterConfig.node["data-availability"].enable = true
             posterConfig.node["data-availability"]["rpc-aggregator"].enable = true
-            posterConfig.node["data-availability"]["rest-aggregator"].enable = true
         }
         fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
     }
@@ -432,7 +427,8 @@ function writeL3ChainConfig(argv: any) {
     fs.writeFileSync(path.join(consts.configpath, "l3_chain_config.json"), l3ChainConfigJSON)
 }
 
-function writeL2DASCommitteeConfig(argv: any, sequencerInboxAddr: string) {
+function writeL2DASCommitteeConfig(argv: any) {
+    const sequencerInboxAddr = ethers.utils.hexlify(getChainInfo()[0]["rollup"]["sequencer-inbox"]);
     const l2DASCommitteeConfig = {
         "data-availability": {
             "key": {
@@ -456,7 +452,7 @@ function writeL2DASCommitteeConfig(argv: any, sequencerInboxAddr: string) {
     }
     const l2DASCommitteeConfigJSON = JSON.stringify(l2DASCommitteeConfig)
 
-    fs.writeFileSync(path.join(consts.configpath, "l2_das_committee_" + argv.committeeMember + ".json"), l2DASCommitteeConfigJSON)
+    fs.writeFileSync(path.join(consts.configpath, "l2_das_committee.json"), l2DASCommitteeConfigJSON)
 }
 
 function writeL2DASMirrorConfig(argv: any, sequencerInboxAddr: string) {
@@ -591,22 +587,8 @@ export const writeL3ChainConfigCommand = {
 export const writeL2DASCommitteeConfigCommand = {
     command: "write-l2-das-committee-config",
     describe: "writes daserver committee member config file",
-    builder: {
-        committeeMember: {
-            string: true,
-            describe: "Unique identifier for the das committee member",
-            default: "not_set"
-        },
-    },
     handler: (argv: any) => {
-        const deploydata = JSON.parse(
-            fs
-                .readFileSync(path.join(consts.configpath, "deployment.json"))
-                .toString()
-        );
-        const sequencerInboxAddr = ethers.utils.hexlify(deploydata["sequencer-inbox"]);
-
-        writeL2DASCommitteeConfig(argv, sequencerInboxAddr)
+        writeL2DASCommitteeConfig(argv)
     }
 }
 
@@ -614,13 +596,7 @@ export const writeL2DASMirrorConfigCommand = {
     command: "write-l2-das-mirror-config",
     describe: "writes daserver mirror config file",
     handler: (argv: any) => {
-        const deploydata = JSON.parse(
-            fs
-                .readFileSync(path.join(consts.configpath, "deployment.json"))
-                .toString()
-        );
-        const sequencerInboxAddr = ethers.utils.hexlify(deploydata["sequencer-inbox"]);
-
+        const sequencerInboxAddr = ethers.utils.hexlify(getChainInfo()[0]["rollup"]["sequencer-inbox"]);
         writeL2DASMirrorConfig(argv, sequencerInboxAddr)
     }
 }
