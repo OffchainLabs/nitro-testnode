@@ -422,8 +422,9 @@ services:
     volumes:
       - "config:/config"
       - "timeboost-auctioneer-data:/data"
+      - "l1keystore:/home/user/l1keystore"
     command:
-      - --auctioneer-server.redis-url redis://redis:6379
+      - --conf.file=/config/autonomous_auctioneer_config.json
     depends_on:
       - redis
 
@@ -431,6 +432,10 @@ services:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/autonomous-auctioneer
+    volumes:
+      - "config:/config"
+    command:
+      - --conf.file=/config/bid_validator_config.json
     depends_on:
       - redis
 

@@ -51,6 +51,7 @@ devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
 simple=true
 l2anytrust=false
+l2timeboost=false
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -233,6 +234,10 @@ while [[ $# -gt 0 ]]; do
             l2anytrust=true
             shift
             ;;
+        --l2-timeboost)
+            l2timeboost=true
+            shift
+            ;;
         --redundantsequencers)
             simple=false
             redundantsequencers=$2
@@ -268,6 +273,7 @@ while [[ $# -gt 0 ]]; do
             echo --l3-fee-token-decimals Number of decimals to use for custom fee token. Only valid if also '--l3-fee-token' is provided
             echo --l3-token-bridge Deploy L2-L3 token bridge. Only valid if also '--l3node' is provided
             echo --l2-anytrust     run the L2 as an AnyTrust chain
+            echo --l2-timeboost    run the L2 with Timeboost enabled, including auctioneer and bid validator
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
@@ -384,8 +390,7 @@ if $blockscout; then
 fi
 
 if $build_node_images; then
-    docker compose build --no-rm $NODES
-    docker compose build --no-rm scripts
+    docker compose build --no-rm $NODES scripts
 fi
 
 if ($build_utils || $build_node_images) && $dev_contracts; then
@@ -512,6 +517,14 @@ if $force_init; then
     docker compose up --wait $INITIAL_SEQ_NODES
     docker compose run scripts bridge-funds --ethamount 100000 --wait
     docker compose run scripts send-l2 --ethamount 100 --to l2owner --wait
+
+    if $l2timeboost; then
+        docker compose run scripts send-l2 --ethamount 100 --to auctioneer --wait
+        biddingTokenAddress=`docker compose run scripts create-erc20 --deployer auctioneer | tail -n 1 | awk '{ print $NF }'`
+        auctionContractAddress=`docker compose run scripts deploy-express-lane-auction --bidding-token $biddingTokenAddress | tail -n 1 | awk '{ print $NF }'`
+        docker compose run scripts write-timeboost-configs --auction-contract $auctionContractAddress
+        docker compose run --user root --entrypoint sh timeboost-auctioneer -c "chown -R 1000:1000 /data"
+    fi
 
     if $tokenbridge; then
         echo == Deploying L1-L2 token bridge
