@@ -8,6 +8,7 @@ import * as ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
 import * as fs from "fs";
 import { ARB_OWNER } from "./consts";
 import * as ExpressLaneAuctionContract from "@arbitrum/nitro-contracts/out/ExpressLaneAuction.sol/ExpressLaneAuction.json"
+import * as TransparentUpgradeableProxy from "@openzeppelin/contracts/build/contracts/TransparentUpgradeableProxy.json"
 const path = require("path");
 
 async function sendTransaction(argv: any, threadId: number) {
@@ -294,7 +295,8 @@ export const createERC20Command = {
   builder: {
     deployer: {
       string: true,
-      describe: "account (see general help)"
+      describe: "account (see general help)",
+      demandOption: true
     },
     bridgeable: {
       boolean: true,
@@ -320,10 +322,7 @@ export const createERC20Command = {
       const l1provider = new ethers.providers.WebSocketProvider(argv.l1url);
       const l2provider = new ethers.providers.WebSocketProvider(argv.l2url);
 
-      const deployerWallet = new Wallet(
-        ethers.utils.sha256(ethers.utils.toUtf8Bytes(argv.deployer)),
-        l1provider
-      );
+      const deployerWallet = namedAccount(argv.deployer).connect(l1provider)
 
       const tokenAddress = await deployERC20Contract(deployerWallet, argv.decimals);
       const token = new ethers.Contract(tokenAddress, ERC20.abi, deployerWallet);
@@ -362,10 +361,7 @@ export const createERC20Command = {
 
     // no l1-l2 token bridge, deploy token on l2 directly
     argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
-    const deployerWallet = new Wallet(
-      ethers.utils.sha256(ethers.utils.toUtf8Bytes(argv.deployer)),
-      argv.provider
-    );
+    const deployerWallet = namedAccount(argv.deployer).connect(argv.provider)
     const tokenAddress = await deployERC20Contract(deployerWallet, argv.decimals);
     console.log("Contract deployed at address:", tokenAddress);
 
@@ -377,16 +373,53 @@ export const deployExpressLaneAuctionContractCommand = {
   command: "deploy-express-lane-auction",
   describe: "Deploy the ExpressLaneAuction contract",
   builder: {
+    "bidding-token": {
+      string: true,
+      describe: "bidding token address",
+      demandOption: true
+    },
+    "auctioneer": {
+      string: true,
+      describe: "account name to set as auctioneer and admin on contract (default auctioneer)",
+      default: "auctioneer"
+    }
   },
   handler: async (argv: any) => {
     console.log("deploy ExpressLaneAuction contract");
     argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
-    const auctioneerWallet = namedAccount("auctioneer").connect(argv.provider)
+    const auctioneerWallet = namedAccount(argv.auctioneer).connect(argv.provider)
     const contractFactory = new ContractFactory(ExpressLaneAuctionContract.abi, ExpressLaneAuctionContract.bytecode, auctioneerWallet)
 
     const contract = await contractFactory.deploy();
     await contract.deployTransaction.wait();
-    console.log("Contract deployed at address:", contract.address);
+    console.log("ExpressLaneAuction contract deployed at address:", contract.address);
+
+    const auctioneerAddr = namedAddress(argv.auctioneer)
+    const initIface = new ethers.utils.Interface(["function initialize((address,address,address,(uint64,uint64,uint64,uint64),uint256,address,address,address,address,address,address,address))"])
+    const initData = initIface.encodeFunctionData("initialize", [[
+      auctioneerAddr, //_auctioneer
+      argv.biddingToken, //_biddingToken
+      auctioneerAddr, //_beneficiary
+      [
+        Math.round(Date.now() / 60000) * 60,  // offsetTimestamp - most recent minute
+        60, // roundDurationSeconds
+        15, // auctionClosingSeconds
+        45  // reserveSubmissionSeconds
+      ],// RoundTiminginfo
+      1, // _minReservePrice
+      auctioneerAddr, //_auctioneerAdmin
+      auctioneerAddr, //_minReservePriceSetter,
+      auctioneerAddr, //_reservePriceSetter,
+      auctioneerAddr, //_reservePriceSetterAdmin,
+      auctioneerAddr, //_beneficiarySetter,
+      auctioneerAddr, //_roundTimingSetter,
+      auctioneerAddr //_masterAdmin
+    ]]);
+
+    const proxyFactory = new ethers.ContractFactory(TransparentUpgradeableProxy.abi, TransparentUpgradeableProxy.bytecode, auctioneerWallet)
+    const proxy = await proxyFactory.deploy(contract.address, namedAddress(argv.auctioneer), initData)
+    await proxy.deployed()
+    console.log("Proxy(ExpressLaneAuction) contract deployed at address:", proxy.address);
 
     argv.provider.destroy();
   }
@@ -410,41 +443,6 @@ async function setValidKeyset(argv: any, upgradeExecutorAddr: string, sequencerI
 
     argv.provider.destroy();
 }
-
-/*
-// The ExpressLaneAuction contract has many configurable addresses, for simplicity
-// this function just uses auctioneerAddr for all although in production this is unlikely to be true.
-// This function also hardcoded the RoundTimingInfo
-async function initializeAuctionContract(argv: any, auctionContractAddr: string, auctioneerAddr: string, biddingTokenAddr: string){
-  const initIface = new ethers.utils.Interface(["function initialize((address,address,address,(uint64,uint64,uint64,uint64),uint256,address,address,address,address,address,address,address))"])
-  argv.data = initIface.encodeFunctionData("initialize", [
-    auctioneerAddr, //_auctioneer
-    biddingTokenAddr, //_biddingToken
-    auctioneerAddr, //_beneficiary
-    [
-      1728401460,  // offsetTimestamp - TODO set this based on now()?
-      60, // roundDurationSeconds
-      15, // auctionClosingSeconds
-      45  // reserveSubmissionSeconds
-    ],// RoundTiminginfo
-    1, // _minReservePrice
-    auctioneerAddr, //_auctioneerAdmin
-    auctioneerAddr, //_minReservePriceSetter,
-    auctioneerAddr, //_reservePriceSetterAdmin,
-    auctioneerAddr, //_beneficiarySetter,
-    auctioneerAddr, //_roundTimingSetter,
-    auctioneerAddr //_masterAdmin
-  ]);
-
-  argv.from = "l2owner";
-  argv.to = "address_" + auctionContractAddr
-  argv.ethamount = "0"
-
-  await sendTransaction(argv, 0);
-
-  argv.provider.destroy();
-}
-*/
 
 export const transferERC20Command = {
   command: "transfer-erc20",
@@ -620,29 +618,6 @@ export const setValidKeysetCommand = {
         await setValidKeyset(argv, upgradeExecutorAddr, sequencerInboxAddr, keyset)
     }
 };
-
-/*
-export const initializeAuctionContractCommand = {
-    command: "initialize-auction-contract",
-    describe: "sets the anytrust keyset",
-    handler: async (argv: any) => {
-        argv.provider = new ethers.providers.WebSocketProvider(argv.l1url);
-        const deploydata = JSON.parse(
-            fs
-                .readFileSync(path.join(consts.configpath, "deployment.json"))
-                .toString()
-        );
-        const sequencerInboxAddr = ethers.utils.hexlify(deploydata["sequencer-inbox"]);
-        const upgradeExecutorAddr = ethers.utils.hexlify(deploydata["upgrade-executor"]);
-
-        const keyset = fs
-            .readFileSync(path.join(consts.configpath, "l2_das_keyset.hex"))
-            .toString()
-
-        await setValidKeyset(argv, upgradeExecutorAddr, sequencerInboxAddr, keyset)
-    }
-};
-*/
 
 export const waitForSyncCommand = {
   command: "wait-for-sync",
