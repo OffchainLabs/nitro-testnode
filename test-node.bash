@@ -6,7 +6,7 @@ NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.2.1-d81324d-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
 # This commit matches v2.1.0 release of nitro-contracts, with additional support to set arb owner through upgrade executor
-DEFAULT_NITRO_CONTRACTS_VERSION="99c07a7db2fcce75b751c5a2bd4936e898cda065"
+DEFAULT_NITRO_CONTRACTS_VERSION="a815490fce7c7869f026df88efb437856caa46d8" # TODO express lane latest
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
 # Set default versions if not overriden by provided env vars
@@ -55,6 +55,7 @@ l2anytrust=false
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
 dev_blockscout=false
+dev_contracts=false
 
 # Rebuild docker images
 build_dev_nitro=false
@@ -108,6 +109,10 @@ while [[ $# -gt 0 ]]; do
                 done
             fi
             ;;
+        --dev-contracts)
+            dev_contracts=true
+            shift
+            ;;
         --build)
             build_dev_nitro=true
             build_dev_blockscout=true
@@ -148,6 +153,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --force-build-utils)
             force_build_utils=true
+            build_utils=true
             shift
             ;;
         --validate)
@@ -253,6 +259,7 @@ while [[ $# -gt 0 ]]; do
             echo --build           rebuild docker images
             echo --no-build        don\'t rebuild docker images
             echo --dev             build nitro and blockscout dockers from source instead of pulling them. Disables simple mode
+            echo --dev-contracts   build scripts with local development version of contracts
             echo --init            remove all data, rebuild, deploy new rollup
             echo --pos             l1 is a proof-of-stake chain \(using prysm for consensus\)
             echo --validate        heavy computation, validating all blocks in WASM
@@ -342,6 +349,12 @@ if $dev_blockscout && $build_dev_blockscout; then
   fi
 fi
 
+# Use dev contracts when building scripts. See scripts/Dockerfile
+# TODO handle non --dev-contracts case properly - dockerfile COPY expects dir to be there.
+if ($build_utils || $build_node_images) && $dev_contracts; then
+  cp -ar ../contracts scripts/nitro-contracts
+fi
+
 if $build_utils; then
   LOCAL_BUILD_NODES="scripts rollupcreator"
   if $tokenbridge || $l3_token_bridge; then
@@ -371,7 +384,12 @@ if $blockscout; then
 fi
 
 if $build_node_images; then
-    docker compose build --no-rm $NODES scripts
+    docker compose build --no-rm $NODES
+    docker compose build --no-rm scripts
+fi
+
+if ($build_utils || $build_node_images) && $dev_contracts; then
+  rm -rf scripts/nitro-contracts
 fi
 
 if $force_init; then

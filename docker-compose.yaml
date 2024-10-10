@@ -422,7 +422,7 @@ services:
     volumes:
       - "config:/config"
       - "timeboost-auctioneer-data:/data"
-   command:
+    command:
       - --auctioneer-server.redis-url redis://redis:6379
     depends_on:
       - redis

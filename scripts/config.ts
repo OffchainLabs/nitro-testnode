@@ -540,14 +540,14 @@ function writeBidValidatorConfig(argv: any) {
     const bidValidatorConfig = {
         "auctioneer-server": {
             "enable": false
-        }
+        },
         "bid-validator": {
             "auction-contract-address": "TODO",
             "redis-url": "redis://redis:6379"
         }
     }
     const bidValidatorConfigJSON = JSON.stringify(bidValidatorConfig)
-    fs.writeFileSync(path.join(consts.configpath, bid_validator_config.json"), bidValidatorConfigJSON)
+    fs.writeFileSync(path.join(consts.configpath, "bid_validator_config.json"), bidValidatorConfigJSON)
 }
 
 export const writeConfigCommand = {
