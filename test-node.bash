@@ -336,6 +336,10 @@ if $blockscout; then
     NODES="$NODES blockscout"
 fi
 
+if $l2timeboost; then
+    NODES="$NODES timeboost-auctioneer timeboost-bid-validator"
+fi
+
 if $dev_nitro && $build_dev_nitro; then
   echo == Building Nitro
   if ! [ -n "${NITRO_SRC+set}" ]; then
@@ -522,16 +526,20 @@ if $force_init; then
         docker compose run scripts send-l2 --ethamount 100 --to auctioneer --wait
         biddingTokenAddress=`docker compose run scripts create-erc20 --deployer auctioneer | tail -n 1 | awk '{ print $NF }'`
         auctionContractAddress=`docker compose run scripts deploy-express-lane-auction --bidding-token $biddingTokenAddress | tail -n 1 | awk '{ print $NF }'`
+        auctioneerAddress=`docker compose run scripts print-address --account auctioneer | tail -n1 | tr -d '\r\n'`
         echo == Starting up Timeboost auctioneer and bid validator.
-        echo == Bidding token ($biddingTokenAddress), auction contract ($auctionContractAddress)
+        echo == Bidding token: $biddingTokenAddress, auction contract $auctionContractAddress
         docker compose run scripts write-timeboost-configs --auction-contract $auctionContractAddress
         docker compose run --user root --entrypoint sh timeboost-auctioneer -c "chown -R 1000:1000 /data"
-        docker compose up --wait timeboost-auctioneer timeboost-bid-validator
+
         echo == Funding alice and bob user accounts for timeboost testing
         docker compose run scripts send-l2 --ethamount 10 --to user_alice --wait
         docker compose run scripts send-l2 --ethamount 10 --to user_bob --wait
         docker compose run scripts transfer-erc20 --token $biddingTokenAddress --amount 10000 --from auctioneer --to user_alice
         docker compose run scripts transfer-erc20 --token $biddingTokenAddress --amount 10000 --from auctioneer --to user_bob
+
+        docker compose run --entrypoint sh scripts -c "sed -i 's/\(\"execution\":{\"sequencer\":{\"enable\":true,\"timeboost\":{\"enable\":\)false/\1true,\"auction-contract-address\":\"$auctionContractAddress\",\"auctioneer-address\":\"$auctioneerAddress\"/' /config/sequencer_config.json" --wait
+        docker compose restart sequencer
     fi
 
     if $tokenbridge; then

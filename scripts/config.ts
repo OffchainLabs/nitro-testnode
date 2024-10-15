@@ -258,6 +258,9 @@ function writeConfigs(argv: any) {
         "execution": {
             "sequencer": {
                 "enable": false,
+                "timeboost": {
+                  "enable": false
+                }
             },
             "forwarding-target": "null",
         },
