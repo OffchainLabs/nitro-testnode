@@ -5,7 +5,7 @@
 # Start the test node and get PID, to terminate it once send-l2 is done.
 cd ${GITHUB_WORKSPACE}
 
-./test-node.bash "$@"
+./test-node.bash "$@" --ci
 
 if [ $? -ne 0 ]; then
     echo "test-node.bash failed"
