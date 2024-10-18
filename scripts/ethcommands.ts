@@ -387,8 +387,8 @@ export const deployExpressLaneAuctionContractCommand = {
   handler: async (argv: any) => {
     console.log("deploy ExpressLaneAuction contract");
     argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
-    const auctioneerWallet = namedAccount(argv.auctioneer).connect(argv.provider)
-    const contractFactory = new ContractFactory(ExpressLaneAuctionContract.abi, ExpressLaneAuctionContract.bytecode, auctioneerWallet)
+    const l2OwnerWallet = namedAccount("l2owner").connect(argv.provider)
+    const contractFactory = new ContractFactory(ExpressLaneAuctionContract.abi, ExpressLaneAuctionContract.bytecode, l2OwnerWallet)
 
     const contract = await contractFactory.deploy();
     await contract.deployTransaction.wait();
@@ -416,8 +416,8 @@ export const deployExpressLaneAuctionContractCommand = {
       auctioneerAddr //_masterAdmin
     ]]);
 
-    const proxyFactory = new ethers.ContractFactory(TransparentUpgradeableProxy.abi, TransparentUpgradeableProxy.bytecode, auctioneerWallet)
-    const proxy = await proxyFactory.deploy(contract.address, namedAddress(argv.auctioneer), initData)
+    const proxyFactory = new ethers.ContractFactory(TransparentUpgradeableProxy.abi, TransparentUpgradeableProxy.bytecode, l2OwnerWallet)
+    const proxy = await proxyFactory.deploy(contract.address, namedAddress("l2owner"), initData)
     await proxy.deployed()
     console.log("Proxy(ExpressLaneAuction) contract deployed at address:", proxy.address);
 

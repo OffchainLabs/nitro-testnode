@@ -161,13 +161,14 @@ services:
     ports:
       - "127.0.0.1:8547:8547"
       - "127.0.0.1:8548:8548"
+      - "127.0.0.1:9549:8549"
       - "127.0.0.1:9642:9642"
     volumes:
       - "seqdata:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
       - "tokenbridge-data:/tokenbridge-data"
-    command: --conf.file /config/sequencer_config.json --node.feed.output.enable --node.feed.output.port 9642  --http.api net,web3,eth,txpool,debug --node.seq-coordinator.my-url  ws://sequencer:8548 --graphql.enable --graphql.vhosts * --graphql.corsdomain * --execution.sequencer.timeboost.sequencer-http-endpoint http://sequencer:8547
+    command: --conf.file /config/sequencer_config.json --node.feed.output.enable --node.feed.output.port 9642  --http.api net,web3,eth,txpool,debug --node.seq-coordinator.my-url  ws://sequencer:8548 --graphql.enable --graphql.vhosts * --graphql.corsdomain * --execution.sequencer.timeboost.sequencer-http-endpoint http://sequencer:8547 --auth.addr 0.0.0.0 --auth.api auctioneer,eth,validation --auth.jwtsecret=/config/jwt.hex --auth.origins *
     depends_on:
       - geth
 
@@ -432,10 +433,16 @@ services:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/autonomous-auctioneer
+    ports:
+      - "127.0.0.1:9372:8547"
     volumes:
       - "config:/config"
     command:
       - --conf.file=/config/bid_validator_config.json
+      - --http.addr=0.0.0.0
+      - --http.corsdomain=*
+      - --http.api=auctioneer
+      - --log-level=INFO
     depends_on:
       - redis
 
