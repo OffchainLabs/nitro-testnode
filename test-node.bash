@@ -483,6 +483,7 @@ if $force_init; then
 fi # $force_init
 
 anytrustNodeConfigLine=""
+timeboostNodeConfigLine=""
 
 # Remaining init may require AnyTrust committee/mirrors to have been started
 if $l2anytrust; then
@@ -512,12 +513,15 @@ if $l2anytrust; then
 fi
 
 if $force_init; then
+    if $l2timeboost; then
+        timeboostNodeConfigLine="--timeboost"
+    fi
     if $simple; then
         echo == Writing configs
-        docker compose run scripts write-config --simple $anytrustNodeConfigLine
+        docker compose run scripts write-config --simple $anytrustNodeConfigLine $timeboostNodeConfigLine
     else
         echo == Writing configs
-        docker compose run scripts write-config $anytrustNodeConfigLine
+        docker compose run scripts write-config $anytrustNodeConfigLine $timeboostNodeConfigLine
 
         echo == Initializing redis
         docker compose up --wait redis

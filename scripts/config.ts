@@ -257,10 +257,7 @@ function writeConfigs(argv: any) {
         },
         "execution": {
             "sequencer": {
-                "enable": false,
-                "timeboost": {
-                  "enable": false
-                }
+                "enable": false
             },
             "forwarding-target": "null",
         },
@@ -312,6 +309,11 @@ function writeConfigs(argv: any) {
         sequencerConfig.node["seq-coordinator"].enable = true
         sequencerConfig.execution["sequencer"].enable = true
         sequencerConfig.node["delayed-sequencer"].enable = true
+        if (argv.timeboost) {
+           sequencerConfig.execution.sequencer.timeboost = {
+              "enable": true
+           };
+        }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
 
         let posterConfig = JSON.parse(baseConfJSON)
@@ -594,7 +596,11 @@ export const writeConfigCommand = {
             describe: "DAS committee member B BLS pub key",
             default: ""
         },
-
+        timeboost: {
+            boolean: true,
+            describe: "run sequencer in timeboost mode",
+            default: false
+        },
       },
     handler: (argv: any) => {
         writeConfigs(argv)
