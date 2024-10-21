@@ -361,11 +361,13 @@ fi
 
 # Use dev contracts when building scripts. See scripts/Dockerfile
 if ($build_utils || $build_node_images) && $dev_contracts; then
+  rm -rf scripts/nitro-contracts
   cp -ar ../contracts scripts/nitro-contracts
   touch scripts/nitro-contracts/DEV_CONTRACTS
 else
   # The scripts/dockerfile COPY directive expects the nitro-contracts dir
   # to be there even if it is empty.
+  rm -rf scripts/nitro-contracts
   mkdir scripts/nitro-contracts
 fi
 

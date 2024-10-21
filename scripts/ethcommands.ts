@@ -7,9 +7,16 @@ import * as L1AtomicTokenBridgeCreator from "@arbitrum/token-bridge-contracts/bu
 import * as ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
 import * as fs from "fs";
 import { ARB_OWNER } from "./consts";
-import * as ExpressLaneAuctionContract from "@arbitrum/nitro-contracts/out/ExpressLaneAuction.sol/ExpressLaneAuction.json"
 import * as TransparentUpgradeableProxy from "@openzeppelin/contracts/build/contracts/TransparentUpgradeableProxy.json"
 const path = require("path");
+
+let ExpressLaneAuctionContract: any;
+try {
+  ExpressLaneAuctionContract = require("@arbitrum/nitro-contracts/out/ExpressLaneAuction.sol/ExpressLaneAuction.json");
+} catch (e) {
+  console.warn("ExpressLaneAuction contract JSON not found. This is expected if not running with --l2timeboost.");
+}
+
 
 async function sendTransaction(argv: any, threadId: number) {
     const account = namedAccount(argv.from, threadId).connect(argv.provider)
@@ -385,6 +392,11 @@ export const deployExpressLaneAuctionContractCommand = {
     }
   },
   handler: async (argv: any) => {
+    if (!ExpressLaneAuctionContract) {
+      console.error("ExpressLaneAuctionContract is not available. Ensure that you are using the correct contracts branch.");
+      process.exit(1);
+    }
+
     console.log("deploy ExpressLaneAuction contract");
     argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
     const l2OwnerWallet = namedAccount("l2owner").connect(argv.provider)
