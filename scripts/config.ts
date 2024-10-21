@@ -388,7 +388,7 @@ function writeL2ChainConfig(argv: any) {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
             "DataAvailabilityCommittee": argv.anytrust,
-            "InitialArbOSVersion": 31, // TODO put back to version 32
+            "InitialArbOSVersion": 32, // TODO For Timeboost, this still needs to be set to 31
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
