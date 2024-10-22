@@ -7,7 +7,16 @@ import * as L1AtomicTokenBridgeCreator from "@arbitrum/token-bridge-contracts/bu
 import * as ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
 import * as fs from "fs";
 import { ARB_OWNER } from "./consts";
+import * as TransparentUpgradeableProxy from "@openzeppelin/contracts/build/contracts/TransparentUpgradeableProxy.json"
 const path = require("path");
+
+let ExpressLaneAuctionContract: any;
+try {
+  ExpressLaneAuctionContract = require("@arbitrum/nitro-contracts/out/ExpressLaneAuction.sol/ExpressLaneAuction.json");
+} catch (e) {
+  console.warn("ExpressLaneAuction contract JSON not found. This is expected if not running with --l2timeboost.");
+}
+
 
 async function sendTransaction(argv: any, threadId: number) {
     const account = namedAccount(argv.from, threadId).connect(argv.provider)
@@ -293,7 +302,8 @@ export const createERC20Command = {
   builder: {
     deployer: {
       string: true,
-      describe: "account (see general help)"
+      describe: "account (see general help)",
+      demandOption: true
     },
     bridgeable: {
       boolean: true,
@@ -319,10 +329,7 @@ export const createERC20Command = {
       const l1provider = new ethers.providers.WebSocketProvider(argv.l1url);
       const l2provider = new ethers.providers.WebSocketProvider(argv.l2url);
 
-      const deployerWallet = new Wallet(
-        ethers.utils.sha256(ethers.utils.toUtf8Bytes(argv.deployer)),
-        l1provider
-      );
+      const deployerWallet = namedAccount(argv.deployer).connect(l1provider)
 
       const tokenAddress = await deployERC20Contract(deployerWallet, argv.decimals);
       const token = new ethers.Contract(tokenAddress, ERC20.abi, deployerWallet);
@@ -361,15 +368,73 @@ export const createERC20Command = {
 
     // no l1-l2 token bridge, deploy token on l2 directly
     argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
-    const deployerWallet = new Wallet(
-      ethers.utils.sha256(ethers.utils.toUtf8Bytes(argv.deployer)),
-      argv.provider
-    );
+    const deployerWallet = namedAccount(argv.deployer).connect(argv.provider)
     const tokenAddress = await deployERC20Contract(deployerWallet, argv.decimals);
     console.log("Contract deployed at address:", tokenAddress);
 
     argv.provider.destroy();
   },
+};
+
+export const deployExpressLaneAuctionContractCommand = {
+  command: "deploy-express-lane-auction",
+  describe: "Deploy the ExpressLaneAuction contract",
+  builder: {
+    "bidding-token": {
+      string: true,
+      describe: "bidding token address",
+      demandOption: true
+    },
+    "auctioneer": {
+      string: true,
+      describe: "account name to set as auctioneer and admin on contract (default auctioneer)",
+      default: "auctioneer"
+    }
+  },
+  handler: async (argv: any) => {
+    if (!ExpressLaneAuctionContract) {
+      console.error("ExpressLaneAuctionContract is not available. Ensure that you are using the correct contracts branch.");
+      process.exit(1);
+    }
+
+    console.log("deploy ExpressLaneAuction contract");
+    argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
+    const l2OwnerWallet = namedAccount("l2owner").connect(argv.provider)
+    const contractFactory = new ContractFactory(ExpressLaneAuctionContract.abi, ExpressLaneAuctionContract.bytecode, l2OwnerWallet)
+
+    const contract = await contractFactory.deploy();
+    await contract.deployTransaction.wait();
+    console.log("ExpressLaneAuction contract deployed at address:", contract.address);
+
+    const auctioneerAddr = namedAddress(argv.auctioneer)
+    const initIface = new ethers.utils.Interface(["function initialize((address,address,address,(uint64,uint64,uint64,uint64),uint256,address,address,address,address,address,address,address))"])
+    const initData = initIface.encodeFunctionData("initialize", [[
+      auctioneerAddr, //_auctioneer
+      argv.biddingToken, //_biddingToken
+      auctioneerAddr, //_beneficiary
+      [
+        Math.round(Date.now() / 60000) * 60,  // offsetTimestamp - most recent minute
+        60, // roundDurationSeconds
+        15, // auctionClosingSeconds
+        45  // reserveSubmissionSeconds
+      ],// RoundTiminginfo
+      1, // _minReservePrice
+      auctioneerAddr, //_auctioneerAdmin
+      auctioneerAddr, //_minReservePriceSetter,
+      auctioneerAddr, //_reservePriceSetter,
+      auctioneerAddr, //_reservePriceSetterAdmin,
+      auctioneerAddr, //_beneficiarySetter,
+      auctioneerAddr, //_roundTimingSetter,
+      auctioneerAddr //_masterAdmin
+    ]]);
+
+    const proxyFactory = new ethers.ContractFactory(TransparentUpgradeableProxy.abi, TransparentUpgradeableProxy.bytecode, l2OwnerWallet)
+    const proxy = await proxyFactory.deploy(contract.address, namedAddress("l2owner"), initData)
+    await proxy.deployed()
+    console.log("Proxy(ExpressLaneAuction) contract deployed at address:", proxy.address);
+
+    argv.provider.destroy();
+  }
 };
 
 // Will revert if the keyset is already valid.
