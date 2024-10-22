@@ -9,7 +9,7 @@ FROM base AS pre-build
 COPY ./*.ts ./tsconfig.json ./
 COPY ./nitro-contracts ./nitro-contracts
 
-RUN if [ -d "./nitro-contracts/DEV_CONTRACTS" ]; then \
+RUN if [ -f "./nitro-contracts/DEV_CONTRACTS" ]; then \
       echo "Overwriting @arbitrum/nitro-contracts with local version"; \
       rm -rf node_modules/@arbitrum/nitro-contracts; \
       cp -a ./nitro-contracts node_modules/@arbitrum/nitro-contracts; \

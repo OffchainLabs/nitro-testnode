@@ -360,14 +360,13 @@ if $dev_blockscout && $build_dev_blockscout; then
 fi
 
 # Use dev contracts when building scripts. See scripts/Dockerfile
+rm -rf scripts/nitro-contracts
 if ($build_utils || $build_node_images) && $dev_contracts; then
-  rm -rf scripts/nitro-contracts
   cp -ar ../contracts scripts/nitro-contracts
   touch scripts/nitro-contracts/DEV_CONTRACTS
 else
   # The scripts/dockerfile COPY directive expects the nitro-contracts dir
   # to be there even if it is empty.
-  rm -rf scripts/nitro-contracts
   mkdir scripts/nitro-contracts
 fi
 
@@ -401,11 +400,6 @@ fi
 
 if $build_node_images; then
     docker compose build --no-rm $NODES scripts
-fi
-
-# Clean up nitro-contracts dir needed by scripts dockerfile.
-if [ -d scripts/nitro-contracts ]; then
-  rm -rf scripts/nitro-contracts
 fi
 
 if $force_init; then
