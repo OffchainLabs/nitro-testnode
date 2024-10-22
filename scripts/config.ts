@@ -310,9 +310,11 @@ function writeConfigs(argv: any) {
         sequencerConfig.execution["sequencer"].enable = true
         sequencerConfig.node["delayed-sequencer"].enable = true
         if (argv.timeboost) {
-           sequencerConfig.execution.sequencer.timeboost = {
-              "enable": true
-           };
+          // Initially we create it disabled but then replace it using test-node.bash
+          // once we have the contract and auctioneer address.
+          sequencerConfig.execution.sequencer.timeboost = {
+             "enable": false
+          };
         }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
 
