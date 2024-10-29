@@ -5,10 +5,10 @@ ARG NITRO_CONTRACTS_BRANCH=main
 WORKDIR /workspace  
 RUN git clone --no-checkout https://github.com/OffchainLabs/nitro-contracts.git ./
 RUN git checkout ${NITRO_CONTRACTS_BRANCH}
+RUN yarn install && yarn cache clean
 RUN curl -L https://foundry.paradigm.xyz | bash
 ENV PATH="${PATH}:/root/.foundry/bin"
 RUN foundryup
 RUN touch scripts/config.ts
-RUN yarn install && yarn cache clean
 RUN yarn build:all
 ENTRYPOINT ["yarn"]
