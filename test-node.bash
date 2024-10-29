@@ -39,6 +39,7 @@ run=true
 ci=false
 validate=false
 detach=false
+nowait=false
 blockscout=false
 tokenbridge=false
 l3node=false
@@ -177,6 +178,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --detach)
             detach=true
+            shift
+            ;;
+        --nowait)
+            nowait=true
             shift
             ;;
         --batchposters)
@@ -557,7 +562,11 @@ fi
 if $run; then
     UP_FLAG=""
     if $detach; then
-        UP_FLAG="-d"
+        if $nowait; then
+            UP_FLAG="--detach"
+        else
+            UP_FLAG="--wait"
+        fi
     fi
 
     echo == Launching Sequencer
