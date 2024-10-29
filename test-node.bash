@@ -557,7 +557,7 @@ fi
 if $run; then
     UP_FLAG=""
     if $detach; then
-        UP_FLAG="--wait"
+        UP_FLAG="-d"
     fi
 
     echo == Launching Sequencer
