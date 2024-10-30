@@ -452,6 +452,7 @@ services:
     command:
       - --conf.file=/config/bid_validator_config.json
       - --http.addr=0.0.0.0
+      - --http.vhosts=*
       - --http.corsdomain=*
       - --http.api=auctioneer
       - --log-level=INFO
