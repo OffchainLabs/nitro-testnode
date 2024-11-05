@@ -39,6 +39,7 @@ run=true
 ci=false
 validate=false
 detach=false
+nowait=false
 blockscout=false
 tokenbridge=false
 l3node=false
@@ -177,6 +178,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --detach)
             detach=true
+            shift
+            ;;
+        --nowait)
+            if ! $detach; then
+                echo "Error: --nowait requires --detach to be provided."
+                exit 1
+            fi
+            nowait=true
             shift
             ;;
         --batchposters)
@@ -557,7 +566,11 @@ fi
 if $run; then
     UP_FLAG=""
     if $detach; then
-        UP_FLAG="--wait"
+        if $nowait; then
+            UP_FLAG="--detach"
+        else
+            UP_FLAG="--wait"
+        fi
     fi
 
     echo == Launching Sequencer
