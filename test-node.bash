@@ -39,6 +39,7 @@ run=true
 ci=false
 validate=false
 detach=false
+nowait=false
 blockscout=false
 tokenbridge=false
 l3node=false
@@ -71,13 +72,13 @@ while [[ $# -gt 0 ]]; do
                 read -p "are you sure? [y/n]" -n 1 response
                 if [[ $response == "y" ]] || [[ $response == "Y" ]]; then
                     force_init=true
-                    build_utils=true
-                    build_node_images=true
                     echo
                 else
                     exit 0
                 fi
             fi
+            build_utils=true
+            build_node_images=true
             shift
             ;;
         --init-force)
@@ -177,6 +178,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --detach)
             detach=true
+            shift
+            ;;
+        --nowait)
+            if ! $detach; then
+                echo "Error: --nowait requires --detach to be provided."
+                exit 1
+            fi
+            nowait=true
             shift
             ;;
         --batchposters)
@@ -344,7 +353,8 @@ fi
 
 if $build_utils; then
   LOCAL_BUILD_NODES="scripts rollupcreator"
-  if $tokenbridge || $l3_token_bridge; then
+  # always build tokenbridge in CI mode to avoid caching issues
+  if $tokenbridge || $l3_token_bridge || $ci; then
     LOCAL_BUILD_NODES="$LOCAL_BUILD_NODES tokenbridge"
   fi
 
@@ -556,7 +566,11 @@ fi
 if $run; then
     UP_FLAG=""
     if $detach; then
-        UP_FLAG="--wait"
+        if $nowait; then
+            UP_FLAG="--detach"
+        else
+            UP_FLAG="--wait"
+        fi
     fi
 
     echo == Launching Sequencer
