@@ -344,7 +344,8 @@ fi
 
 if $build_utils; then
   LOCAL_BUILD_NODES="scripts rollupcreator"
-  if $tokenbridge || $l3_token_bridge; then
+  # always build tokenbridge in CI mode to avoid caching issues
+  if $tokenbridge || $l3_token_bridge || $ci; then
     LOCAL_BUILD_NODES="$LOCAL_BUILD_NODES tokenbridge"
   fi
 
