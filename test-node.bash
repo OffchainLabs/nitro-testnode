@@ -6,8 +6,8 @@ NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.2.1-d81324d-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
 # This commit matches v2.1.0 release of nitro-contracts, with additional support to set arb owner through upgrade executor
-DEFAULT_NITRO_CONTRACTS_VERSION="984aff18"
-DEFAULT_BOLD_CONTRACTS_VERSION="ef08baca"
+DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.1-beta.0"
+DEFAULT_BOLD_CONTRACTS_VERSION="7d028430"
 # bold-merge-script
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
@@ -483,11 +483,11 @@ if $force_init; then
     docker compose up --wait $INITIAL_SEQ_NODES
     docker compose run scripts bridge-funds --ethamount 100000 --wait
     docker compose run scripts send-l2 --ethamount 100 --to l2owner --wait
+    rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
 
     if $tokenbridge; then
         echo == Deploying L1-L2 token bridge
         sleep 10 # no idea why this sleep is needed but without it the deploy fails randomly
-        rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
         docker compose run -e ROLLUP_OWNER_KEY=$l2ownerKey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_KEY=$devprivkey -e PARENT_RPC=http://geth:8545 -e CHILD_KEY=$devprivkey -e CHILD_RPC=http://sequencer:8547 tokenbridge deploy:local:token-bridge
         docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json l1l2_network.json && cp network.json localNetwork.json"
         echo
@@ -498,14 +498,14 @@ if $force_init; then
 
     if $boldupgrade; then
         echo == Preparing BOLD upgrade
-        docker compose run boldupgrader script:bold-prepare
+        docker compose run -e ROLLUP_ADDRESS=$rollupAddress boldupgrader script:bold-prepare
         # retry this 10 times because the staker might not have made a node yet
         for i in {1..10}; do
-            docker compose run boldupgrader script:bold-populate-lookup && break || true
+            docker compose run -e ROLLUP_ADDRESS=$rollupAddress boldupgrader script:bold-populate-lookup && break || true
             echo "Failed to populate lookup table, retrying..."
             sleep 10
         done
-        docker compose run boldupgrader script:bold-local-execute
+        docker compose run -e ROLLUP_ADDRESS=$rollupAddress boldupgrader script:bold-local-execute
     fi
 
     if $l3node; then
