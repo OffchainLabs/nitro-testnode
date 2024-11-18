@@ -6,7 +6,7 @@ NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.2.1-d81324d-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
 # This commit matches v2.1.0 release of nitro-contracts, with additional support to set arb owner through upgrade executor
-DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.1-beta.0"
+DEFAULT_NITRO_CONTRACTS_VERSION="d76f3a11"
 DEFAULT_BOLD_CONTRACTS_VERSION="ef08baca"
 # bold-merge-script
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
