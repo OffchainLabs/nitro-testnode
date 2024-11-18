@@ -499,7 +499,12 @@ if $force_init; then
     if $boldupgrade; then
         echo == Preparing BOLD upgrade
         docker compose run boldupgrader script:bold-prepare
-        docker compose run boldupgrader script:bold-populate-lookup
+        # retry this 10 times because the staker might not have made a node yet
+        for i in {1..10}; do
+            docker compose run boldupgrader script:bold-populate-lookup && break || true
+            echo "Failed to populate lookup table, retrying..."
+            sleep 10
+        done
         docker compose run boldupgrader script:bold-local-execute
     fi
 
