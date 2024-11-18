@@ -6,16 +6,21 @@ NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.2.1-d81324d-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
 # This commit matches v2.1.0 release of nitro-contracts, with additional support to set arb owner through upgrade executor
-DEFAULT_NITRO_CONTRACTS_VERSION="99c07a7db2fcce75b751c5a2bd4936e898cda065"
+DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.1-beta.0"
+DEFAULT_BOLD_CONTRACTS_VERSION="a6e2e598"
+# bold-merge-script
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
 # Set default versions if not overriden by provided env vars
 : ${NITRO_CONTRACTS_BRANCH:=$DEFAULT_NITRO_CONTRACTS_VERSION}
+: ${BOLD_CONTRACTS_BRANCH:=$DEFAULT_BOLD_CONTRACTS_VERSION}
 : ${TOKEN_BRIDGE_BRANCH:=$DEFAULT_TOKEN_BRIDGE_VERSION}
 export NITRO_CONTRACTS_BRANCH
+export BOLD_CONTRACTS_BRANCH
 export TOKEN_BRIDGE_BRANCH
 
 echo "Using NITRO_CONTRACTS_BRANCH: $NITRO_CONTRACTS_BRANCH"
+echo "Using BOLD_CONTRACTS_BRANCH: $BOLD_CONTRACTS_BRANCH"
 echo "Using TOKEN_BRIDGE_BRANCH: $TOKEN_BRIDGE_BRANCH"
 
 mydir=`dirname $0`
@@ -44,6 +49,7 @@ blockscout=false
 tokenbridge=false
 l3node=false
 consensusclient=false
+boldupgrade=false
 redundantsequencers=0
 l3_custom_fee_token=false
 l3_token_bridge=false
@@ -203,6 +209,10 @@ while [[ $# -gt 0 ]]; do
             l1chainid=1337
             shift
             ;;
+        --bold-upgrade)
+            boldupgrade=true
+            shift
+            ;;
         --l3node)
             l3node=true
             shift
@@ -282,8 +292,8 @@ while [[ $# -gt 0 ]]; do
             echo --no-build-dev-nitro  don\'t rebuild dev nitro docker image
             echo --build-dev-blockscout     rebuild dev blockscout docker image
             echo --no-build-dev-blockscout  don\'t rebuild dev blockscout docker image
-            echo --build-utils         rebuild scripts, rollupcreator, token bridge docker images
-            echo --no-build-utils      don\'t rebuild scripts, rollupcreator, token bridge docker images
+            echo --build-utils         rebuild scripts, rollupcreator, boldupgrader, token bridge docker images
+            echo --no-build-utils      don\'t rebuild scripts, rollupcreator, boldupgrader, token bridge docker images
             echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_ or TOKEN_BRIDGE_BRANCH changes
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
@@ -352,7 +362,7 @@ if $dev_blockscout && $build_dev_blockscout; then
 fi
 
 if $build_utils; then
-  LOCAL_BUILD_NODES="scripts rollupcreator"
+  LOCAL_BUILD_NODES="scripts rollupcreator boldupgrader"
   # always build tokenbridge in CI mode to avoid caching issues
   if $tokenbridge || $l3_token_bridge || $ci; then
     LOCAL_BUILD_NODES="$LOCAL_BUILD_NODES tokenbridge"
@@ -486,6 +496,12 @@ if $force_init; then
     echo == Deploy CacheManager on L2
     docker compose run -e CHILD_CHAIN_RPC="http://sequencer:8547" -e CHAIN_OWNER_PRIVKEY=$l2ownerKey rollupcreator deploy-cachemanager-testnode
 
+    if $boldupgrade; then
+        echo == Preparing BOLD upgrade
+        docker compose run boldupgrader script:bold-prepare
+        docker compose run boldupgrader script:bold-populate-lookup
+        docker compose run boldupgrader script:bold-local-execute
+    fi
 
     if $l3node; then
         echo == Funding l3 users
