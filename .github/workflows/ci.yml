@@ -56,4 +56,4 @@ jobs:
           driver-opts: network=host
 
       - name: Startup Nitro testnode
-        run: ${{ github.workspace }}/.github/workflows/testnode.bash --init-force --bold-upgrade --simple
+        run: ${{ github.workspace }}/.github/workflows/testnode.bash --init-force --bold-upgrade --simple --detach
