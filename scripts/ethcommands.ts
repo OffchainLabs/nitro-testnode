@@ -407,7 +407,7 @@ export const deployExpressLaneAuctionContractCommand = {
     console.log("ExpressLaneAuction contract deployed at address:", contract.address);
 
     const auctioneerAddr = namedAddress(argv.auctioneer)
-    const initIface = new ethers.utils.Interface(["function initialize((address,address,address,(uint64,uint64,uint64,uint64),uint256,address,address,address,address,address,address,address))"])
+    const initIface = new ethers.utils.Interface(["function initialize((address,address,address,(int64,uint64,uint64,uint64),uint256,address,address,address,address,address,address,address))"])
     const initData = initIface.encodeFunctionData("initialize", [[
       auctioneerAddr, //_auctioneer
       argv.biddingToken, //_biddingToken
