@@ -416,7 +416,7 @@ export const deployExpressLaneAuctionContractCommand = {
         Math.round(Date.now() / 60000) * 60,  // offsetTimestamp - most recent minute
         60, // roundDurationSeconds
         15, // auctionClosingSeconds
-        45  // reserveSubmissionSeconds
+        15  // reserveSubmissionSeconds
       ],// RoundTiminginfo
       1, // _minReservePrice
       auctioneerAddr, //_auctioneerAdmin
