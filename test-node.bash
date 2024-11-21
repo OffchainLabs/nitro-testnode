@@ -5,7 +5,7 @@ set -eu
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.2.1-d81324d-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
-DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.0"
+DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.1-beta.0"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
 # The is the latest bold-merge commit in nitro-contracts at the time
