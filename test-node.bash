@@ -5,11 +5,11 @@ set -eu
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.2.1-d81324d-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
-# This commit matches v2.1.0 release of nitro-contracts, with additional support to set arb owner through upgrade executor
-DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.1-beta.0"
-DEFAULT_BOLD_CONTRACTS_VERSION="7d028430"
-# bold-merge-script
+DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.0"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
+
+# The is the latest bold-merge commit in nitro-contracts at the time
+DEFAULT_BOLD_CONTRACTS_VERSION="59d3cbd"
 
 # Set default versions if not overriden by provided env vars
 : ${NITRO_CONTRACTS_BRANCH:=$DEFAULT_NITRO_CONTRACTS_VERSION}
