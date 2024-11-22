@@ -299,6 +299,10 @@ export const createERC20Command = {
       boolean: true,
       describe: "if true, deploy on L1 and bridge to L2",
     },
+    l1: {
+      boolean: true,
+      describe: "if true, deploy on L1 only",
+    },
     decimals: {
       string: true,
       describe: "number of decimals for token",
@@ -308,17 +312,10 @@ export const createERC20Command = {
   handler: async (argv: any) => {
     console.log("create-erc20");
 
-    if (argv.bridgeable) {
-      // deploy token on l1 and bridge to l2
-      const l1l2tokenbridge = JSON.parse(
-        fs
-          .readFileSync(path.join(consts.tokenbridgedatapath, "l1l2_network.json"))
-          .toString()
-      );
+    if (argv.bridgeable || argv.l1) {
 
+      // deploy token on l1
       const l1provider = new ethers.providers.WebSocketProvider(argv.l1url);
-      const l2provider = new ethers.providers.WebSocketProvider(argv.l2url);
-
       const deployerWallet = new Wallet(
         ethers.utils.sha256(ethers.utils.toUtf8Bytes(argv.deployer)),
         l1provider
@@ -327,6 +324,16 @@ export const createERC20Command = {
       const tokenAddress = await deployERC20Contract(deployerWallet, argv.decimals);
       const token = new ethers.Contract(tokenAddress, ERC20.abi, deployerWallet);
       console.log("Contract deployed at L1 address:", token.address);
+
+      if (!argv.bridgeable) return;
+
+      // bridge to l2
+      const l2provider = new ethers.providers.WebSocketProvider(argv.l2url);
+      const l1l2tokenbridge = JSON.parse(
+        fs
+          .readFileSync(path.join(consts.tokenbridgedatapath, "l1l2_network.json"))
+          .toString()
+      );
 
       const l1GatewayRouter = new ethers.Contract(l1l2tokenbridge.l2Network.tokenBridge.l1GatewayRouter, L1GatewayRouter.abi, deployerWallet);
       await (await token.functions.approve(l1l2tokenbridge.l2Network.tokenBridge.l1ERC20Gateway, ethers.constants.MaxUint256)).wait();

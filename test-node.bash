@@ -498,7 +498,7 @@ if $force_init; then
 
     if $boldupgrade; then
         echo == Deploying BOLD stake token
-        stakeTokenAddress=`docker compose run scripts create-erc20 --deployer l2owner --decimals 18 | tail -n 1 | awk '{ print $NF }'`
+        stakeTokenAddress=`docker compose run scripts create-erc20 --l1 --deployer l2owner --decimals 18 | tail -n 1 | awk '{ print $NF }'`
         echo BOLD stake token address: $stakeTokenAddress
         docker compose run scripts transfer-erc20 --token $stakeTokenAddress --amount 10000 --from l2owner --to validator
         echo == Preparing BOLD upgrade
