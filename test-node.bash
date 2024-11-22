@@ -9,7 +9,7 @@ DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.1-beta.0"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
 # The is the latest bold-merge commit in nitro-contracts at the time
-DEFAULT_BOLD_CONTRACTS_VERSION="59d3cbd"
+DEFAULT_BOLD_CONTRACTS_VERSION="2f1d58dc"
 
 # Set default versions if not overriden by provided env vars
 : ${NITRO_CONTRACTS_BRANCH:=$DEFAULT_NITRO_CONTRACTS_VERSION}
@@ -497,15 +497,19 @@ if $force_init; then
     docker compose run -e CHILD_CHAIN_RPC="http://sequencer:8547" -e CHAIN_OWNER_PRIVKEY=$l2ownerKey rollupcreator deploy-cachemanager-testnode
 
     if $boldupgrade; then
+        echo == Deploying BOLD stake token
+        stakeTokenAddress=`docker compose run scripts create-erc20 --deployer l2owner --decimals 18 | tail -n 1 | awk '{ print $NF }'`
+        echo BOLD stake token address: $stakeTokenAddress
+        docker compose run scripts transfer-erc20 --token $stakeTokenAddress --amount 10000 --from l2owner --to validator
         echo == Preparing BOLD upgrade
-        docker compose run -e ROLLUP_ADDRESS=$rollupAddress boldupgrader script:bold-prepare
+        docker compose run -e TESTNODE_MODE=true -e ROLLUP_ADDRESS=$rollupAddress -e STAKE_TOKEN=$stakeTokenAddress boldupgrader script:bold-prepare
         # retry this 10 times because the staker might not have made a node yet
         for i in {1..10}; do
-            docker compose run -e ROLLUP_ADDRESS=$rollupAddress boldupgrader script:bold-populate-lookup && break || true
+            docker compose run -e TESTNODE_MODE=true -e ROLLUP_ADDRESS=$rollupAddress -e STAKE_TOKEN=$stakeTokenAddress boldupgrader script:bold-populate-lookup && break || true
             echo "Failed to populate lookup table, retrying..."
             sleep 10
         done
-        docker compose run -e ROLLUP_ADDRESS=$rollupAddress boldupgrader script:bold-local-execute
+        docker compose run -e TESTNODE_MODE=true -e ROLLUP_ADDRESS=$rollupAddress -e STAKE_TOKEN=$stakeTokenAddress boldupgrader script:bold-local-execute
     fi
 
     if $l3node; then
