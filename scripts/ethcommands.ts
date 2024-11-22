@@ -316,10 +316,7 @@ export const createERC20Command = {
 
       // deploy token on l1
       const l1provider = new ethers.providers.WebSocketProvider(argv.l1url);
-      const deployerWallet = new Wallet(
-        ethers.utils.sha256(ethers.utils.toUtf8Bytes(argv.deployer)),
-        l1provider
-      );
+      const deployerWallet = namedAccount(argv.deployer).connect(l1provider);
 
       const tokenAddress = await deployERC20Contract(deployerWallet, argv.decimals);
       const token = new ethers.Contract(tokenAddress, ERC20.abi, deployerWallet);
@@ -368,10 +365,7 @@ export const createERC20Command = {
 
     // no l1-l2 token bridge, deploy token on l2 directly
     argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
-    const deployerWallet = new Wallet(
-      ethers.utils.sha256(ethers.utils.toUtf8Bytes(argv.deployer)),
-      argv.provider
-    );
+    const deployerWallet = namedAccount(argv.deployer).connect(argv.provider);
     const tokenAddress = await deployERC20Contract(deployerWallet, argv.decimals);
     console.log("Contract deployed at address:", tokenAddress);
 
@@ -399,11 +393,19 @@ export const transferERC20Command = {
       string: true,
       describe: "address (see general help)",
     },
+    l1: {
+      boolean: true,
+      describe: "if true, transfer on L1",
+    },
   },
   handler: async (argv: any) => {
     console.log("transfer-erc20");
 
-    argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
+    if (argv.l1) {
+      argv.provider = new ethers.providers.WebSocketProvider(argv.l1url);
+    } else {
+      argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
+    }
     const account = namedAccount(argv.from).connect(argv.provider);
     const tokenContract = new ethers.Contract(argv.token, ERC20.abi, account);
     const tokenDecimals = await tokenContract.decimals();
