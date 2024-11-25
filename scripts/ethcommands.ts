@@ -5,6 +5,7 @@ import { namedAccount, namedAddress } from "./accounts";
 import * as L1GatewayRouter from "@arbitrum/token-bridge-contracts/build/contracts/contracts/tokenbridge/ethereum/gateway/L1GatewayRouter.sol/L1GatewayRouter.json";
 import * as L1AtomicTokenBridgeCreator from "@arbitrum/token-bridge-contracts/build/contracts/contracts/tokenbridge/ethereum/L1AtomicTokenBridgeCreator.sol/L1AtomicTokenBridgeCreator.json";
 import * as ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
+import * as TestWETH9 from "@arbitrum/token-bridge-contracts/build/contracts/contracts/tokenbridge/test/TestWETH9.sol/TestWETH9.json";
 import * as fs from "fs";
 import { ARB_OWNER } from "./consts";
 const path = require("path");
@@ -137,6 +138,14 @@ async function deployERC20Contract(deployerWallet: Wallet, decimals: number): Pr
     await token.deployTransaction.wait();
 
     return token.address;
+}
+
+async function deployWETHContract(deployerWallet: Wallet): Promise<string> {
+    const wethFactory = new ContractFactory(TestWETH9.abi, TestWETH9.bytecode, deployerWallet);
+    const weth = await wethFactory.deploy("Wrapped Ether", "WETH");
+    await weth.deployTransaction.wait();
+
+    return weth.address;
 }
 
 export const bridgeFundsCommand = {
@@ -412,6 +421,38 @@ export const transferERC20Command = {
     const amountToTransfer = BigNumber.from(argv.amount).mul(BigNumber.from('10').pow(tokenDecimals));
     await(await tokenContract.transfer(namedAccount(argv.to).address, amountToTransfer)).wait();
     argv.provider.destroy();
+  },
+};
+
+export const createWETHCommand = {
+  command: "create-weth",
+  describe: "creates WETH on L1",
+  builder: {
+    deployer: {
+      string: true,
+      describe: "account (see general help)"
+    },
+    deposit: {
+      number: true,
+      describe: "amount of weth to deposit",
+      default: 100,
+    }
+  },
+  handler: async (argv: any) => {
+    console.log("create-weth");
+
+    const l1provider = new ethers.providers.WebSocketProvider(argv.l1url);
+    const deployerWallet = namedAccount(argv.deployer).connect(l1provider);
+
+    const wethAddress = await deployWETHContract(deployerWallet);
+    const weth = new ethers.Contract(wethAddress, TestWETH9.abi, deployerWallet);
+    console.log("WETH deployed at L1 address:", weth.address);
+
+    if (argv.deposit > 0) {
+      const amount = ethers.utils.parseEther(argv.deposit.toString());
+      const depositTx = await deployerWallet.sendTransaction({ to: wethAddress, value: amount, data:"0xd0e30db0" }); // deposit()
+      await depositTx.wait();
+    }
   },
 };
 

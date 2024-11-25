@@ -497,10 +497,10 @@ if $force_init; then
     docker compose run -e CHILD_CHAIN_RPC="http://sequencer:8547" -e CHAIN_OWNER_PRIVKEY=$l2ownerKey rollupcreator deploy-cachemanager-testnode
 
     if $boldupgrade; then
-        echo == Deploying BOLD stake token
-        stakeTokenAddress=`docker compose run scripts create-erc20 --l1 --deployer l2owner --decimals 18 | tail -n 1 | awk '{ print $NF }'`
+        echo == Deploying WETH as BOLD stake token
+        stakeTokenAddress=`docker compose run scripts create-weth --deployer l2owner --deposit 100 | tail -n 1 | awk '{ print $NF }'`
         echo BOLD stake token address: $stakeTokenAddress
-        docker compose run scripts transfer-erc20 --token $stakeTokenAddress --l1 --amount 10000 --from l2owner --to validator
+        docker compose run scripts transfer-erc20 --token $stakeTokenAddress --l1 --amount 100 --from l2owner --to validator
         echo == Preparing BOLD upgrade
         docker compose run -e TESTNODE_MODE=true -e ROLLUP_ADDRESS=$rollupAddress -e STAKE_TOKEN=$stakeTokenAddress boldupgrader script:bold-prepare
         # retry this 10 times because the staker might not have made a node yet
