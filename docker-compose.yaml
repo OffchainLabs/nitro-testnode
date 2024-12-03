@@ -1,3 +1,14 @@
+l3node_template: &l3node_base
+  pid: host
+  image: nitro-node-dev-testnode
+  entrypoint: /usr/local/bin/nitro
+  volumes:
+    - "l1keystore:/home/user/l1keystore"
+    - "config:/config"
+  depends_on:
+    - sequencer
+    - validation_node
+
 services:
   blockscout:
     depends_on:
@@ -297,21 +308,16 @@ services:
       - sequencer
       - validation_node
 
-  l3node:
-    pid: host # allow debugging
-    image: nitro-node-dev-testnode
-    entrypoint: /usr/local/bin/nitro
-    ports:
-      - "127.0.0.1:3347:3347"
-      - "127.0.0.1:3348:3348"
+  l3node_${L3_NODE_NUM}:
+    <<: *l3node_base
     volumes:
-      - "validator-data:/home/user/.arbitrum/local/nitro"
+      - "l3node_data_${L3_NODE_NUM}:/home/user/.arbitrum/local/nitro"  # Dynamic volume name
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
-    command: --conf.file /config/l3node_config.json --http.port 3347 --http.api net,web3,arb,debug,eth --ws.port 3348
-    depends_on:
-      - sequencer
-      - validation_node
+    ports:
+      - "127.0.0.1:${L3_HTTP_PORT}:${L3_HTTP_PORT}"
+      - "127.0.0.1:${L3_WS_PORT}:${L3_WS_PORT}"
+    command: --conf.file /config/l3node_config_${L3_NODE_NUM}.json --http.port ${L3_HTTP_PORT} --http.api net,web3,arb,debug,eth --ws.port ${L3_WS_PORT}
 
   validation_node:
     pid: host # allow debugging
