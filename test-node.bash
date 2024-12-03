@@ -42,7 +42,7 @@ detach=false
 nowait=false
 blockscout=false
 tokenbridge=false
-l3node=false
+l3nodes=0
 consensusclient=false
 redundantsequencers=0
 l3_custom_fee_token=false
@@ -64,6 +64,8 @@ build_dev_blockscout=false
 build_utils=false
 force_build_utils=false
 build_node_images=false
+
+EXTRA_L3_DEPLOY_FLAG=
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -205,12 +207,23 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --l3node)
-            l3node=true
+            if [[ $l3nodes -lt 1]]; then
+                l3nodes=1
+            fi
+            shift
+            ;;
+        --l3nodes)
+            shift
+            l3nodes=$1
+            if ! [[ $l3nodes =~ [0-9]+ ]] || [ $l3nodes -lt 1 ]; then
+                echo "l3nodes must be a positive integer"
+                exit 1
+            fi
             shift
             ;;
         --l3-fee-token)
-            if ! $l3node; then
-                echo "Error: --l3-fee-token requires --l3node to be provided."
+            if [[ $l3nodes -lt 1 ]]; then
+                echo "Error: --l3-fee-token requires --l3nodes to be provided."
                 exit 1
             fi
             l3_custom_fee_token=true
@@ -230,8 +243,8 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --l3-token-bridge)
-            if ! $l3node; then
-                echo "Error: --l3-token-bridge requires --l3node to be provided."
+            if [[ $l3nodes -lt 1 ]]; then
+                echo "Error: --l3-token-bridge requires --l3nodes to be provided."
                 exit 1
             fi
             l3_token_bridge=true
@@ -270,10 +283,11 @@ while [[ $# -gt 0 ]]; do
             echo --init            remove all data, rebuild, deploy new rollup
             echo --pos             l1 is a proof-of-stake chain \(using prysm for consensus\)
             echo --validate        heavy computation, validating all blocks in WASM
-            echo --l3node          deploys an L3 node on top of the L2
+            echo --l3node          deploys an L3 chain on top of the L2, use --l3nodes to deploy more than one chain.
             echo --l3-fee-token    L3 chain is set up to use custom fee token. Only valid if also '--l3node' is provided
             echo --l3-fee-token-decimals Number of decimals to use for custom fee token. Only valid if also '--l3-fee-token' is provided
             echo --l3-token-bridge Deploy L2-L3 token bridge. Only valid if also '--l3node' is provided
+            echo --l3nodes         number of L3 chains to deploy
             echo --l2-anytrust     run the L2 as an AnyTrust chain
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
@@ -528,8 +542,7 @@ if $force_init; then
     echo == Deploy CacheManager on L2
     docker compose run -e CHILD_CHAIN_RPC="http://sequencer:8547" -e CHAIN_OWNER_PRIVKEY=$l2ownerKey rollupcreator deploy-cachemanager-testnode
 
-
-    if $l3node; then
+    if false; then #$l3node; then
         echo == Funding l3 users
         docker compose run scripts send-l2 --ethamount 1000 --to l3owner --wait
         docker compose run scripts send-l2 --ethamount 1000 --to l3sequencer --wait
@@ -564,7 +577,21 @@ if $force_init; then
         l3ownerkey=`docker compose run scripts print-private-key --account l3owner | tail -n 1 | tr -d '\r\n'`
         l3sequenceraddress=`docker compose run scripts print-address --account l3sequencer | tail -n 1 | tr -d '\r\n'`
 
-        docker compose run -e DEPLOYER_PRIVKEY=$l3ownerkey -e PARENT_CHAIN_RPC="http://sequencer:8547" -e PARENT_CHAIN_ID=412346 -e CHILD_CHAIN_NAME="orbit-dev-test" -e MAX_DATA_SIZE=104857 -e OWNER_ADDRESS=$l3owneraddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$l3sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l3_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/l3deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_l3_chain_info.json" $EXTRA_L3_DEPLOY_FLAG rollupcreator create-rollup-testnode
+        #original
+        docker compose run -e DEPLOYER_PRIVKEY=$l3ownerkey \
+               -e PARENT_CHAIN_RPC="http://sequencer:8547" \
+               -e PARENT_CHAIN_ID=412346 \
+               -e CHILD_CHAIN_NAME="orbit-dev-test" \
+               -e MAX_DATA_SIZE=104857 \
+               -e OWNER_ADDRESS=$l3owneraddress \
+               -e WASM_MODULE_ROOT=$wasmroot \
+               -e SEQUENCER_ADDRESS=$l3sequenceraddress \
+               -e AUTHORIZE_VALIDATORS=10 \
+               -e CHILD_CHAIN_CONFIG_PATH="/config/l3_chain_config.json" \
+               -e CHAIN_DEPLOYMENT_INFO="/config/l3deployment.json" \
+               -e CHILD_CHAIN_INFO="/config/deployed_l3_chain_info.json" \
+               $EXTRA_L3_DEPLOY_FLAG \
+               rollupcreator create-rollup-testnode
         docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
         echo == Funding l3 funnel and dev key
@@ -603,6 +630,83 @@ if $force_init; then
         docker compose run -e CHILD_CHAIN_RPC="http://l3node:3347" -e CHAIN_OWNER_PRIVKEY=$l3ownerkey rollupcreator deploy-cachemanager-testnode
 
     fi
+
+    if [ $l3nodes -gt 0 ]; then
+        echo == Funding l3 users
+        docker compose run scripts send-l2 --ethamount 1000 --to l3owner --wait
+        docker compose run scripts send-l2 --ethamount 1000 --to l3sequencer --wait
+
+        echo == Funding l2 deployers
+        docker compose run scripts send-l1 --ethamount 100 --to user_token_bridge_deployer --wait
+        docker compose run scripts send-l2 --ethamount 100 --to user_token_bridge_deployer --wait
+
+        echo == Funding token deployer
+        docker compose run scripts send-l1 --ethamount 100 --to user_fee_token_deployer --wait
+        docker compose run scripts send-l2 --ethamount 100 --to user_fee_token_deployer --wait
+
+        echo == create l2 traffic
+        docker compose run scripts send-l2 --ethamount 100 --to user_traffic_generator --wait
+        docker compose run scripts send-l2 --ethamount 0.0001 --from user_traffic_generator --to user_fee_token_deployer --wait --delay 500 --times 1000000 > /dev/null &
+
+        for ((i=1; i<=$l3nodes; i++)); do
+            echo "=== Initializing L3 chain $i ==="
+            
+            # Write chain config for this L3
+            l3owneraddress=`docker compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
+            docker compose run scripts --l2owner $l3owneraddress write-l3-chain-config --chain-id $((333333 + i - 1)) --config-suffix _$i
+
+            
+#            if $l3_custom_fee_token; then
+#                echo == Deploying custom fee token for L3 chain $i
+#                nativeTokenAddress=`docker compose run scripts create-erc20 --deployer user_fee_token_deployer --bridgeable $tokenbridge --decimals $l3_custom_fee_token_decimals | tail -n 1 | awk '{ print $NF }'`
+#                EXTRA_L3_DEPLOY_FLAG="-e FEE_TOKEN_ADDRESS=$nativeTokenAddress"
+#            else
+#                EXTRA_L3_DEPLOY_FLAG=""
+#            fi
+
+
+            echo == Deploying L3 chain $i
+            l3ownerkey=`docker compose run scripts print-private-key --account l3owner | tail -n 1 | tr -d '\r\n'`
+            l3sequenceraddress=`docker compose run scripts print-address --account l3sequencer | tail -n 1 | tr -d '\r\n'`
+
+            docker compose run -e DEPLOYER_PRIVKEY=$l3ownerkey \
+                -e PARENT_CHAIN_RPC="http://sequencer:8547" \
+                -e PARENT_CHAIN_ID=412346 \
+                -e CHILD_CHAIN_NAME="orbit-dev-test-$i" \
+                -e MAX_DATA_SIZE=104857 \
+                -e OWNER_ADDRESS=$l3owneraddress \
+                -e WASM_MODULE_ROOT=$wasmroot \
+                -e SEQUENCER_ADDRESS=$l3sequenceraddress \
+                -e AUTHORIZE_VALIDATORS=10 \
+                -e CHILD_CHAIN_CONFIG_PATH="/config/l3_chain_config_$i.json" \
+                -e CHAIN_DEPLOYMENT_INFO="/config/l3deployment_$i.json" \
+                -e CHILD_CHAIN_INFO="/config/deployed_l3_chain_info_$i.json" \
+                $EXTRA_L3_DEPLOY_FLAG \
+                rollupcreator create-rollup-testnode
+
+            docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_l3_chain_info_$i.json > /config/l3_chain_info_$i.json"
+
+            # Configure the L3 node
+            docker compose run scripts write-config --l3node-num $i
+            
+            # Fund the L3 chain
+#            if $l3_custom_fee_token; then
+#                docker compose run scripts bridge-native-token-to-l3 --amount 5000 --from user_fee_token_deployer --wait --l3node-num $i
+#                docker compose run scripts send-l3 --ethamount 100 --from user_fee_token_deployer --wait --l3node-num $i
+#            else
+#                docker compose run scripts bridge-to-l3 --ethamount 50000 --wait --l3node-num $i
+#            fi
+
+#            if $l3_token_bridge; then
+#                echo == Deploying L2-L3 token bridge for chain $i
+#                # ... [token bridge deployment code for each L3]
+#            fi
+#        done
+
+            docker compose run scripts bridge-to-l3 --ethamount 50000 --wait
+            docker compose run scripts send-l3 --ethamount 10 --to l3owner --wait
+    fi
+    
 fi
 
 if $run; then
