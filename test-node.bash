@@ -58,6 +58,7 @@ batchposters=1
 devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
 simple=true
+l2anytrust=false
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -246,6 +247,10 @@ while [[ $# -gt 0 ]]; do
             l3_token_bridge=true
             shift
             ;;
+        --l2-anytrust)
+            l2anytrust=true
+            shift
+            ;;
         --redundantsequencers)
             simple=false
             redundantsequencers=$2
@@ -279,6 +284,7 @@ while [[ $# -gt 0 ]]; do
             echo --l3-fee-token    L3 chain is set up to use custom fee token. Only valid if also '--l3node' is provided
             echo --l3-fee-token-decimals Number of decimals to use for custom fee token. Only valid if also '--l3-fee-token' is provided
             echo --l3-token-bridge Deploy L2-L3 token bridge. Only valid if also '--l3node' is provided
+            echo --l2-anytrust     run the L2 as an AnyTrust chain
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
@@ -340,7 +346,6 @@ fi
 if $blockscout; then
     NODES="$NODES blockscout"
 fi
-
 
 if $dev_nitro && $build_dev_nitro; then
   echo == Building Nitro
@@ -456,8 +461,13 @@ if $force_init; then
 
     l2ownerAddress=`docker compose run scripts print-address --account l2owner | tail -n 1 | tr -d '\r\n'`
 
-    echo == Writing l2 chain config
-    docker compose run scripts --l2owner $l2ownerAddress  write-l2-chain-config
+    if $l2anytrust; then
+        echo "== Writing l2 chain config (anytrust enabled)"
+        docker compose run scripts --l2owner $l2ownerAddress  write-l2-chain-config --anytrust
+    else
+        echo == Writing l2 chain config
+        docker compose run scripts --l2owner $l2ownerAddress  write-l2-chain-config
+    fi
 
     sequenceraddress=`docker compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
     l2ownerKey=`docker compose run scripts print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
@@ -467,12 +477,44 @@ if $force_init; then
     docker compose run -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
     docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
 
+fi # $force_init
+
+anytrustNodeConfigLine=""
+
+# Remaining init may require AnyTrust committee/mirrors to have been started
+if $l2anytrust; then
+    if $force_init; then
+        echo == Generating AnyTrust Config
+        docker compose run --user root --entrypoint sh datool -c "mkdir /das-committee-a/keys /das-committee-a/data /das-committee-a/metadata /das-committee-b/keys /das-committee-b/data /das-committee-b/metadata /das-mirror/data /das-mirror/metadata"
+        docker compose run --user root --entrypoint sh datool -c "chown -R 1000:1000 /das*"
+        docker compose run datool keygen --dir /das-committee-a/keys
+        docker compose run datool keygen --dir /das-committee-b/keys
+        docker compose run scripts write-l2-das-committee-config
+        docker compose run scripts write-l2-das-mirror-config
+
+        das_bls_a=`docker compose run --entrypoint sh datool -c "cat /das-committee-a/keys/das_bls.pub"`
+        das_bls_b=`docker compose run --entrypoint sh datool -c "cat /das-committee-b/keys/das_bls.pub"`
+
+        docker compose run scripts write-l2-das-keyset-config --dasBlsA $das_bls_a --dasBlsB $das_bls_b
+        docker compose run --entrypoint sh datool -c "/usr/local/bin/datool dumpkeyset --conf.file /config/l2_das_keyset.json | grep 'Keyset: ' | awk '{ printf \"%s\", \$2 }' > /config/l2_das_keyset.hex"
+        docker compose run scripts set-valid-keyset
+
+        anytrustNodeConfigLine="--anytrust --dasBlsA $das_bls_a --dasBlsB $das_bls_b"
+    fi
+
+    if $run; then
+        echo == Starting AnyTrust committee and mirror
+        docker compose up --wait das-committee-a das-committee-b das-mirror
+    fi
+fi
+
+if $force_init; then
     if $simple; then
         echo == Writing configs
-        docker compose run scripts write-config --simple
+        docker compose run scripts write-config --simple $anytrustNodeConfigLine
     else
         echo == Writing configs
-        docker compose run scripts write-config
+        docker compose run scripts write-config $anytrustNodeConfigLine
 
         echo == Initializing redis
         docker compose up --wait redis
