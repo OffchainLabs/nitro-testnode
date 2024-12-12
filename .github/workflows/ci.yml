@@ -18,6 +18,7 @@ jobs:
         pos: [pos, no-pos]
         l3node: [l3node, l3node-token-6, no-l3node]
         tokenbridge: [tokenbridge, no-tokenbridge]
+        simple: [simple, no-simple]
 
     steps:
       - name: Checkout
@@ -34,8 +35,8 @@ jobs:
         uses: actions/cache@v3
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ hashFiles('Dockerfile') }}
+          key: ${{ runner.os }}-buildx-${{ hashFiles('**/Dockerfile') }}
           restore-keys: ${{ runner.os }}-buildx-
 
       - name: Startup Nitro testnode
-        run: ${{ github.workspace }}/.github/workflows/testnode.bash --init-force ${{ (matrix.l3node == 'l3node' && '--l3node') || (matrix.l3node == 'l3node-token-6' && '--l3node --l3-fee-token --l3-token-bridge --l3-fee-token-decimals 6') || '' }} ${{ matrix.tokenbridge == 'tokenbridge' && '--tokenbridge' || '--no-tokenbridge' }} --no-simple --detach ${{ matrix.pos == 'pos' && '--pos' || '' }}
+        run: ${{ github.workspace }}/.github/workflows/testnode.bash --init-force ${{ (matrix.l3node == 'l3node' && '--l3node') || (matrix.l3node == 'l3node-token-6' && '--l3node --l3-fee-token --l3-token-bridge --l3-fee-token-decimals 6') || '' }} ${{ matrix.tokenbridge == 'tokenbridge' && '--tokenbridge' || '--no-tokenbridge' }} --detach ${{ matrix.pos == 'pos' && '--pos' || '' }} --simple ${{ (matrix.simple == 'simple' && '--simple') || (matrix.simple == 'no-simple' && '--no-simple') || '' }}
