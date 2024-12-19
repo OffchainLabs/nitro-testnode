@@ -400,8 +400,6 @@ services:
   externalsigner:
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/mockexternalsigner
-    volumes:
-      - "config:/config"
     command:
 
   das-committee-a:
