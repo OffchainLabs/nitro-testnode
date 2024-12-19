@@ -201,6 +201,21 @@ function writeConfigs(argv: any) {
                 "staker-interval": "10s",
                 "make-assertion-interval": "10s",
                 "strategy": "MakeNodes",
+                "data-poster": {
+                    "redis-signer": {
+                        "signing-key": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                    },
+                    "wait-for-l1-finality": false,
+                    "external-signer": {
+                        "url": "",
+                        "address": "",
+                        "method": "eth_signTransaction",
+                        "root-ca": "",
+                        "client-cert": "",
+                        "client-private-key": "",
+                        "insecure-skip-verify": false
+                    }
+                }
             },
             "sequencer": false,
             "dangerous": {
@@ -234,7 +249,16 @@ function writeConfigs(argv: any) {
                     "redis-signer": {
                         "signing-key": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
                     },
-                    "wait-for-l1-finality": false
+                    "wait-for-l1-finality": false,
+                    "external-signer": {
+                        "url": "",
+                        "address": "",
+                        "method": "eth_signTransaction",
+                        "root-ca": "",
+                        "client-cert": "",
+                        "client-private-key": "",
+                        "insecure-skip-verify": false
+                    }
                 }
             },
             "block-validator": {
