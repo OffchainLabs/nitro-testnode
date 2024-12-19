@@ -277,6 +277,26 @@ function writeConfigs(argv: any) {
 
     baseConfig.node["data-availability"]["sequencer-inbox-address"] = ethers.utils.hexlify(getChainInfo()[0]["rollup"]["sequencer-inbox"]);
 
+    if (argv.externalSignerUrl != "") {
+       baseConfig.node.staker["data-poster"]["external-signer"] = {
+            "url": argv.externalSignerUrl,
+            "address": argv.externalSignerAddress,
+            "method": argv.externalSignerMethod,
+            "root-ca": argv.externalSignerRootCA,
+            "client-cert": argv.externalSignerClientCert,
+            "client-private-key": argv.externalSignerClientPrivateKey,
+            "insecure-skip-verify": argv.externalSignerInsecureSkipVerify
+       }
+       baseConfig.node["batch-poster"]["data-poster"]["external-signer"] = {
+            "url": argv.externalSignerUrl,
+            "address": argv.externalSignerAddress,
+            "method": argv.externalSignerMethod,
+            "root-ca": argv.externalSignerRootCA,
+            "client-cert": argv.externalSignerClientCert,
+            "client-private-key": argv.externalSignerClientPrivateKey,
+            "insecure-skip-verify": argv.externalSignerInsecureSkipVerify
+       }
+    }
     const baseConfJSON = JSON.stringify(baseConfig)
 
     if (argv.simple) {
@@ -539,6 +559,41 @@ export const writeConfigCommand = {
             describe: "DAS committee member B BLS pub key",
             default: ""
         },
+        externalSignerUrl: {
+            string: true,
+            describe: "external signer URL",
+            default: ""
+        },
+        externalSignerAddress: {
+            string: true,
+            describe: "external signer address",
+            default: ""
+        },
+        externalSignerMethod: {
+            string: true,
+            describe: "external signer method",
+            default: ""
+        },
+        externalSignerRootCA: {
+            string: true,
+            describe: "external signer root CA",
+            default: ""
+        },
+        externalSignerClientCert: {
+            string: true,
+            describe: "external signer client cert",
+            default: ""
+        },
+        externalSignerClientPrivateKey: {
+            string: true,
+            describe: "external signer client private key",
+            default: ""
+        },
+        externalSignerInsecureSkipVerify: {
+            boolean: true,
+            describe: "external signer insecure skip verify",
+            default: false
+        }
 
       },
     handler: (argv: any) => {
