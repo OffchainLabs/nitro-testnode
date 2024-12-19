@@ -517,7 +517,8 @@ externalsignerConfigLine=""
 
 if $externalsigner; then
     echo == Generating External Signer Config
-    externalsignerConfigLine=$(docker compose run --entrypoint sh externalsigner "private_key")
+    sequencerPrivateKey=$(docker compose run scripts print-private-key --account sequencer | tail -n 1 | tr -d '\r\n')
+    externalsignerConfigLine=$(docker compose run --entrypoint sh externalsigner "$sequencerPrivateKey")
 fi
 
 if $force_init; then
