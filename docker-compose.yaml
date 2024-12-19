@@ -397,6 +397,13 @@ services:
       - "das-mirror-data:/das-mirror"
     command:
 
+  externalsigner:
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/mockexternalsigner
+    volumes:
+      - "config:/config"
+    command:
+
   das-committee-a:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
