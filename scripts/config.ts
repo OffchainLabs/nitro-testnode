@@ -177,7 +177,6 @@ function writeConfigs(argv: any) {
     const valJwtSecret = path.join(consts.configpath, "val_jwt.hex")
     const chainInfoFile = path.join(consts.configpath, "l2_chain_info.json")
     let baseConfig = {
-        "ensure-rollup-deployment": false,
         "parent-chain": {
             "connection": {
                 "url": argv.l1url,
