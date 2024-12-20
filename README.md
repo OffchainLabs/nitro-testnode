@@ -46,6 +46,44 @@ To see more options, use `--help`.
 
 ## Further information
 
+### Branch Selection Guide (for devs working *on* nitro-testnode)
+
+This repository maintains two main branches with distinct purposes.
+
+#### `release` branch
+
+Target branch for changes that should be immediately available to external users.
+
+**Examples of changes for `release`:**
+* Bug fixes for existing functionality
+* Documentation improvements
+* Updates to support newly released Nitro features
+* Configuration updates for published Nitro releases
+
+> 💡 Changes here will later be merged into `master`
+
+#### `master` branch
+
+Target branch for changes supporting unreleased Nitro features.
+
+**Examples of changes for `master`:**
+* Support for new configuration options being developed in Nitro
+* Integration tests for upcoming Nitro features
+* Breaking changes that depend on unreleased Nitro versions
+
+> 💡 Changes here will be merged into `release` when the corresponding Nitro features are released
+
+#### Branch Flow
+
+##### For immediate public consumption
+1. Push to `release`
+2. Later merge into `master`
+
+##### For unreleased Nitro features
+1. Push to `master`
+2. Merge into `release` when the feature is released
+
+
 ### Working with docker containers
 
 **sequencer** is the main docker to be used to access the nitro testchain. It's http and websocket interfaces are exposed at localhost ports 8547 and 8548 ports, respectively.
