@@ -11,7 +11,7 @@ DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 # The is the latest bold-merge commit in nitro-contracts at the time
 DEFAULT_BOLD_CONTRACTS_VERSION="42d80e40"
 
-# Set default versions if not overriden by provided env vars
+# Set default versions if not overridden by provided env vars
 : ${NITRO_CONTRACTS_BRANCH:=$DEFAULT_NITRO_CONTRACTS_VERSION}
 : ${BOLD_CONTRACTS_BRANCH:=$DEFAULT_BOLD_CONTRACTS_VERSION}
 : ${TOKEN_BRIDGE_BRANCH:=$DEFAULT_TOKEN_BRIDGE_VERSION}
