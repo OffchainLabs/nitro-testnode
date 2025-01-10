@@ -177,6 +177,7 @@ function writeConfigs(argv: any) {
     const valJwtSecret = path.join(consts.configpath, "val_jwt.hex")
     const chainInfoFile = path.join(consts.configpath, "l2_chain_info.json")
     let baseConfig = {
+        "ensure-rollup-deployment": false,
         "parent-chain": {
             "connection": {
                 "url": argv.l1url,
@@ -191,7 +192,7 @@ function writeConfigs(argv: any) {
                 "dangerous": {
                     "without-block-validator": false
                 },
-                "parent-chain-wallet" : {
+                "parent-chain-wallet": {
                     "account": namedAddress("validator"),
                     "password": consts.l1passphrase,
                     "pathname": consts.l1keystore,
@@ -203,6 +204,9 @@ function writeConfigs(argv: any) {
                 "strategy": "MakeNodes",
             },
             "sequencer": false,
+            "transaction-streamer": {
+                "track-block-metadata-from": 0
+            },
             "dangerous": {
                 "no-sequencer-coordinator": false,
                 "disable-blob-reader": true,
@@ -225,7 +229,7 @@ function writeConfigs(argv: any) {
                 "redis-url": argv.redisUrl,
                 "max-delay": "30s",
                 "l1-block-bound": "ignore",
-                "parent-chain-wallet" : {
+                "parent-chain-wallet": {
                     "account": namedAddress("sequencer"),
                     "password": consts.l1passphrase,
                     "pathname": consts.l1keystore,
@@ -284,6 +288,7 @@ function writeConfigs(argv: any) {
         simpleConfig.node.staker["use-smart-contract-wallet"] = true
         simpleConfig.node.staker.dangerous["without-block-validator"] = true
         simpleConfig.node.sequencer = true
+        simpleConfig.node["transaction-streamer"]["track-block-metadata-from"] = 1
         simpleConfig.node.dangerous["no-sequencer-coordinator"] = true
         simpleConfig.node["delayed-sequencer"].enable = true
         simpleConfig.node["batch-poster"].enable = true
@@ -306,6 +311,7 @@ function writeConfigs(argv: any) {
 
         let sequencerConfig = JSON.parse(baseConfJSON)
         sequencerConfig.node.sequencer = true
+        sequencerConfig.node["transaction-streamer"]["track-block-metadata-from"] = 1
         sequencerConfig.node["seq-coordinator"].enable = true
         sequencerConfig.execution["sequencer"].enable = true
         sequencerConfig.node["delayed-sequencer"].enable = true
@@ -337,6 +343,7 @@ function writeConfigs(argv: any) {
     l3Config.node.staker.enable = true
     l3Config.node.staker["use-smart-contract-wallet"] = true
     l3Config.node.sequencer = true
+    l3Config.node["transaction-streamer"]["track-block-metadata-from"] = 1
     l3Config.execution["sequencer"].enable = true
     l3Config.node["dangerous"]["no-sequencer-coordinator"] = true
     l3Config.node["delayed-sequencer"].enable = true
@@ -579,9 +586,9 @@ export const writeConfigCommand = {
     describe: "writes config files",
     builder: {
         simple: {
-          boolean: true,
-          describe: "simple config (sequencer is also poster, validator)",
-          default: false,
+            boolean: true,
+            describe: "simple config (sequencer is also poster, validator)",
+            default: false,
         },
         anytrust: {
             boolean: true,
@@ -603,7 +610,7 @@ export const writeConfigCommand = {
             describe: "run sequencer in timeboost mode",
             default: false
         },
-      },
+    },
     handler: (argv: any) => {
         writeConfigs(argv)
     }
@@ -679,16 +686,9 @@ export const writeL2DASKeysetConfigCommand = {
             describe: "DAS committee member B BLS pub key",
             default: ""
         },
-      },
+    },
     handler: (argv: any) => {
-       writeL2DASKeysetConfig(argv)
+        writeL2DASKeysetConfig(argv)
     }
 }
 
-function auctioneerServerConfig(argv: any) {
-    const conf = {
-        "auctioneer-server": {
-        }
-    }
-    return conf
-}
