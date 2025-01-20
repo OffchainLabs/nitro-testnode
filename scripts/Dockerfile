@@ -7,16 +7,6 @@ RUN yarn
 # Stage 2: Copy files and run build
 FROM base AS pre-build
 COPY ./*.ts ./tsconfig.json ./
-COPY ./nitro-contracts ./nitro-contracts
-
-RUN if [ -f "./nitro-contracts/DEV_CONTRACTS" ]; then \
-      echo "Overwriting @arbitrum/nitro-contracts with local version"; \
-      rm -rf node_modules/@arbitrum/nitro-contracts; \
-      cp -a ./nitro-contracts node_modules/@arbitrum/nitro-contracts; \
-    else \
-      echo "local nitro-contracts directory not found, using npm version"; \
-    fi
-# At this stage, the intermediate image will stop
 RUN echo "Intermediate image created before yarn build"
 
 # Stage 3: Final build

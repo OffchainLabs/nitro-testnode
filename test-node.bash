@@ -5,8 +5,7 @@ set -eu
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.2.1-d81324d-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
-# This commit matches v2.1.0 release of nitro-contracts, with additional support to set arb owner through upgrade executor
-DEFAULT_NITRO_CONTRACTS_VERSION="bec7d629c5f4a9dc4ec786e9d6e99734a11d109b"
+DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.1"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
 # Set default versions if not overriden by provided env vars
@@ -357,17 +356,6 @@ if $dev_blockscout && $build_dev_blockscout; then
     echo == Building Blockscout
     docker build blockscout -t blockscout -f blockscout/docker/Dockerfile
   fi
-fi
-
-# Use dev contracts when building scripts. See scripts/Dockerfile
-rm -rf scripts/nitro-contracts
-if ($build_utils || $build_node_images) && $dev_contracts; then
-  cp -ar ../contracts scripts/nitro-contracts
-  touch scripts/nitro-contracts/DEV_CONTRACTS
-else
-  # The scripts/dockerfile COPY directive expects the nitro-contracts dir
-  # to be there even if it is empty.
-  mkdir scripts/nitro-contracts
 fi
 
 if $build_utils; then
