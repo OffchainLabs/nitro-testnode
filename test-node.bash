@@ -59,7 +59,6 @@ devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
 simple=true
 l2anytrust=false
-externalsigner=false
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -250,10 +249,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --l2-anytrust)
             l2anytrust=true
-            shift
-            ;;
-         --externalsigner)
-            externalsigner=true
             shift
             ;;
         --redundantsequencers)
@@ -513,21 +508,13 @@ if $l2anytrust; then
     fi
 fi
 
-externalsignerConfigLine=""
-
-if $externalsigner; then
-    echo == Generating External Signer Config
-    sequencerPrivateKey=$(docker compose run scripts print-private-key --account sequencer | tail -n 1 | tr -d '\r\n')
-    externalsignerConfigLine=$(docker compose run --entrypoint sh externalsigner "$sequencerPrivateKey")
-fi
-
 if $force_init; then
     if $simple; then
         echo == Writing configs
-        docker compose run scripts write-config --simple $anytrustNodeConfigLine $externalsignerConfigLine
+        docker compose run scripts write-config --simple $anytrustNodeConfigLine
     else
         echo == Writing configs
-        docker compose run scripts write-config $anytrustNodeConfigLine $externalsignerConfigLine
+        docker compose run scripts write-config $anytrustNodeConfigLine
 
         echo == Initializing redis
         docker compose up --wait redis

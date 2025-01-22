@@ -20,7 +20,6 @@ jobs:
         l3node: [l3node, l3node-token-6, no-l3node]
         tokenbridge: [tokenbridge, no-tokenbridge]
         simple: [simple, no-simple]
-        externalsigner: [externalsigner, no-externalsigner]
 
     steps:
       - name: Checkout
@@ -41,7 +40,7 @@ jobs:
           restore-keys: ${{ runner.os }}-buildx-
 
       - name: Startup Nitro testnode
-        run: ${{ github.workspace }}/.github/workflows/testnode.bash --init-force ${{ (matrix.l3node == 'l3node' && '--l3node') || (matrix.l3node == 'l3node-token-6' && '--l3node --l3-fee-token --l3-token-bridge --l3-fee-token-decimals 6') || '' }} ${{ matrix.tokenbridge == 'tokenbridge' && '--tokenbridge' || '--no-tokenbridge' }} --detach ${{ matrix.pos == 'pos' && '--pos' || '' }} --simple ${{ (matrix.simple == 'simple' && '--simple') || (matrix.simple == 'no-simple' && '--no-simple') || '' }} ${{ matrix.externalsigner == 'externalsigner' && '--externalsigner' || '' }}
+        run: ${{ github.workspace }}/.github/workflows/testnode.bash --init-force ${{ (matrix.l3node == 'l3node' && '--l3node') || (matrix.l3node == 'l3node-token-6' && '--l3node --l3-fee-token --l3-token-bridge --l3-fee-token-decimals 6') || '' }} ${{ matrix.tokenbridge == 'tokenbridge' && '--tokenbridge' || '--no-tokenbridge' }} --detach ${{ matrix.pos == 'pos' && '--pos' || '' }} --simple ${{ (matrix.simple == 'simple' && '--simple') || (matrix.simple == 'no-simple' && '--no-simple') || '' }}
 
   bold_upgrade:
     runs-on: ubuntu-8
