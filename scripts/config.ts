@@ -319,7 +319,8 @@ function writeConfigs(argv: any) {
           // Initially we create it disabled but then replace it using test-node.bash
           // once we have the contract and auctioneer address.
           sequencerConfig.execution.sequencer.timeboost = {
-             "enable": false
+             "enable": false,
+             "redis-url": argv.redisUrl
           };
         }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
@@ -550,8 +551,8 @@ function writeAutonomousAuctioneerConfig(argv: any) {
       "auction-contract-address": argv.auctionContract,
       "db-directory": "/data",
       "redis-url": "redis://redis:6379",
-      "sequencer-endpoint": "http://sequencer:8547",
-      "sequencer-jwt-path": "/config/jwt.hex",
+      "use-redis-coordinator": true,
+      "redis-coordinator-url": "redis://redis:6379",
       "wallet":  {
         "account": namedAddress("auctioneer"),
         "password": consts.l1passphrase,
