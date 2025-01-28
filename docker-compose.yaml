@@ -161,7 +161,6 @@ services:
     ports:
       - "127.0.0.1:8547:8547"
       - "127.0.0.1:8548:8548"
-      - "127.0.0.1:9549:8549"
       - "127.0.0.1:9642:9642"
     volumes:
       - "seqdata:/home/user/.arbitrum/local/nitro"
@@ -172,15 +171,11 @@ services:
       - --conf.file=/config/sequencer_config.json
       - --node.feed.output.enable
       - --node.feed.output.port=9642
-      - --http.api=net,web3,eth,txpool,debug,timeboost
-      - --node.seq-coordinator.my-url=ws://sequencer:8548
+      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
+      - --node.seq-coordinator.my-url=http://sequencer:8547
       - --graphql.enable
       - --graphql.vhosts=*
       - --graphql.corsdomain=*
-      - --auth.addr=0.0.0.0
-      - --auth.api=auctioneer,eth,validation
-      - --auth.jwtsecret=/config/jwt.hex
-      - --auth.origins=*
     depends_on:
       - geth
 
@@ -194,7 +189,10 @@ services:
     volumes:
       - "seqdata_b:/home/user/.arbitrum/local/nitro"
       - "config:/config"
-    command: --conf.file /config/sequencer_config.json --node.seq-coordinator.my-url ws://sequencer_b:8548
+    command:
+      - --conf.file=/config/sequencer_config.json
+      - --node.seq-coordinator.my-url=http://sequencer_b:8547
+      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
     depends_on:
       - geth
       - redis
@@ -209,7 +207,10 @@ services:
     volumes:
       - "seqdata_c:/home/user/.arbitrum/local/nitro"
       - "config:/config"
-    command: --conf.file /config/sequencer_config.json --node.seq-coordinator.my-url ws://sequencer_c:8548
+    command:
+      - --conf.file=/config/sequencer_config.json
+      - --node.seq-coordinator.my-url=http://sequencer_c:8547
+      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
     depends_on:
       - geth
       - redis
@@ -224,7 +225,10 @@ services:
     volumes:
       - "seqdata_d:/home/user/.arbitrum/local/nitro"
       - "config:/config"
-    command: --conf.file /config/sequencer_config.json --node.seq-coordinator.my-url ws://sequencer_d:8548
+    command:
+      - --conf.file=/config/sequencer_config.json
+      - --node.seq-coordinator.my-url=http://sequencer_d:8547
+      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
     depends_on:
       - geth
       - redis

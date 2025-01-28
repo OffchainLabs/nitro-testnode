@@ -550,7 +550,7 @@ function writeAutonomousAuctioneerConfig(argv: any) {
       "auction-contract-address": argv.auctionContract,
       "db-directory": "/data",
       "redis-url": "redis://redis:6379",
-      "sequencer-endpoint": "ws://sequencer:8549",
+      "sequencer-endpoint": "http://sequencer:8547",
       "sequencer-jwt-path": "/config/jwt.hex",
       "wallet":  {
         "account": namedAddress("auctioneer"),
