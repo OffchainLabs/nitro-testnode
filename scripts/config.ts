@@ -204,9 +204,6 @@ function writeConfigs(argv: any) {
                 "strategy": "MakeNodes",
             },
             "sequencer": false,
-            "transaction-streamer": {
-                "track-block-metadata-from": 0
-            },
             "dangerous": {
                 "no-sequencer-coordinator": false,
                 "disable-blob-reader": true,
@@ -288,7 +285,6 @@ function writeConfigs(argv: any) {
         simpleConfig.node.staker["use-smart-contract-wallet"] = true
         simpleConfig.node.staker.dangerous["without-block-validator"] = true
         simpleConfig.node.sequencer = true
-        simpleConfig.node["transaction-streamer"]["track-block-metadata-from"] = 1
         simpleConfig.node.dangerous["no-sequencer-coordinator"] = true
         simpleConfig.node["delayed-sequencer"].enable = true
         simpleConfig.node["batch-poster"].enable = true
@@ -311,15 +307,12 @@ function writeConfigs(argv: any) {
 
         let sequencerConfig = JSON.parse(baseConfJSON)
         sequencerConfig.node.sequencer = true
-        sequencerConfig.node["transaction-streamer"]["track-block-metadata-from"] = 1
         sequencerConfig.node["seq-coordinator"].enable = true
         sequencerConfig.execution["sequencer"].enable = true
         sequencerConfig.node["delayed-sequencer"].enable = true
         if (argv.timeboost) {
-          // Initially we create it disabled but then replace it using test-node.bash
-          // once we have the contract and auctioneer address.
           sequencerConfig.execution.sequencer.timeboost = {
-             "enable": false,
+             "enable": true,
              "redis-url": argv.redisUrl
           };
         }
@@ -344,7 +337,6 @@ function writeConfigs(argv: any) {
     l3Config.node.staker.enable = true
     l3Config.node.staker["use-smart-contract-wallet"] = true
     l3Config.node.sequencer = true
-    l3Config.node["transaction-streamer"]["track-block-metadata-from"] = 1
     l3Config.execution["sequencer"].enable = true
     l3Config.node["dangerous"]["no-sequencer-coordinator"] = true
     l3Config.node["delayed-sequencer"].enable = true
