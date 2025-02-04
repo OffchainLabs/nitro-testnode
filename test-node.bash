@@ -594,6 +594,7 @@ if $force_init; then
 
         echo == Funding l3 funnel and dev key
         docker compose up --wait l3node sequencer
+        
 
         if $l3_token_bridge; then
             echo == Deploying L2-L3 token bridge
