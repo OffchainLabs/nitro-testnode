@@ -2,20 +2,25 @@
 
 set -eu
 
-NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.1.2-309340a-dev
+NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.2.1-d81324d-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
-# This commit matches v2.1.0 release of nitro-contracts, with additional support to set arb owner through upgrade executor
-DEFAULT_NITRO_CONTRACTS_VERSION="99c07a7db2fcce75b751c5a2bd4936e898cda065"
+DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.1-beta.0"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
+
+# The is the latest bold-merge commit in nitro-contracts at the time
+DEFAULT_BOLD_CONTRACTS_VERSION="42d80e40"
 
 # Set default versions if not overriden by provided env vars
 : ${NITRO_CONTRACTS_BRANCH:=$DEFAULT_NITRO_CONTRACTS_VERSION}
+: ${BOLD_CONTRACTS_BRANCH:=$DEFAULT_BOLD_CONTRACTS_VERSION}
 : ${TOKEN_BRIDGE_BRANCH:=$DEFAULT_TOKEN_BRIDGE_VERSION}
 export NITRO_CONTRACTS_BRANCH
+export BOLD_CONTRACTS_BRANCH
 export TOKEN_BRIDGE_BRANCH
 
 echo "Using NITRO_CONTRACTS_BRANCH: $NITRO_CONTRACTS_BRANCH"
+echo "Using BOLD_CONTRACTS_BRANCH: $BOLD_CONTRACTS_BRANCH"
 echo "Using TOKEN_BRIDGE_BRANCH: $TOKEN_BRIDGE_BRANCH"
 
 mydir=`dirname $0`
@@ -36,12 +41,15 @@ else
 fi
 
 run=true
+ci=false
 validate=false
 detach=false
+nowait=false
 blockscout=false
 tokenbridge=false
 l3node=false
 consensusclient=false
+boldupgrade=false
 redundantsequencers=0
 l3_custom_fee_token=false
 l3_custom_fee_token_pricer=false
@@ -51,6 +59,7 @@ batchposters=1
 devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
 simple=true
+l2anytrust=false
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -71,13 +80,13 @@ while [[ $# -gt 0 ]]; do
                 read -p "are you sure? [y/n]" -n 1 response
                 if [[ $response == "y" ]] || [[ $response == "Y" ]]; then
                     force_init=true
-                    build_utils=true
-                    build_node_images=true
                     echo
                 else
                     exit 0
                 fi
             fi
+            build_utils=true
+            build_node_images=true
             shift
             ;;
         --init-force)
@@ -107,6 +116,10 @@ while [[ $# -gt 0 ]]; do
                     shift
                 done
             fi
+            ;;
+        --ci)
+            ci=true
+            shift
             ;;
         --build)
             build_dev_nitro=true
@@ -175,6 +188,14 @@ while [[ $# -gt 0 ]]; do
             detach=true
             shift
             ;;
+        --nowait)
+            if ! $detach; then
+                echo "Error: --nowait requires --detach to be provided."
+                exit 1
+            fi
+            nowait=true
+            shift
+            ;;
         --batchposters)
             simple=false
             batchposters=$2
@@ -188,6 +209,10 @@ while [[ $# -gt 0 ]]; do
         --pos)
             consensusclient=true
             l1chainid=1337
+            shift
+            ;;
+        --bold-upgrade)
+            boldupgrade=true
             shift
             ;;
         --l3node)
@@ -231,6 +256,10 @@ while [[ $# -gt 0 ]]; do
             l3_token_bridge=true
             shift
             ;;
+        --l2-anytrust)
+            l2anytrust=true
+            shift
+            ;;
         --redundantsequencers)
             simple=false
             redundantsequencers=$2
@@ -264,6 +293,7 @@ while [[ $# -gt 0 ]]; do
             echo --l3-fee-token    L3 chain is set up to use custom fee token. Only valid if also '--l3node' is provided
             echo --l3-fee-token-decimals Number of decimals to use for custom fee token. Only valid if also '--l3-fee-token' is provided
             echo --l3-token-bridge Deploy L2-L3 token bridge. Only valid if also '--l3node' is provided
+            echo --l2-anytrust     run the L2 as an AnyTrust chain
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
@@ -277,8 +307,8 @@ while [[ $# -gt 0 ]]; do
             echo --no-build-dev-nitro  don\'t rebuild dev nitro docker image
             echo --build-dev-blockscout     rebuild dev blockscout docker image
             echo --no-build-dev-blockscout  don\'t rebuild dev blockscout docker image
-            echo --build-utils         rebuild scripts, rollupcreator, token bridge docker images
-            echo --no-build-utils      don\'t rebuild scripts, rollupcreator, token bridge docker images
+            echo --build-utils         rebuild scripts, rollupcreator, boldupgrader, token bridge docker images
+            echo --no-build-utils      don\'t rebuild scripts, rollupcreator, boldupgrader, token bridge docker images
             echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_ or TOKEN_BRIDGE_BRANCH changes
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
@@ -326,7 +356,6 @@ if $blockscout; then
     NODES="$NODES blockscout"
 fi
 
-
 if $dev_nitro && $build_dev_nitro; then
   echo == Building Nitro
   if ! [ -n "${NITRO_SRC+set}" ]; then
@@ -347,15 +376,22 @@ if $dev_blockscout && $build_dev_blockscout; then
 fi
 
 if $build_utils; then
-  LOCAL_BUILD_NODES="scripts rollupcreator"
-  if $tokenbridge || $l3_token_bridge; then
+  LOCAL_BUILD_NODES="scripts rollupcreator boldupgrader"
+  # always build tokenbridge in CI mode to avoid caching issues
+  if $tokenbridge || $l3_token_bridge || $ci; then
     LOCAL_BUILD_NODES="$LOCAL_BUILD_NODES tokenbridge"
   fi
-  UTILS_NOCACHE=""
-  if $force_build_utils; then
+
+  if [ "$ci" == true ]; then
+    # workaround to cache docker layers and keep using docker-compose in CI
+    docker buildx bake --file docker-compose.yaml --file docker-compose-ci-cache.json $LOCAL_BUILD_NODES
+  else
+    UTILS_NOCACHE=""
+    if $force_build_utils; then
       UTILS_NOCACHE="--no-cache"
+    fi
+    docker compose build --no-rm $UTILS_NOCACHE $LOCAL_BUILD_NODES
   fi
-  docker compose build --no-rm $UTILS_NOCACHE $LOCAL_BUILD_NODES
 fi
 
 if $dev_nitro; then
@@ -375,7 +411,7 @@ if $blockscout; then
 fi
 
 if $build_node_images; then
-    docker compose build --no-rm $NODES scripts
+    docker compose build --no-rm $NODES
 fi
 
 if $force_init; then
@@ -434,8 +470,13 @@ if $force_init; then
 
     l2ownerAddress=`docker compose run scripts print-address --account l2owner | tail -n 1 | tr -d '\r\n'`
 
-    echo == Writing l2 chain config
-    docker compose run scripts --l2owner $l2ownerAddress  write-l2-chain-config
+    if $l2anytrust; then
+        echo "== Writing l2 chain config (anytrust enabled)"
+        docker compose run scripts --l2owner $l2ownerAddress  write-l2-chain-config --anytrust
+    else
+        echo == Writing l2 chain config
+        docker compose run scripts --l2owner $l2ownerAddress  write-l2-chain-config
+    fi
 
     sequenceraddress=`docker compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
     l2ownerKey=`docker compose run scripts print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
@@ -445,12 +486,44 @@ if $force_init; then
     docker compose run -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
     docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
 
+fi # $force_init
+
+anytrustNodeConfigLine=""
+
+# Remaining init may require AnyTrust committee/mirrors to have been started
+if $l2anytrust; then
+    if $force_init; then
+        echo == Generating AnyTrust Config
+        docker compose run --user root --entrypoint sh datool -c "mkdir /das-committee-a/keys /das-committee-a/data /das-committee-a/metadata /das-committee-b/keys /das-committee-b/data /das-committee-b/metadata /das-mirror/data /das-mirror/metadata"
+        docker compose run --user root --entrypoint sh datool -c "chown -R 1000:1000 /das*"
+        docker compose run datool keygen --dir /das-committee-a/keys
+        docker compose run datool keygen --dir /das-committee-b/keys
+        docker compose run scripts write-l2-das-committee-config
+        docker compose run scripts write-l2-das-mirror-config
+
+        das_bls_a=`docker compose run --entrypoint sh datool -c "cat /das-committee-a/keys/das_bls.pub"`
+        das_bls_b=`docker compose run --entrypoint sh datool -c "cat /das-committee-b/keys/das_bls.pub"`
+
+        docker compose run scripts write-l2-das-keyset-config --dasBlsA $das_bls_a --dasBlsB $das_bls_b
+        docker compose run --entrypoint sh datool -c "/usr/local/bin/datool dumpkeyset --conf.file /config/l2_das_keyset.json | grep 'Keyset: ' | awk '{ printf \"%s\", \$2 }' > /config/l2_das_keyset.hex"
+        docker compose run scripts set-valid-keyset
+
+        anytrustNodeConfigLine="--anytrust --dasBlsA $das_bls_a --dasBlsB $das_bls_b"
+    fi
+
+    if $run; then
+        echo == Starting AnyTrust committee and mirror
+        docker compose up --wait das-committee-a das-committee-b das-mirror
+    fi
+fi
+
+if $force_init; then
     if $simple; then
         echo == Writing configs
-        docker compose run scripts write-config --simple
+        docker compose run scripts write-config --simple $anytrustNodeConfigLine
     else
         echo == Writing configs
-        docker compose run scripts write-config
+        docker compose run scripts write-config $anytrustNodeConfigLine
 
         echo == Initializing redis
         docker compose up --wait redis
@@ -461,11 +534,11 @@ if $force_init; then
     docker compose up --wait $INITIAL_SEQ_NODES
     docker compose run scripts bridge-funds --ethamount 100000 --wait
     docker compose run scripts send-l2 --ethamount 100 --to l2owner --wait
+    rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
 
     if $tokenbridge; then
         echo == Deploying L1-L2 token bridge
         sleep 10 # no idea why this sleep is needed but without it the deploy fails randomly
-        rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
         docker compose run -e ROLLUP_OWNER_KEY=$l2ownerKey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_KEY=$devprivkey -e PARENT_RPC=http://geth:8545 -e CHILD_KEY=$devprivkey -e CHILD_RPC=http://sequencer:8547 tokenbridge deploy:local:token-bridge
         docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json l1l2_network.json && cp network.json localNetwork.json"
         echo
@@ -474,6 +547,21 @@ if $force_init; then
     echo == Deploy CacheManager on L2
     docker compose run -e CHILD_CHAIN_RPC="http://sequencer:8547" -e CHAIN_OWNER_PRIVKEY=$l2ownerKey rollupcreator deploy-cachemanager-testnode
 
+    if $boldupgrade; then
+        echo == Deploying WETH as BOLD stake token
+        stakeTokenAddress=`docker compose run scripts create-weth --deployer l2owner --deposit 100 | tail -n 1 | awk '{ print $NF }'`
+        echo BOLD stake token address: $stakeTokenAddress
+        docker compose run scripts transfer-erc20 --token $stakeTokenAddress --l1 --amount 100 --from l2owner --to validator
+        echo == Preparing BOLD upgrade
+        docker compose run -e TESTNODE_MODE=true -e ROLLUP_ADDRESS=$rollupAddress -e STAKE_TOKEN=$stakeTokenAddress boldupgrader script:bold-prepare
+        # retry this 10 times because the staker might not have made a node yet
+        for i in {1..10}; do
+            docker compose run -e TESTNODE_MODE=true -e ROLLUP_ADDRESS=$rollupAddress -e STAKE_TOKEN=$stakeTokenAddress boldupgrader script:bold-populate-lookup && break || true
+            echo "Failed to populate lookup table, retrying..."
+            sleep 10
+        done
+        docker compose run -e TESTNODE_MODE=true -e ROLLUP_ADDRESS=$rollupAddress -e STAKE_TOKEN=$stakeTokenAddress boldupgrader script:bold-local-execute
+    fi
 
     if $l3node; then
         echo == Funding l3 users
@@ -559,7 +647,11 @@ fi
 if $run; then
     UP_FLAG=""
     if $detach; then
-        UP_FLAG="--wait"
+        if $nowait; then
+            UP_FLAG="--detach"
+        else
+            UP_FLAG="--wait"
+        fi
     fi
 
     echo == Launching Sequencer

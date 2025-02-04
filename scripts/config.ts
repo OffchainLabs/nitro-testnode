@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as consts from './consts'
+import { ethers } from "ethers";
 import { namedAccount, namedAddress } from './accounts'
 
 const path = require("path");
@@ -32,6 +33,9 @@ DENEB_FORK_VERSION: 0x20000093
 
 # ELECTRA
 ELECTRA_FORK_VERSION: 0x20000094
+
+# FULU
+FULU_FORK_VERSION: 0x20000095
 
 # Time parameters
 SECONDS_PER_SLOT: 2
@@ -160,10 +164,22 @@ function writeGethGenesisConfig(argv: any) {
     fs.writeFileSync(path.join(consts.configpath, "val_jwt.hex"), val_jwt)
 }
 
+type ChainInfo = {
+    [key: string]: any;
+};
+
+// Define a function to return ChainInfo
+function getChainInfo(): ChainInfo {
+    const filePath = path.join(consts.configpath, "l2_chain_info.json");
+    const fileContents = fs.readFileSync(filePath).toString();
+    const chainInfo: ChainInfo = JSON.parse(fileContents);
+    return chainInfo;
+}
+
 function writeConfigs(argv: any) {
     const valJwtSecret = path.join(consts.configpath, "val_jwt.hex")
     const chainInfoFile = path.join(consts.configpath, "l2_chain_info.json")
-    const baseConfig = {
+    let baseConfig = {
         "parent-chain": {
             "connection": {
                 "url": argv.l1url,
@@ -181,7 +197,7 @@ function writeConfigs(argv: any) {
                 "parent-chain-wallet" : {
                     "account": namedAddress("validator"),
                     "password": consts.l1passphrase,
-                    "pathname": consts.l1keystore,    
+                    "pathname": consts.l1keystore,
                 },
                 "disable-challenge": false,
                 "enable": false,
@@ -215,7 +231,7 @@ function writeConfigs(argv: any) {
                 "parent-chain-wallet" : {
                     "account": namedAddress("sequencer"),
                     "password": consts.l1passphrase,
-                    "pathname": consts.l1keystore,    
+                    "pathname": consts.l1keystore,
                 },
                 "data-poster": {
                     "redis-signer": {
@@ -229,6 +245,17 @@ function writeConfigs(argv: any) {
                     "url": argv.validationNodeUrl,
                     "jwtsecret": valJwtSecret,
                 }
+            },
+            "data-availability": {
+                "enable": argv.anytrust,
+                "rpc-aggregator": dasBackendsJsonConfig(argv),
+                "rest-aggregator": {
+                    "enable": true,
+                    "urls": ["http://das-mirror:9877"],
+                },
+                // TODO Fix das config to not need this redundant config
+                "parent-chain-node-url": argv.l1url,
+                "sequencer-inbox-address": "not_set"
             }
         },
         "execution": {
@@ -250,6 +277,7 @@ function writeConfigs(argv: any) {
         },
     }
 
+    baseConfig.node["data-availability"]["sequencer-inbox-address"] = ethers.utils.hexlify(getChainInfo()[0]["rollup"]["sequencer-inbox"]);
 
     const baseConfJSON = JSON.stringify(baseConfig)
 
@@ -264,6 +292,9 @@ function writeConfigs(argv: any) {
         simpleConfig.node["batch-poster"].enable = true
         simpleConfig.node["batch-poster"]["redis-url"] = ""
         simpleConfig.execution["sequencer"].enable = true
+        if (argv.anytrust) {
+            simpleConfig.node["data-availability"]["rpc-aggregator"].enable = true
+        }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(simpleConfig))
     } else {
         let validatorConfig = JSON.parse(baseConfJSON)
@@ -286,6 +317,9 @@ function writeConfigs(argv: any) {
         let posterConfig = JSON.parse(baseConfJSON)
         posterConfig.node["seq-coordinator"].enable = true
         posterConfig.node["batch-poster"].enable = true
+        if (argv.anytrust) {
+            posterConfig.node["data-availability"]["rpc-aggregator"].enable = true
+        }
         fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
     }
 
@@ -353,8 +387,8 @@ function writeL2ChainConfig(argv: any) {
         "arbitrum": {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
-            "DataAvailabilityCommittee": false,
-            "InitialArbOSVersion": 31,
+            "DataAvailabilityCommittee": argv.anytrust,
+            "InitialArbOSVersion": 32,
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
@@ -396,6 +430,93 @@ function writeL3ChainConfig(argv: any) {
     fs.writeFileSync(path.join(consts.configpath, "l3_chain_config.json"), l3ChainConfigJSON)
 }
 
+function writeL2DASCommitteeConfig(argv: any) {
+    const sequencerInboxAddr = ethers.utils.hexlify(getChainInfo()[0]["rollup"]["sequencer-inbox"]);
+    const l2DASCommitteeConfig = {
+        "data-availability": {
+            "key": {
+                "key-dir": "/das/keys"
+            },
+            "local-file-storage": {
+                "data-dir": "/das/data",
+                "enable": true,
+                "enable-expiry": true
+            },
+            "sequencer-inbox-address": sequencerInboxAddr,
+            "parent-chain-node-url": argv.l1url
+        },
+        "enable-rest": true,
+        "enable-rpc": true,
+        "log-level": "INFO",
+        "rest-addr": "0.0.0.0",
+        "rest-port": "9877",
+        "rpc-addr": "0.0.0.0",
+        "rpc-port": "9876"
+    }
+    const l2DASCommitteeConfigJSON = JSON.stringify(l2DASCommitteeConfig)
+
+    fs.writeFileSync(path.join(consts.configpath, "l2_das_committee.json"), l2DASCommitteeConfigJSON)
+}
+
+function writeL2DASMirrorConfig(argv: any, sequencerInboxAddr: string) {
+    const l2DASMirrorConfig = {
+        "data-availability": {
+            "local-file-storage": {
+                "data-dir": "/das/data",
+                "enable": true,
+                "enable-expiry": false
+            },
+            "sequencer-inbox-address": sequencerInboxAddr,
+            "parent-chain-node-url": argv.l1url,
+            "rest-aggregator": {
+                "enable": true,
+                "sync-to-storage": {
+                    "eager": false,
+                    "ignore-write-errors": false,
+                    "state-dir": "/das/metadata",
+                    "sync-expired-data": true
+                },
+                "urls": ["http://das-committee-a:9877", "http://das-committee-b:9877"],
+            }
+        },
+        "enable-rest": true,
+        "enable-rpc": false,
+        "log-level": "INFO",
+        "rest-addr": "0.0.0.0",
+        "rest-port": "9877"
+    }
+    const l2DASMirrorConfigJSON = JSON.stringify(l2DASMirrorConfig)
+
+    fs.writeFileSync(path.join(consts.configpath, "l2_das_mirror.json"), l2DASMirrorConfigJSON)
+}
+
+function writeL2DASKeysetConfig(argv: any) {
+    const l2DASKeysetConfig = {
+        "keyset": dasBackendsJsonConfig(argv)
+    }
+    const l2DASKeysetConfigJSON = JSON.stringify(l2DASKeysetConfig)
+
+    fs.writeFileSync(path.join(consts.configpath, "l2_das_keyset.json"), l2DASKeysetConfigJSON)
+}
+
+function dasBackendsJsonConfig(argv: any) {
+    const backends = {
+        "enable": false,
+        "assumed-honest": 1,
+        "backends": [
+            {
+                "url": "http://das-committee-a:9876",
+                "pubkey": argv.dasBlsA
+            },
+            {
+                "url": "http://das-committee-b:9876",
+                "pubkey": argv.dasBlsB
+            }
+        ]
+    }
+    return backends
+}
+
 export const writeConfigCommand = {
     command: "write-config",
     describe: "writes config files",
@@ -405,7 +526,23 @@ export const writeConfigCommand = {
           describe: "simple config (sequencer is also poster, validator)",
           default: false,
         },
-      },    
+        anytrust: {
+            boolean: true,
+            describe: "run nodes in anytrust mode",
+            default: false
+        },
+        dasBlsA: {
+            string: true,
+            describe: "DAS committee member A BLS pub key",
+            default: ""
+        },
+        dasBlsB: {
+            string: true,
+            describe: "DAS committee member B BLS pub key",
+            default: ""
+        },
+
+      },
     handler: (argv: any) => {
         writeConfigs(argv)
     }
@@ -430,6 +567,13 @@ export const writeGethGenesisCommand = {
 export const writeL2ChainConfigCommand = {
     command: "write-l2-chain-config",
     describe: "writes l2 chain config file",
+    builder: {
+        anytrust: {
+            boolean: true,
+            describe: "enable anytrust in chainconfig",
+            default: false
+        },
+    },
     handler: (argv: any) => {
         writeL2ChainConfig(argv)
     }
@@ -440,5 +584,42 @@ export const writeL3ChainConfigCommand = {
     describe: "writes l3 chain config file",
     handler: (argv: any) => {
         writeL3ChainConfig(argv)
+    }
+}
+
+export const writeL2DASCommitteeConfigCommand = {
+    command: "write-l2-das-committee-config",
+    describe: "writes daserver committee member config file",
+    handler: (argv: any) => {
+        writeL2DASCommitteeConfig(argv)
+    }
+}
+
+export const writeL2DASMirrorConfigCommand = {
+    command: "write-l2-das-mirror-config",
+    describe: "writes daserver mirror config file",
+    handler: (argv: any) => {
+        const sequencerInboxAddr = ethers.utils.hexlify(getChainInfo()[0]["rollup"]["sequencer-inbox"]);
+        writeL2DASMirrorConfig(argv, sequencerInboxAddr)
+    }
+}
+
+export const writeL2DASKeysetConfigCommand = {
+    command: "write-l2-das-keyset-config",
+    describe: "writes DAS keyset config",
+    builder: {
+        dasBlsA: {
+            string: true,
+            describe: "DAS committee member A BLS pub key",
+            default: ""
+        },
+        dasBlsB: {
+            string: true,
+            describe: "DAS committee member B BLS pub key",
+            default: ""
+        },
+      },
+    handler: (argv: any) => {
+       writeL2DASKeysetConfig(argv)
     }
 }

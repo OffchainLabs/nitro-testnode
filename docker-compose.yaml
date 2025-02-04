@@ -47,7 +47,7 @@ services:
       - "127.0.0.1:6379:6379"
 
   geth:
-    image: ethereum/client-go:latest
+    image: ethereum/client-go:stable
     ports:
       - "127.0.0.1:8545:8545"
       - "127.0.0.1:8551:8551"
@@ -354,6 +354,26 @@ services:
       - "tokenbridge-data:/workspace"
       - /var/run/docker.sock:/var/run/docker.sock
 
+  boldupgrader:
+    depends_on:
+      - geth
+      - sequencer
+    pid: host
+    build:
+      context: boldupgrader/
+      args:
+        BOLD_CONTRACTS_BRANCH: ${BOLD_CONTRACTS_BRANCH:-}
+    environment:
+      - L1_RPC_URL=http://geth:8545
+      - L1_PRIV_KEY=0xdc04c5399f82306ec4b4d654a342f40e2e0620fe39950d967e1e574b32d4dd36
+      - CONFIG_NETWORK_NAME=local
+      - DEPLOYED_CONTRACTS_DIR=./scripts/files/
+      - DISABLE_VERIFICATION=true
+    volumes:
+      - "config:/config"
+      - "boldupgrader-data:/workspace"
+      - /var/run/docker.sock:/var/run/docker.sock
+
   rollupcreator:
     depends_on:
       - geth
@@ -366,6 +386,54 @@ services:
     volumes:
       - "config:/config"
       - /var/run/docker.sock:/var/run/docker.sock
+
+  datool:
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/datool
+    volumes:
+      - "config:/config"
+      - "das-committee-a-data:/das-committee-a"
+      - "das-committee-b-data:/das-committee-b"
+      - "das-mirror-data:/das-mirror"
+    command:
+
+  das-committee-a:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/daserver
+    ports:
+      - "127.0.0.1:9876:9876"
+      - "127.0.0.1:9877:9877"
+    volumes:
+      - "config:/config"
+      - "das-committee-a-data:/das"
+    command:
+      - --conf.file=/config/l2_das_committee.json
+
+  das-committee-b:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/daserver
+    ports:
+      - "127.0.0.1:8876:9876"
+      - "127.0.0.1:8877:9877"
+    volumes:
+      - "config:/config"
+      - "das-committee-b-data:/das"
+    command:
+      - --conf.file=/config/l2_das_committee.json
+
+  das-mirror:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/daserver
+    ports:
+      - "127.0.0.1:7877:9877"
+    volumes:
+      - "config:/config"
+      - "das-mirror-data:/das"
+    command:
+      - --conf.file=/config/l2_das_mirror.json
 
 volumes:
   l1data:
@@ -383,3 +451,7 @@ volumes:
   config:
   postgres-data:
   tokenbridge-data:
+  das-committee-a-data:
+  das-committee-b-data:
+  das-mirror-data:
+  boldupgrader-data:
