@@ -227,14 +227,14 @@ while [[ $# -gt 0 ]]; do
             l3_custom_fee_token=true
             shift
             ;;
-        # --l3-fee-token-pricer)
-        #     if ! $l3_custom_fee_token; then
-        #         echo "Error: --l3-fee-token-pricer requires --l3-fee-token to be provided."
-        #         exit 1
-        #     fi
-        #     l3_custom_fee_token_pricer=true
-        #     shift
-        #     ;;
+        --l3-fee-token-pricer)
+            if ! $l3_custom_fee_token; then
+                echo "Error: --l3-fee-token-pricer requires --l3-fee-token to be provided."
+                exit 1
+            fi
+            l3_custom_fee_token_pricer=true
+            shift
+            ;;
         --l3-fee-token-decimals)
             if ! $l3_custom_fee_token; then
                 echo "Error: --l3-fee-token-decimals requires --l3-fee-token to be provided."
@@ -384,7 +384,7 @@ if $build_utils; then
 
   if [ "$ci" == true ]; then
     # workaround to cache docker layers and keep using docker-compose in CI
-    docker buildx bake --file docker-compose.yaml --file docker-compose-ci-cache.json $LOCAL_BUILD_NODES
+    docker buildx bake --allow=fs=/tmp/ --file docker-compose.yaml --file docker-compose-ci-cache.json $LOCAL_BUILD_NODES
   else
     UTILS_NOCACHE=""
     if $force_build_utils; then
@@ -592,11 +592,11 @@ if $force_init; then
             docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 10000 --from user_fee_token_deployer --to l3owner
             docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 10000 --from user_fee_token_deployer --to user_token_bridge_deployer
             EXTRA_L3_DEPLOY_FLAG="-e FEE_TOKEN_ADDRESS=$nativeTokenAddress"
-            # if $l3_custom_fee_token_pricer; then
-            #     echo == Deploying custom fee token pricer
-            #     feeTokenPricerAddress=`docker compose run scripts create-fee-token-pricer --deployer user_fee_token_deployer | tail -n 1 | awk '{ print $NF }'`
-            #     EXTRA_L3_DEPLOY_FLAG="$EXTRA_L3_DEPLOY_FLAG -e FEE_TOKEN_PRICER_ADDRESS=$feeTokenPricerAddress"
-            # fi
+            if $l3_custom_fee_token_pricer; then
+                echo == Deploying custom fee token pricer
+                feeTokenPricerAddress=`docker compose run scripts create-fee-token-pricer --deployer user_fee_token_deployer | tail -n 1 | awk '{ print $NF }'`
+                EXTRA_L3_DEPLOY_FLAG="$EXTRA_L3_DEPLOY_FLAG -e FEE_TOKEN_PRICER_ADDRESS=$feeTokenPricerAddress"
+            fi
         fi
 
         echo == Deploying L3
