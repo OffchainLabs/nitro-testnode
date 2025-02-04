@@ -375,7 +375,7 @@ if $build_utils; then
 
   if [ "$ci" == true ]; then
     # workaround to cache docker layers and keep using docker-compose in CI
-    docker buildx bake --allow=fs=/tmp/.buildx-cache --file docker-compose.yaml --file docker-compose-ci-cache.json $LOCAL_BUILD_NODES
+    docker buildx bake --allow=fs=/tmp/ --file docker-compose.yaml --file docker-compose-ci-cache.json $LOCAL_BUILD_NODES
   else
     UTILS_NOCACHE=""
     if $force_build_utils; then
@@ -594,7 +594,7 @@ if $force_init; then
 
         echo == Funding l3 funnel and dev key
         docker compose up --wait l3node sequencer
-
+        
 
         if $l3_token_bridge; then
             echo == Deploying L2-L3 token bridge
