@@ -72,14 +72,7 @@ function writeGethGenesisConfig(argv: any) {
                 "shanghaiTime": 0,
                 "cancunTime": 1706778826,
                 "terminalTotalDifficulty": 0,
-                "terminalTotalDifficultyPassed": true,
-                "blobSchedule": {
-                    "cancun": {
-                        "target": 3,
-                        "max": 6,
-                        "baseFeeUpdateFraction": 3338477
-                    }
-                }
+                "terminalTotalDifficultyPassed": true
         },
         "difficulty": "0",
         "extradata": "0x00000000000000000000000000000000000000000000000000000000000000003f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E0B0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",

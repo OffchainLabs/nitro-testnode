@@ -47,7 +47,7 @@ services:
       - "127.0.0.1:6379:6379"
 
   geth:
-    image: ethereum/client-go:stable
+    image: ethereum/client-go:v1.14.13
     ports:
       - "127.0.0.1:8545:8545"
       - "127.0.0.1:8551:8551"
