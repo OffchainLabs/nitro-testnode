@@ -5,7 +5,7 @@ set -eu
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.4.0-d896e9c-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
-DEFAULT_NITRO_CONTRACTS_VERSION="v3.0.1-beta.0"
+DEFAULT_NITRO_CONTRACTS_VERSION="v3-dev-testnode"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
 # The is the latest bold-merge commit in nitro-contracts at the time
@@ -476,7 +476,6 @@ if $force_init; then
     echo == Deploying L2 chain
     docker compose run -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
     docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
-
 fi # $force_init
 
 anytrustNodeConfigLine=""
