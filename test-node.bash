@@ -2,7 +2,7 @@
 
 set -eu
 
-NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.5.0-bdc2fd2-dev
+NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.4.0-d896e9c-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
 DEFAULT_NITRO_CONTRACTS_VERSION="v3.0.1-beta.0"
@@ -375,7 +375,7 @@ if $build_utils; then
 
   if [ "$ci" == true ]; then
     # workaround to cache docker layers and keep using docker-compose in CI
-    docker buildx bake --file docker-compose.yaml --file docker-compose-ci-cache.json $LOCAL_BUILD_NODES
+    docker buildx bake --allow=fs=/tmp/ --file docker-compose.yaml --file docker-compose-ci-cache.json $LOCAL_BUILD_NODES
   else
     UTILS_NOCACHE=""
     if $force_build_utils; then
