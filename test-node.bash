@@ -523,6 +523,7 @@ if $force_init; then
     echo == Funding l2 funnel and dev key
     docker compose up --wait $INITIAL_SEQ_NODES
     sleep 60
+    # workaround stuck sequencer after logging `Allocated cache and file handles`
     docker compose down $INITIAL_SEQ_NODES
     docker compose up --wait $INITIAL_SEQ_NODES
     docker compose run scripts bridge-funds --ethamount 100000 --wait
