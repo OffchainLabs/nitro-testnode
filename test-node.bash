@@ -2,7 +2,7 @@
 
 set -eu
 
-NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.2.1-d81324d-dev
+NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.5.1-rc.2-69577b7
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
 DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.1"
