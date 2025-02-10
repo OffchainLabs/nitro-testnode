@@ -511,11 +511,9 @@ if $force_init; then
     if $simple; then
         echo == Writing configs
         docker compose run scripts write-config --simple $anytrustNodeConfigLine
-        sleep 10 # workaround a race condition that causes the deploy to fail randomly
     else
         echo == Writing configs
         docker compose run scripts write-config $anytrustNodeConfigLine
-        sleep 10 # workaround a race condition that causes the deploy to fail randomly
 
         echo == Initializing redis
         docker compose up --wait redis
