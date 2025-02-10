@@ -190,6 +190,9 @@ function writeConfigs(argv: any) {
             "info-files": [chainInfoFile],
         },
         "node": {
+            "bold": {
+                "enable": true
+            },
             "staker": {
                 "dangerous": {
                     "without-block-validator": false
