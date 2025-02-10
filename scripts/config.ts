@@ -311,7 +311,8 @@ function writeConfigs(argv: any) {
         sequencerConfig.execution["sequencer"].enable = true
         sequencerConfig.node["delayed-sequencer"].enable = true
         if (argv.timeboost) {
-          sequencerConfig.execution.sequencer.timeboost = {
+          sequencerConfig.execution.sequencer.dangerous = {};
+          sequencerConfig.execution.sequencer.dangerous.timeboost = {
              "enable": true,
              "redis-url": argv.redisUrl
           };
