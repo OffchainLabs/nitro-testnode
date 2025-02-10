@@ -191,7 +191,10 @@ function writeConfigs(argv: any) {
         },
         "node": {
             "bold": {
-                "enable": true
+                "enable": true,
+                "rpc-block-number": "latest",
+                "strategy": "makeNodes",
+                "assertion-posting-interval": "10s"
             },
             "staker": {
                 "dangerous": {
