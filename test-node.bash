@@ -2,7 +2,7 @@
 
 set -eu
 
-NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.4.0-d896e9c-dev
+NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.5.1-rc.2-69577b7-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
 DEFAULT_NITRO_CONTRACTS_VERSION="c1218817" # of v3-dev-testnode
@@ -596,6 +596,9 @@ if $force_init; then
         docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
         echo == Funding l3 funnel and dev key
+        docker compose up --wait l3node sequencer
+        sleep 60
+        docker compose down l3node sequencer
         docker compose up --wait l3node sequencer
 
         if $l3_token_bridge; then
