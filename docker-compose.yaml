@@ -98,7 +98,6 @@ services:
       - --output-ssz=/consensus/genesis.ssz
       - --chain-config-file=/config/prysm.yaml
       - --geth-genesis-json-in=/config/geth_genesis.json
-      - --geth-genesis-json-out=/config/geth_genesis.json
     volumes:
       - "consensus:/consensus"
       - "config:/config"
