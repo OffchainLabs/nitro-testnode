@@ -5,7 +5,7 @@ set -eu
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.5.1-rc.2-69577b7-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
-DEFAULT_NITRO_CONTRACTS_VERSION="c1218817" # of v3-dev-testnode
+DEFAULT_NITRO_CONTRACTS_VERSION="b027e5e6" # of v3-dev-testnode
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
 # The is the latest bold-merge commit in nitro-contracts at the time
@@ -523,7 +523,7 @@ if $force_init; then
     echo == Funding l2 funnel and dev key
     docker compose up --wait $INITIAL_SEQ_NODES
     sleep 60
-    # workaround stuck sequencer after logging `Allocated cache and file handles`
+    # restart node to workaround stuck sequencer rpc not accepting connections
     docker compose down $INITIAL_SEQ_NODES
     docker compose up --wait $INITIAL_SEQ_NODES
     docker compose run scripts bridge-funds --ethamount 100000 --wait
@@ -598,6 +598,7 @@ if $force_init; then
         echo == Funding l3 funnel and dev key
         docker compose up --wait l3node sequencer
         sleep 60
+        # restart node to workaround stuck sequencer rpc not accepting connections
         docker compose down l3node sequencer
         docker compose up --wait l3node sequencer
 
