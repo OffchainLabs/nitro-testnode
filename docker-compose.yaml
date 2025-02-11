@@ -47,7 +47,7 @@ services:
       - "127.0.0.1:6379:6379"
 
   geth:
-    image: ethereum/client-go:latest
+    image: ethereum/client-go:stable
     ports:
       - "127.0.0.1:8545:8545"
       - "127.0.0.1:8551:8551"
@@ -370,6 +370,26 @@ services:
       - "tokenbridge-data:/workspace"
       - /var/run/docker.sock:/var/run/docker.sock
 
+  boldupgrader:
+    depends_on:
+      - geth
+      - sequencer
+    pid: host
+    build:
+      context: boldupgrader/
+      args:
+        BOLD_CONTRACTS_BRANCH: ${BOLD_CONTRACTS_BRANCH:-}
+    environment:
+      - L1_RPC_URL=http://geth:8545
+      - L1_PRIV_KEY=0xdc04c5399f82306ec4b4d654a342f40e2e0620fe39950d967e1e574b32d4dd36
+      - CONFIG_NETWORK_NAME=local
+      - DEPLOYED_CONTRACTS_DIR=./scripts/files/
+      - DISABLE_VERIFICATION=true
+    volumes:
+      - "config:/config"
+      - "boldupgrader-data:/workspace"
+      - /var/run/docker.sock:/var/run/docker.sock
+
   rollupcreator:
     depends_on:
       - geth
@@ -482,3 +502,4 @@ volumes:
   das-committee-b-data:
   das-mirror-data:
   timeboost-auctioneer-data:
+  boldupgrader-data:

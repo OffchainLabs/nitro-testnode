@@ -5,6 +5,7 @@ import { namedAccount, namedAddress } from "./accounts";
 import * as L1GatewayRouter from "@arbitrum/token-bridge-contracts/build/contracts/contracts/tokenbridge/ethereum/gateway/L1GatewayRouter.sol/L1GatewayRouter.json";
 import * as L1AtomicTokenBridgeCreator from "@arbitrum/token-bridge-contracts/build/contracts/contracts/tokenbridge/ethereum/L1AtomicTokenBridgeCreator.sol/L1AtomicTokenBridgeCreator.json";
 import * as ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
+import * as TestWETH9 from "@arbitrum/token-bridge-contracts/build/contracts/contracts/tokenbridge/test/TestWETH9.sol/TestWETH9.json";
 import * as fs from "fs";
 import { ARB_OWNER } from "./consts";
 import * as TransparentUpgradeableProxy from "@openzeppelin/contracts/build/contracts/TransparentUpgradeableProxy.json"
@@ -139,6 +140,14 @@ async function deployERC20Contract(deployerWallet: Wallet, decimals: number): Pr
     await token.deployTransaction.wait();
 
     return token.address;
+}
+
+async function deployWETHContract(deployerWallet: Wallet): Promise<string> {
+    const wethFactory = new ContractFactory(TestWETH9.abi, TestWETH9.bytecode, deployerWallet);
+    const weth = await wethFactory.deploy("Wrapped Ether", "WETH");
+    await weth.deployTransaction.wait();
+
+    return weth.address;
 }
 
 export const bridgeFundsCommand = {
@@ -302,6 +311,10 @@ export const createERC20Command = {
       boolean: true,
       describe: "if true, deploy on L1 and bridge to L2",
     },
+    l1: {
+      boolean: true,
+      describe: "if true, deploy on L1 only",
+    },
     decimals: {
       string: true,
       describe: "number of decimals for token",
@@ -311,8 +324,20 @@ export const createERC20Command = {
   handler: async (argv: any) => {
     console.log("create-erc20");
 
-    if (argv.bridgeable) {
-      // deploy token on l1 and bridge to l2
+    if (argv.bridgeable || argv.l1) {
+
+      // deploy token on l1
+      const l1provider = new ethers.providers.WebSocketProvider(argv.l1url);
+      const deployerWallet = namedAccount(argv.deployer).connect(l1provider);
+
+      const tokenAddress = await deployERC20Contract(deployerWallet, argv.decimals);
+      const token = new ethers.Contract(tokenAddress, ERC20.abi, deployerWallet);
+      console.log("Contract deployed at L1 address:", token.address);
+
+      if (!argv.bridgeable) return;
+
+      // bridge to l2
+      const l2provider = new ethers.providers.WebSocketProvider(argv.l2url);
       const l1l2tokenbridge = JSON.parse(
         fs
           .readFileSync(path.join(consts.tokenbridgedatapath, "l1l2_network.json"))
@@ -361,7 +386,7 @@ export const createERC20Command = {
 
     // no l1-l2 token bridge, deploy token on l2 directly
     argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
-    const deployerWallet = namedAccount(argv.deployer).connect(argv.provider)
+    const deployerWallet = namedAccount(argv.deployer).connect(argv.provider);
     const tokenAddress = await deployERC20Contract(deployerWallet, argv.decimals);
     console.log("Contract deployed at address:", tokenAddress);
 
@@ -464,17 +489,57 @@ export const transferERC20Command = {
       string: true,
       describe: "address (see general help)",
     },
+    l1: {
+      boolean: true,
+      describe: "if true, transfer on L1",
+    },
   },
   handler: async (argv: any) => {
     console.log("transfer-erc20");
 
-    argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
+    if (argv.l1) {
+      argv.provider = new ethers.providers.WebSocketProvider(argv.l1url);
+    } else {
+      argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
+    }
     const account = namedAccount(argv.from).connect(argv.provider);
     const tokenContract = new ethers.Contract(argv.token, ERC20.abi, account);
     const tokenDecimals = await tokenContract.decimals();
     const amountToTransfer = BigNumber.from(argv.amount).mul(BigNumber.from('10').pow(tokenDecimals));
     await(await tokenContract.transfer(namedAccount(argv.to).address, amountToTransfer)).wait();
     argv.provider.destroy();
+  },
+};
+
+export const createWETHCommand = {
+  command: "create-weth",
+  describe: "creates WETH on L1",
+  builder: {
+    deployer: {
+      string: true,
+      describe: "account (see general help)"
+    },
+    deposit: {
+      number: true,
+      describe: "amount of weth to deposit",
+      default: 100,
+    }
+  },
+  handler: async (argv: any) => {
+    console.log("create-weth");
+
+    const l1provider = new ethers.providers.WebSocketProvider(argv.l1url);
+    const deployerWallet = namedAccount(argv.deployer).connect(l1provider);
+
+    const wethAddress = await deployWETHContract(deployerWallet);
+    const weth = new ethers.Contract(wethAddress, TestWETH9.abi, deployerWallet);
+    console.log("WETH deployed at L1 address:", weth.address);
+
+    if (argv.deposit > 0) {
+      const amount = ethers.utils.parseEther(argv.deposit.toString());
+      const depositTx = await deployerWallet.sendTransaction({ to: wethAddress, value: amount, data:"0xd0e30db0" }); // deposit()
+      await depositTx.wait();
+    }
   },
 };
 
