@@ -5,7 +5,10 @@ set -eu
 NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.5.1-rc.2-69577b7-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
-DEFAULT_NITRO_CONTRACTS_VERSION="b027e5e6" # of v3-dev-testnode
+# nitro-contract workaround for testnode
+# 1. authorizing validator signer key since validator wallet if buggy
+#    - gas estimation sent from 0x0000 lead to balance and permission error
+DEFAULT_NITRO_CONTRACTS_VERSION="f3e9a63e" # of v3-dev-testnode
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
 # The is the latest bold-merge commit in nitro-contracts at the time
