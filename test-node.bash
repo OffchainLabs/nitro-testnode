@@ -374,8 +374,7 @@ if $build_utils; then
   fi
 
   if [ "$ci" == true ]; then
-    # workaround to cache docker layers and keep using docker-compose in CI
-    docker buildx bake --allow=fs=/tmp/ --file docker-compose.yaml --file docker-compose-ci-cache.json $LOCAL_BUILD_NODES
+    docker buildx bake --allow=fs=/tmp --file docker-compose.yaml --file docker-compose-ci-cache.json $LOCAL_BUILD_NODES
   else
     UTILS_NOCACHE=""
     if $force_build_utils; then
