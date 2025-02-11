@@ -291,7 +291,8 @@ function writeConfigs(argv: any) {
         let simpleConfig = JSON.parse(baseConfJSON)
         simpleConfig.node.staker.enable = true
         simpleConfig.node.staker["use-smart-contract-wallet"] = true
-        simpleConfig.node.staker.dangerous["without-block-validator"] = true
+        delete simpleConfig.node["block-validator"]
+        simpleConfig.node.staker.dangerous["without-block-validator"] = false
         simpleConfig.node.sequencer = true
         simpleConfig.node.dangerous["no-sequencer-coordinator"] = true
         simpleConfig.node["delayed-sequencer"].enable = true
