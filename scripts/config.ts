@@ -34,6 +34,9 @@ DENEB_FORK_VERSION: 0x20000093
 # ELECTRA
 ELECTRA_FORK_VERSION: 0x20000094
 
+# FULU
+FULU_FORK_VERSION: 0x20000095
+
 # Time parameters
 SECONDS_PER_SLOT: 2
 SLOTS_PER_EPOCH: 6
@@ -69,7 +72,14 @@ function writeGethGenesisConfig(argv: any) {
                 "shanghaiTime": 0,
                 "cancunTime": 1706778826,
                 "terminalTotalDifficulty": 0,
-                "terminalTotalDifficultyPassed": true
+                "terminalTotalDifficultyPassed": true,
+                "blobSchedule": {
+                    "cancun": {
+                        "target": 3,
+                        "max": 6,
+                        "baseFeeUpdateFraction": 3338477
+                    }
+                }
         },
         "difficulty": "0",
         "extradata": "0x00000000000000000000000000000000000000000000000000000000000000003f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E0B0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
