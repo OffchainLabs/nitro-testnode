@@ -344,15 +344,6 @@ export const createERC20Command = {
           .toString()
       );
 
-      const l1provider = new ethers.providers.WebSocketProvider(argv.l1url);
-      const l2provider = new ethers.providers.WebSocketProvider(argv.l2url);
-
-      const deployerWallet = namedAccount(argv.deployer).connect(l1provider)
-
-      const tokenAddress = await deployERC20Contract(deployerWallet, argv.decimals);
-      const token = new ethers.Contract(tokenAddress, ERC20.abi, deployerWallet);
-      console.log("Contract deployed at L1 address:", token.address);
-
       const l1GatewayRouter = new ethers.Contract(l1l2tokenbridge.l2Network.tokenBridge.l1GatewayRouter, L1GatewayRouter.abi, deployerWallet);
       await (await token.functions.approve(l1l2tokenbridge.l2Network.tokenBridge.l1ERC20Gateway, ethers.constants.MaxUint256)).wait();
       const supply = await token.totalSupply();
