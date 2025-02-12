@@ -2,7 +2,17 @@ import { hideBin } from "yargs/helpers";
 import Yargs from "yargs/yargs";
 import { stressOptions } from "./stress";
 import { redisReadCommand, redisInitCommand } from "./redis";
-import { writeConfigCommand, writeGethGenesisCommand, writePrysmCommand, writeL2ChainConfigCommand, writeL3ChainConfigCommand, writeL2DASCommitteeConfigCommand, writeL2DASMirrorConfigCommand, writeL2DASKeysetConfigCommand } from "./config";
+import {
+  writeConfigCommand,
+  writeGethGenesisCommand,
+  writePrysmCommand,
+  writeL2ChainConfigCommand,
+  writeL3ChainConfigCommand,
+  writeL2DASCommitteeConfigCommand,
+  writeL2DASMirrorConfigCommand,
+  writeL2DASKeysetConfigCommand,
+  writeTimeboostConfigsCommand
+} from "./config";
 import {
   printAddressCommand,
   namedAccountHelpString,
@@ -14,6 +24,7 @@ import {
   bridgeNativeTokenToL3Command,
   bridgeToL3Command,
   createERC20Command,
+  deployExpressLaneAuctionContractCommand,
   createWETHCommand,
   transferERC20Command,
   sendL1Command,
@@ -41,6 +52,7 @@ async function main() {
     .command(bridgeToL3Command)
     .command(bridgeNativeTokenToL3Command)
     .command(createERC20Command)
+    .command(deployExpressLaneAuctionContractCommand)
     .command(createWETHCommand)
     .command(transferERC20Command)
     .command(sendL1Command)
@@ -58,6 +70,7 @@ async function main() {
     .command(writeL2DASKeysetConfigCommand)
     .command(writePrysmCommand)
     .command(writeAccountsCommand)
+    .command(writeTimeboostConfigsCommand)
     .command(printAddressCommand)
     .command(printPrivateKeyCommand)
     .command(redisReadCommand)
