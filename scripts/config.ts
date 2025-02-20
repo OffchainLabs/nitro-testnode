@@ -323,7 +323,7 @@ function writeConfigs(argv: any) {
         if (argv.timeboost) {
           sequencerConfig.execution.sequencer.dangerous = {};
           sequencerConfig.execution.sequencer.dangerous.timeboost = {
-             "enable": true,
+             "enable": false, // Create it false initially, turn it on with sed in test-node.bash after contract setup.
              "redis-url": argv.redisUrl
           };
         }
