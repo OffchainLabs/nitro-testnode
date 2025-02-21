@@ -98,7 +98,6 @@ services:
       - --output-ssz=/consensus/genesis.ssz
       - --chain-config-file=/config/prysm.yaml
       - --geth-genesis-json-in=/config/geth_genesis.json
-      - --geth-genesis-json-out=/config/geth_genesis.json
     volumes:
       - "consensus:/consensus"
       - "config:/config"
@@ -395,11 +394,6 @@ services:
       - "das-committee-a-data:/das-committee-a"
       - "das-committee-b-data:/das-committee-b"
       - "das-mirror-data:/das-mirror"
-    command:
-
-  externalsigner:
-    image: nitro-node-dev-testnode
-    entrypoint: /usr/local/bin/mockexternalsigner
     command:
 
   das-committee-a:
