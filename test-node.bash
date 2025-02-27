@@ -2,10 +2,13 @@
 
 set -eu
 
-NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.2.1-d81324d-dev
+NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.5.1-rc.2-69577b7-dev
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
-DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.1-beta.0"
+# nitro-contract workaround for testnode
+# 1. authorizing validator signer key since validator wallet if buggy
+#    - gas estimation sent from 0x0000 lead to balance and permission error
+DEFAULT_NITRO_CONTRACTS_VERSION="f3e9a63e" # of v3-dev-testnode
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
 # The is the latest bold-merge commit in nitro-contracts at the time
@@ -383,7 +386,6 @@ if $build_utils; then
   fi
 
   if [ "$ci" == true ]; then
-    # workaround to cache docker layers and keep using docker-compose in CI
     docker buildx bake --allow=fs=/tmp --file docker-compose.yaml --file docker-compose-ci-cache.json $LOCAL_BUILD_NODES
   else
     UTILS_NOCACHE=""
@@ -485,7 +487,6 @@ if $force_init; then
     echo == Deploying L2 chain
     docker compose run -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
     docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
-
 fi # $force_init
 
 anytrustNodeConfigLine=""
@@ -531,6 +532,10 @@ if $force_init; then
     fi
 
     echo == Funding l2 funnel and dev key
+    docker compose up --wait $INITIAL_SEQ_NODES
+    sleep 60
+    # restart node to workaround stuck sequencer rpc not accepting connections
+    docker compose down $INITIAL_SEQ_NODES
     docker compose up --wait $INITIAL_SEQ_NODES
     docker compose run scripts bridge-funds --ethamount 100000 --wait
     docker compose run scripts send-l2 --ethamount 100 --to l2owner --wait
@@ -607,6 +612,10 @@ if $force_init; then
         docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
         echo == Funding l3 funnel and dev key
+        docker compose up --wait l3node sequencer
+        sleep 60
+        # restart node to workaround stuck sequencer rpc not accepting connections
+        docker compose down l3node sequencer
         docker compose up --wait l3node sequencer
 
         if $l3_token_bridge; then

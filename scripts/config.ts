@@ -197,6 +197,12 @@ function writeConfigs(argv: any) {
             "info-files": [chainInfoFile],
         },
         "node": {
+            "bold": {
+                "enable": true,
+                "rpc-block-number": "latest",
+                "strategy": "makeNodes",
+                "assertion-posting-interval": "10s"
+            },
             "staker": {
                 "dangerous": {
                     "without-block-validator": false
@@ -291,8 +297,9 @@ function writeConfigs(argv: any) {
     if (argv.simple) {
         let simpleConfig = JSON.parse(baseConfJSON)
         simpleConfig.node.staker.enable = true
-        simpleConfig.node.staker["use-smart-contract-wallet"] = true
-        simpleConfig.node.staker.dangerous["without-block-validator"] = true
+        simpleConfig.node.staker["use-smart-contract-wallet"] = false
+        delete simpleConfig.node["block-validator"]
+        simpleConfig.node.staker.dangerous["without-block-validator"] = false
         simpleConfig.node.sequencer = true
         simpleConfig.node.dangerous["no-sequencer-coordinator"] = true
         simpleConfig.node["delayed-sequencer"].enable = true
@@ -428,7 +435,7 @@ function writeL3ChainConfig(argv: any) {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
             "DataAvailabilityCommittee": false,
-            "InitialArbOSVersion": 31,
+            "InitialArbOSVersion": 32,
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
