@@ -74,8 +74,15 @@ build_utils=false
 force_build_utils=false
 build_node_images=false
 
+# Local sequencer
+local_sequencer=false
+
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --local-sequencer)
+            local_sequencer=true
+            shift
+            ;;
         --init)
             if ! $force_init; then
                 echo == Warning! this will remove all previous data
@@ -293,6 +300,7 @@ while [[ $# -gt 0 ]]; do
             echo        $0 script [SCRIPT-ARGS]
             echo
             echo OPTIONS:
+            echo --local-sequencer use local sequencer
             echo --build           rebuild docker images
             echo --no-build        don\'t rebuild docker images
             echo --dev             build nitro and blockscout dockers from source instead of pulling them. Disables simple mode
@@ -538,6 +546,121 @@ if $l2anytrust; then
     fi
 fi
 
+run_container_with_websocket_check() {
+    local container_name="$1"
+    local websocket_port="$2"
+    local max_retries="${3:-3}"
+    local retry_wait="${4:-5}"
+
+    if [ -z "$container_name" ] || [ -z "$websocket_port" ]; then
+        echo "Error: Container name and WebSocket port are required"
+        echo "Usage: run_container_with_websocket_check CONTAINER_NAME WEBSOCKET_PORT [MAX_RETRIES] [RETRY_WAIT]"
+        return 1
+    fi
+
+    echo "Starting container $container_name and checking WebSocket on port $websocket_port"
+
+    # Function to check if WebSocket endpoint is responding
+    check_websocket() {
+        local ws_check_timeout=5
+        local response
+
+        # Run curl with strict timeout in background to prevent hanging
+        (
+            response=$(curl -s -S \
+                --connect-timeout 3 \
+                --max-time $ws_check_timeout \
+                -D - \
+                -o /dev/null \
+                -H "Connection: Upgrade" \
+                -H "Upgrade: websocket" \
+                -H "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" \
+                -H "Sec-WebSocket-Version: 13" \
+                http://localhost:$websocket_port/ 2>/dev/null)
+
+            if echo "$response" | grep -q "HTTP/1.1 101"; then
+                exit 0  # Success
+            fi
+            exit 1  # Failure
+        ) &
+
+        local check_pid=$!
+        local check_timeout=10
+        local waited=0
+
+        while kill -0 $check_pid 2>/dev/null && [ $waited -lt $check_timeout ]; do
+            sleep 1
+            waited=$((waited + 1))
+        done
+
+        # Kill if still running after timeout
+        if kill -0 $check_pid 2>/dev/null; then
+            kill -9 $check_pid 2>/dev/null
+            echo "WebSocket check timed out"
+            return 1
+        fi
+
+        # Check the exit status
+        wait $check_pid
+        return $?
+    }
+
+    # Function to stop the container
+    stop_container() {
+        echo "Stopping container $container_name..."
+        docker compose stop "$container_name"
+        sleep 2  # Give it time to fully stop
+    }
+
+    # Function to check if a container is running
+    is_container_running() {
+        docker compose ps --format json | grep -q "\"Service\": \"$container_name\", \"State\": \"running\""
+    }
+
+    # Main logic with retries
+    local retry_count=0
+    local container_id=""
+    local success=false
+
+    while [ $retry_count -lt $max_retries ] && [ "$success" = false ]; do
+        if [ $retry_count -gt 0 ]; then
+            echo "Retry attempt $retry_count of $max_retries"
+            stop_container
+            echo "Waiting $retry_wait seconds before retry..."
+            sleep $retry_wait
+        fi
+
+        echo "Starting container $container_name..."
+        # Start container in detached mode
+        docker compose up -d "$container_name"
+
+        # Wait a bit for container to initialize
+        local init_wait=10
+        echo "Waiting ${init_wait}s for container to initialize..."
+        sleep $init_wait
+
+        # Check if WebSocket is active
+        echo "Checking WebSocket endpoint..."
+        if check_websocket; then
+            echo "Container $container_name is running with active WebSocket endpoint"
+            success=true
+        else
+            echo "Container $container_name is running but WebSocket endpoint is not active"
+            retry_count=$((retry_count + 1))
+        fi
+    done
+
+    if [ "$success" = true ]; then
+        echo "Successfully started $container_name with active WebSocket endpoint"
+        return 0
+    else
+        echo "Failed to start $container_name with active WebSocket endpoint after $max_retries attempts"
+        # Stop the container on final failure
+        stop_container
+        return 1
+    fi
+}
+
 if $force_init; then
     if $l2timeboost; then
         timeboostNodeConfigLine="--timeboost"
@@ -553,6 +676,9 @@ if $force_init; then
         docker compose up --wait redis
         docker compose run scripts redis-init --redundancy $redundantsequencers
     fi
+
+    echo == Starting sequencer
+    run_container_with_websocket_check sequencer 8548 5 10
 
     echo == Funding l2 funnel and dev key
     docker compose up --wait $INITIAL_SEQ_NODES
@@ -703,4 +829,24 @@ if $run; then
     echo
 
     docker compose up $UP_FLAG $NODES
+fi
+
+if $local_sequencer; then
+    echo "== Stopping sequencer in 5 seconds"
+    sleep 5
+    docker compose stop sequencer
+
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+    echo == Writing local sequencer config
+    jq --arg dir "$SCRIPT_DIR" '
+        .["parent-chain"].connection.url = "ws://localhost:8546" |
+        .chain["info-files"] = [$dir + "/data/config/l2_chain_info.json"] |
+        .node.staker["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
+        .node["seq-coordinator"]["redis-url"] = "redis://localhost:6379" |
+        .node["batch-poster"]["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
+        .node["block-validator"]["validation-server"].url = "ws://localhost:8549" |
+        .node["block-validator"]["validation-server"].jwtsecret = $dir + "/data/config/val_jwt.hex" |
+        .node["data-availability"]["parent-chain-node-url"] = "ws://localhost:8546"
+    ' ./data/config/sequencer_config.json > ./data/config/sequencer_config_local.json
 fi
