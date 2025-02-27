@@ -558,7 +558,7 @@ run_container_with_websocket_check() {
         return 1
     fi
 
-    echo "Starting container $container_name and checking WebSocket on port $websocket_port"
+    echo "🏯 Starting container $container_name and checking WebSocket on port $websocket_port"
 
     # Function to check if WebSocket endpoint is responding
     check_websocket() {
@@ -596,7 +596,7 @@ run_container_with_websocket_check() {
         # Kill if still running after timeout
         if kill -0 $check_pid 2>/dev/null; then
             kill -9 $check_pid 2>/dev/null
-            echo "WebSocket check timed out"
+            echo "🏯 WebSocket check timed out"
             return 1
         fi
 
@@ -607,7 +607,7 @@ run_container_with_websocket_check() {
 
     # Function to stop the container
     stop_container() {
-        echo "Stopping container $container_name..."
+        echo "🏯 Stopping container $container_name..."
         docker compose stop "$container_name"
         sleep 2  # Give it time to fully stop
     }
@@ -624,37 +624,38 @@ run_container_with_websocket_check() {
 
     while [ $retry_count -lt $max_retries ] && [ "$success" = false ]; do
         if [ $retry_count -gt 0 ]; then
-            echo "Retry attempt $retry_count of $max_retries"
+            echo "🏯 Retry attempt $retry_count of $max_retries"
             stop_container
-            echo "Waiting $retry_wait seconds before retry..."
+            echo "🏯 Waiting $retry_wait seconds before retry..."
             sleep $retry_wait
         fi
 
-        echo "Starting container $container_name..."
+        echo "🏯 Starting container $container_name..."
+
         # Start container in detached mode
         docker compose up -d "$container_name"
 
         # Wait a bit for container to initialize
         local init_wait=10
-        echo "Waiting ${init_wait}s for container to initialize..."
+        echo "🏯 Waiting ${init_wait}s for container to initialize..."
         sleep $init_wait
 
         # Check if WebSocket is active
-        echo "Checking WebSocket endpoint..."
+        echo "🏯 Checking WebSocket endpoint..."
         if check_websocket; then
-            echo "Container $container_name is running with active WebSocket endpoint"
+            echo "✅ Container $container_name is running with active WebSocket endpoint"
             success=true
         else
-            echo "Container $container_name is running but WebSocket endpoint is not active"
+            echo "🙅 Container $container_name is running but WebSocket endpoint is not active"
             retry_count=$((retry_count + 1))
         fi
     done
 
     if [ "$success" = true ]; then
-        echo "Successfully started $container_name with active WebSocket endpoint"
+        echo "🏯 Successfully started $container_name with active WebSocket endpoint"
         return 0
     else
-        echo "Failed to start $container_name with active WebSocket endpoint after $max_retries attempts"
+        echo "🏯 Failed to start $container_name with active WebSocket endpoint after $max_retries attempts"
         # Stop the container on final failure
         stop_container
         return 1

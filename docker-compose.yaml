@@ -5,7 +5,7 @@ services:
       - sequencer
     image: blockscout-testnode
     restart: always
-    container_name: 'blockscout'
+    container_name: "blockscout"
     links:
       - postgres:database
     command:
@@ -16,26 +16,27 @@ services:
         node init/install.js postgres 5432
         bin/blockscout start
     extra_hosts:
-      - 'host.docker.internal:host-gateway'
+      - "host.docker.internal:host-gateway"
     env_file:
-      -  ./blockscout/nitro.env
+      - ./blockscout/nitro.env
     environment:
-        ETHEREUM_JSONRPC_VARIANT: 'geth'
-        ETHEREUM_JSONRPC_HTTP_URL: http://sequencer:8547/
-        INDEXER_DISABLE_PENDING_TRANSACTIONS_FETCHER: "true"
-        DATABASE_URL: postgresql://postgres:@postgres:5432/blockscout
-        ECTO_USE_SSL: "false"
+      ETHEREUM_JSONRPC_VARIANT: "geth"
+      ETHEREUM_JSONRPC_HTTP_URL: http://host.docker.internal:8547/
+      ETHEREUM_JSONRPC_TRACE_URL: http://host.docker.internal:8547/
+      INDEXER_DISABLE_PENDING_TRANSACTIONS_FETCHER: "true"
+      DATABASE_URL: postgresql://postgres:@postgres:5432/blockscout
+      ECTO_USE_SSL: "false"
     ports:
       - "127.0.0.1:4000:4000"
 
   postgres:
     image: postgres:13.6
     restart: always
-    container_name: 'postgres'
+    container_name: "postgres"
     environment:
-        POSTGRES_PASSWORD: ''
-        POSTGRES_USER: 'postgres'
-        POSTGRES_HOST_AUTH_METHOD: 'trust'
+      POSTGRES_PASSWORD: ""
+      POSTGRES_USER: "postgres"
+      POSTGRES_HOST_AUTH_METHOD: "trust"
     volumes:
       - "postgres-data:/var/lib/postgresql/data"
     ports:
@@ -55,8 +56,8 @@ services:
       - "127.0.0.1:30303:30303"
     volumes:
       - "l1data:/datadir"
-      - "l1keystore:/keystore"
-      - "config:/config"
+      - "./data/l1keystore:/keystore"
+      - "./data/config:/config"
     command:
       - --keystore=/keystore
       - --http
@@ -100,7 +101,7 @@ services:
       - --geth-genesis-json-in=/config/geth_genesis.json
     volumes:
       - "consensus:/consensus"
-      - "config:/config"
+      - "./data/config:/config"
 
   # Runs a Prysm beacon chain from a specified genesis state created in the previous step
   # and connects to go-ethereum in the same network as the execution client.
@@ -133,7 +134,7 @@ services:
       - "127.0.0.1:3500:3500"
     volumes:
       - "consensus:/consensus"
-      - "config:/config"
+      - "./data/config:/config"
 
   # We run a validator client with 64, deterministically-generated keys that match
   # The validator keys present in the beacon chain genesis state generated a few steps above.
@@ -151,7 +152,7 @@ services:
         condition: service_started
     volumes:
       - "consensus:/consensus"
-      - "config:/config"
+      - "./data/config:/config"
 
   sequencer:
     pid: host # allow debugging
@@ -162,9 +163,9 @@ services:
       - "127.0.0.1:8548:8548"
       - "127.0.0.1:9642:9642"
     volumes:
-      - "seqdata:/home/user/.arbitrum/local/nitro"
-      - "l1keystore:/home/user/l1keystore"
-      - "config:/config"
+      - "./data/seqdata:/home/user/.arbitrum"
+      - "./data/l1keystore:/home/user/l1keystore"
+      - "./data/config:/config"
       - "tokenbridge-data:/tokenbridge-data"
     command:
       - --conf.file=/config/sequencer_config.json
@@ -187,10 +188,10 @@ services:
       - "127.0.0.1:8648:8548"
     volumes:
       - "seqdata_b:/home/user/.arbitrum/local/nitro"
-      - "config:/config"
+      - "./data/config:/config"
     command:
       - --conf.file=/config/sequencer_config.json
-      - --node.seq-coordinator.my-url=http://sequencer_b:8547
+      - --node.seq-coordinator.my-url=http://sequencer_b:8548
       - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
     depends_on:
       - geth
@@ -205,11 +206,11 @@ services:
       - "127.0.0.1:8748:8548"
     volumes:
       - "seqdata_c:/home/user/.arbitrum/local/nitro"
-      - "config:/config"
+      - "./data/config:/config"
     command:
       - --conf.file=/config/sequencer_config.json
-      - --node.seq-coordinator.my-url=http://sequencer_c:8547
-      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
+      - --node.seq-coordinator.my-url=http://sequencer_c:8548
+      - --http.api=net,web3,eth,txpool,debug,timeboost,auctionee
     depends_on:
       - geth
       - redis
@@ -223,10 +224,10 @@ services:
       - "127.0.0.1:8848:8548"
     volumes:
       - "seqdata_d:/home/user/.arbitrum/local/nitro"
-      - "config:/config"
+      - "./data/config:/config"
     command:
       - --conf.file=/config/sequencer_config.json
-      - --node.seq-coordinator.my-url=http://sequencer_d:8547
+      - --node.seq-coordinator.my-url=http://sequencer_d:8548
       - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
     depends_on:
       - geth
@@ -241,8 +242,8 @@ services:
       - "127.0.0.1:8048:8548"
     volumes:
       - "unsafestaker-data:/home/user/.arbitrum/local/nitro"
-      - "l1keystore:/home/user/l1keystore"
-      - "config:/config"
+      - "./data/l1keystore:/home/user/l1keystore"
+      - "./data/config:/config"
     command: --conf.file /config/unsafe_staker_config.json
     depends_on:
       - sequencer
@@ -258,8 +259,8 @@ services:
       - "127.0.0.1:8148:8548"
     volumes:
       - "poster-data:/home/user/.arbitrum/local/nitro"
-      - "l1keystore:/home/user/l1keystore"
-      - "config:/config"
+      - "./data/l1keystore:/home/user/l1keystore"
+      - "./data/config:/config"
     command: --conf.file /config/poster_config.json
     depends_on:
       - geth
@@ -274,8 +275,8 @@ services:
       - "127.0.0.1:9148:8548"
     volumes:
       - "poster-data-b:/home/user/.arbitrum/local/nitro"
-      - "l1keystore:/home/user/l1keystore"
-      - "config:/config"
+      - "./data/l1keystore:/home/user/l1keystore"
+      - "./data/config:/config"
     command: --conf.file /config/poster_config.json
     depends_on:
       - geth
@@ -290,8 +291,8 @@ services:
       - "127.0.0.1:9248:8548"
     volumes:
       - "poster-data-c:/home/user/.arbitrum/local/nitro"
-      - "l1keystore:/home/user/l1keystore"
-      - "config:/config"
+      - "./data/l1keystore:/home/user/l1keystore"
+      - "./data/config:/config"
     command: --conf.file /config/poster_config.json
     depends_on:
       - geth
@@ -306,8 +307,8 @@ services:
       - "127.0.0.1:8248:8548"
     volumes:
       - "validator-data:/home/user/.arbitrum/local/nitro"
-      - "l1keystore:/home/user/l1keystore"
-      - "config:/config"
+      - "./data/l1keystore:/home/user/l1keystore"
+      - "./data/config:/config"
     command: --conf.file /config/validator_config.json --http.port 8547 --http.api net,web3,arb,debug --ws.port 8548
     depends_on:
       - sequencer
@@ -322,8 +323,8 @@ services:
       - "127.0.0.1:3348:3348"
     volumes:
       - "validator-data:/home/user/.arbitrum/local/nitro"
-      - "l1keystore:/home/user/l1keystore"
-      - "config:/config"
+      - "./data/l1keystore:/home/user/l1keystore"
+      - "./data/config:/config"
     command: --conf.file /config/l3node_config.json --http.port 3347 --http.api net,web3,arb,debug,eth --ws.port 3348
     depends_on:
       - sequencer
@@ -336,14 +337,14 @@ services:
     ports:
       - "127.0.0.1:8949:8549"
     volumes:
-      - "config:/config"
+      - "./data/config:/config"
     command: --conf.file /config/validation_node_config.json
 
   scripts:
     build: scripts/
     volumes:
-      - "l1keystore:/home/user/l1keystore"
-      - "config:/config"
+      - "./data/l1keystore:/home/user/l1keystore"
+      - "./data/config:/config"
       - "tokenbridge-data:/tokenbridge-data"
 
   relay:
@@ -386,7 +387,7 @@ services:
       - DEPLOYED_CONTRACTS_DIR=./scripts/files/
       - DISABLE_VERIFICATION=true
     volumes:
-      - "config:/config"
+      - "./data/config:/config"
       - "boldupgrader-data:/workspace"
       - /var/run/docker.sock:/var/run/docker.sock
 
@@ -400,14 +401,14 @@ services:
       args:
         NITRO_CONTRACTS_BRANCH: ${NITRO_CONTRACTS_BRANCH:-}
     volumes:
-      - "config:/config"
+      - "./data/config:/config"
       - /var/run/docker.sock:/var/run/docker.sock
 
   datool:
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/datool
     volumes:
-      - "config:/config"
+      - "./data/config:/config"
       - "das-committee-a-data:/das-committee-a"
       - "das-committee-b-data:/das-committee-b"
       - "das-mirror-data:/das-mirror"
@@ -421,7 +422,7 @@ services:
       - "127.0.0.1:9876:9876"
       - "127.0.0.1:9877:9877"
     volumes:
-      - "config:/config"
+      - "./data/config:/config"
       - "das-committee-a-data:/das"
     command:
       - --conf.file=/config/l2_das_committee.json
@@ -434,7 +435,7 @@ services:
       - "127.0.0.1:8876:9876"
       - "127.0.0.1:8877:9877"
     volumes:
-      - "config:/config"
+      - "./data/config:/config"
       - "das-committee-b-data:/das"
     command:
       - --conf.file=/config/l2_das_committee.json
@@ -446,7 +447,7 @@ services:
     ports:
       - "127.0.0.1:7877:9877"
     volumes:
-      - "config:/config"
+      - "./data/config:/config"
       - "das-mirror-data:/das"
     command:
       - --conf.file=/config/l2_das_mirror.json
