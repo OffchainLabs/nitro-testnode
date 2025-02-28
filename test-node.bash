@@ -74,15 +74,8 @@ build_utils=false
 force_build_utils=false
 build_node_images=false
 
-# Local sequencer
-local_sequencer=false
-
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --local-sequencer)
-            local_sequencer=true
-            shift
-            ;;
         --init)
             if ! $force_init; then
                 echo == Warning! this will remove all previous data
@@ -300,7 +293,6 @@ while [[ $# -gt 0 ]]; do
             echo        $0 script [SCRIPT-ARGS]
             echo
             echo OPTIONS:
-            echo --local-sequencer use local sequencer
             echo --build           rebuild docker images
             echo --no-build        don\'t rebuild docker images
             echo --dev             build nitro and blockscout dockers from source instead of pulling them. Disables simple mode
@@ -832,22 +824,28 @@ if $run; then
     docker compose up $UP_FLAG $NODES
 fi
 
-if $local_sequencer; then
-    echo "== Stopping sequencer in 5 seconds"
-    sleep 5
-    docker compose stop sequencer
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+echo == Writing local sequencer config
+jq --arg dir "$SCRIPT_DIR" '
+    .["parent-chain"].connection.url = "ws://localhost:8546" |
+    .chain["info-files"] = [$dir + "/data/config/l2_chain_info.json"] |
+    .node.staker["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
+    .node["seq-coordinator"]["redis-url"] = "redis://localhost:6379" |
+    .node["batch-poster"]["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
+    .node["block-validator"]["validation-server"].url = "ws://localhost:8949" |
+    .node["block-validator"]["validation-server"].jwtsecret = $dir + "/data/config/val_jwt.hex" |
+    .node["data-availability"]["parent-chain-node-url"] = "ws://localhost:8546"
+' ./data/config/sequencer_config.json > ./data/config/sequencer_config_local.json
 
-    echo == Writing local sequencer config
-    jq --arg dir "$SCRIPT_DIR" '
-        .["parent-chain"].connection.url = "ws://localhost:8546" |
-        .chain["info-files"] = [$dir + "/data/config/l2_chain_info.json"] |
-        .node.staker["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
-        .node["seq-coordinator"]["redis-url"] = "redis://localhost:6379" |
-        .node["batch-poster"]["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
-        .node["block-validator"]["validation-server"].url = "ws://localhost:8549" |
-        .node["block-validator"]["validation-server"].jwtsecret = $dir + "/data/config/val_jwt.hex" |
-        .node["data-availability"]["parent-chain-node-url"] = "ws://localhost:8546"
-    ' ./data/config/sequencer_config.json > ./data/config/sequencer_config_local.json
-fi
+echo == Writing local validator config
+jq --arg dir "$SCRIPT_DIR" '
+    .["parent-chain"].connection.url = "ws://localhost:8546" |
+    .chain["info-files"] = [$dir + "/data/config/l2_chain_info.json"] |
+    .node.staker["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
+    .node["seq-coordinator"]["redis-url"] = "redis://localhost:6379" |
+    .node["batch-poster"]["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
+    .node["block-validator"]["validation-server"].url = "ws://localhost:8549" |
+    .node["block-validator"]["validation-server"].jwtsecret = $dir + "/data/config/val_jwt.hex" |
+    .node["data-availability"]["parent-chain-node-url"] = "ws://localhost:8546"
+' ./data/config/validator_config.json > ./data/config/validator_config_local.json

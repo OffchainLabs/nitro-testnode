@@ -306,7 +306,7 @@ services:
       - "127.0.0.1:8247:8547"
       - "127.0.0.1:8248:8548"
     volumes:
-      - "validator-data:/home/user/.arbitrum/local/nitro"
+      - "./data/valdata:/home/user/.arbitrum"
       - "./data/l1keystore:/home/user/l1keystore"
       - "./data/config:/config"
     command: --conf.file /config/validator_config.json --http.port 8547 --http.api net,web3,arb,debug --ws.port 8548
@@ -322,7 +322,7 @@ services:
       - "127.0.0.1:3347:3347"
       - "127.0.0.1:3348:3348"
     volumes:
-      - "validator-data:/home/user/.arbitrum/local/nitro"
+      - "./data/valdata:/home/user/.arbitrum"
       - "./data/l1keystore:/home/user/l1keystore"
       - "./data/config:/config"
     command: --conf.file /config/l3node_config.json --http.port 3347 --http.api net,web3,arb,debug,eth --ws.port 3348
