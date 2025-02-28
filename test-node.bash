@@ -838,6 +838,11 @@ jq --arg dir "$SCRIPT_DIR" '
     .node["data-availability"]["parent-chain-node-url"] = "ws://localhost:8546"
 ' ./data/config/sequencer_config.json > ./data/config/sequencer_config_local.json
 
+echo == Writing local validation node config
+jq --arg dir "$SCRIPT_DIR" '
+    .auth.jwtsecret = $dir + "/data/config/val_jwt.hex"
+' ./data/config/validation_node_config.json > ./data/config/validation_node_config_local.json
+
 echo == Writing local validator config
 jq --arg dir "$SCRIPT_DIR" '
     .["parent-chain"].connection.url = "ws://localhost:8546" |
