@@ -826,31 +826,44 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo == Writing local sequencer config
-jq --arg dir "$SCRIPT_DIR" '
-    .["parent-chain"].connection.url = "ws://localhost:8546" |
-    .chain["info-files"] = [$dir + "/data/config/l2_chain_info.json"] |
-    .node.staker["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
-    .node["seq-coordinator"]["redis-url"] = "redis://localhost:6379" |
-    .node["batch-poster"]["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
-    .node["block-validator"]["validation-server"].url = "ws://localhost:8949" |
-    .node["block-validator"]["validation-server"].jwtsecret = $dir + "/data/config/val_jwt.hex" |
-    .node["data-availability"]["parent-chain-node-url"] = "ws://localhost:8546"
-' ./data/config/sequencer_config.json > ./data/config/sequencer_config_local.json
+if [ -f "./data/config/sequencer_config.json" ]; then
+    echo "== Writing local sequencer config"
+    jq --arg dir "$SCRIPT_DIR" '
+        .["parent-chain"].connection.url = "ws://localhost:8546" |
+        .chain["info-files"] = [$dir + "/data/config/l2_chain_info.json"] |
+        .node.staker["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
+        .node["seq-coordinator"]["redis-url"] = "redis://localhost:6379" |
+        .node["batch-poster"]["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
+        .node["batch-poster"]["redis-url"] = "redis://localhost:6379" |
+        .node["block-validator"]["validation-server"].url = "ws://localhost:8949" |
+        .node["block-validator"]["validation-server"].jwtsecret = $dir + "/data/config/val_jwt.hex" |
+        .node["data-availability"]["parent-chain-node-url"] = "ws://localhost:8546"
+    ' ./data/config/sequencer_config.json > ./data/config/sequencer_config_local.json
+else
+    echo "Warning: ./data/config/sequencer_config.json does not exist. Skipping sequencer config update."
+fi
 
-echo == Writing local validation node config
-jq --arg dir "$SCRIPT_DIR" '
-    .auth.jwtsecret = $dir + "/data/config/val_jwt.hex"
-' ./data/config/validation_node_config.json > ./data/config/validation_node_config_local.json
+if [ -f "./data/config/validation_node_config.json" ]; then
+    echo "== Writing local validation node config"
+    jq --arg dir "$SCRIPT_DIR" '
+        .auth.jwtsecret = $dir + "/data/config/val_jwt.hex"
+    ' ./data/config/validation_node_config.json > ./data/config/validation_node_config_local.json
+else
+    echo "Warning: ./data/config/validation_node_config.json does not exist. Skipping validation node config update."
+fi
 
-echo == Writing local validator config
-jq --arg dir "$SCRIPT_DIR" '
-    .["parent-chain"].connection.url = "ws://localhost:8546" |
-    .chain["info-files"] = [$dir + "/data/config/l2_chain_info.json"] |
-    .node.staker["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
-    .node["seq-coordinator"]["redis-url"] = "redis://localhost:6379" |
-    .node["batch-poster"]["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
-    .node["block-validator"]["validation-server"].url = "ws://localhost:8549" |
-    .node["block-validator"]["validation-server"].jwtsecret = $dir + "/data/config/val_jwt.hex" |
-    .node["data-availability"]["parent-chain-node-url"] = "ws://localhost:8546"
-' ./data/config/validator_config.json > ./data/config/validator_config_local.json
+if [ -f "./data/config/validator_config.json" ]; then
+    echo "== Writing local validator config"
+    jq --arg dir "$SCRIPT_DIR" '
+        .["parent-chain"].connection.url = "ws://localhost:8546" |
+        .chain["info-files"] = [$dir + "/data/config/l2_chain_info.json"] |
+        .node.staker["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
+        .node["seq-coordinator"]["redis-url"] = "redis://localhost:6379" |
+        .node["batch-poster"]["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
+        .node["block-validator"]["validation-server"].url = "ws://localhost:8549" |
+        .node["block-validator"]["validation-server"].jwtsecret = $dir + "/data/config/val_jwt.hex" |
+        .node["data-availability"]["parent-chain-node-url"] = "ws://localhost:8546"
+    ' ./data/config/validator_config.json > ./data/config/validator_config_local.json
+else
+    echo "Warning: ./data/config/validator_config.json does not exist. Skipping validator config update."
+fi
