@@ -2,7 +2,7 @@
 
 set -eu
 
-NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.5.1-rc.2-69577b7-dev
+NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.5.3-rc.3-653b078
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
 # nitro-contract workaround for testnode
@@ -62,10 +62,12 @@ devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
 simple=true
 l2anytrust=false
+l2timeboost=false
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
 dev_blockscout=false
+dev_contracts=false
 
 # Rebuild docker images
 build_dev_nitro=false
@@ -119,6 +121,9 @@ while [[ $# -gt 0 ]]; do
                 done
             fi
             ;;
+        --dev-contracts)
+            dev_contracts=true
+            ;;
         --ci)
             ci=true
             shift
@@ -163,6 +168,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --force-build-utils)
             force_build_utils=true
+            build_utils=true
             shift
             ;;
         --validate)
@@ -254,6 +260,10 @@ while [[ $# -gt 0 ]]; do
             l2anytrust=true
             shift
             ;;
+        --l2-timeboost)
+            l2timeboost=true
+            shift
+            ;;
         --redundantsequencers)
             simple=false
             redundantsequencers=$2
@@ -280,6 +290,7 @@ while [[ $# -gt 0 ]]; do
             echo --build           rebuild docker images
             echo --no-build        don\'t rebuild docker images
             echo --dev             build nitro and blockscout dockers from source instead of pulling them. Disables simple mode
+            echo --dev-contracts   build scripts with local development version of contracts
             echo --init            remove all data, rebuild, deploy new rollup
             echo --pos             l1 is a proof-of-stake chain \(using prysm for consensus\)
             echo --validate        heavy computation, validating all blocks in WASM
@@ -288,6 +299,7 @@ while [[ $# -gt 0 ]]; do
             echo --l3-fee-token-decimals Number of decimals to use for custom fee token. Only valid if also '--l3-fee-token' is provided
             echo --l3-token-bridge Deploy L2-L3 token bridge. Only valid if also '--l3node' is provided
             echo --l2-anytrust     run the L2 as an AnyTrust chain
+            echo --l2-timeboost    run the L2 with Timeboost enabled, including auctioneer and bid validator
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
@@ -348,6 +360,10 @@ if $l3node; then
 fi
 if $blockscout; then
     NODES="$NODES blockscout"
+fi
+
+if $l2timeboost; then
+    NODES="$NODES timeboost-auctioneer timeboost-bid-validator"
 fi
 
 if $dev_nitro && $build_dev_nitro; then
@@ -477,10 +493,16 @@ if $force_init; then
 
     echo == Deploying L2 chain
     docker compose run -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
-    docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
+    if $l2timeboost; then
+        docker compose run --entrypoint sh rollupcreator -c 'jq ".[] | .\"track-block-metadata-from\"=1 | [.]" /config/deployed_chain_info.json > /config/l2_chain_info.json'
+    else
+        docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
+    fi
+
 fi # $force_init
 
 anytrustNodeConfigLine=""
+timeboostNodeConfigLine=""
 
 # Remaining init may require AnyTrust committee/mirrors to have been started
 if $l2anytrust; then
@@ -510,12 +532,15 @@ if $l2anytrust; then
 fi
 
 if $force_init; then
+    if $l2timeboost; then
+        timeboostNodeConfigLine="--timeboost"
+    fi
     if $simple; then
         echo == Writing configs
-        docker compose run scripts write-config --simple $anytrustNodeConfigLine
+        docker compose run scripts write-config --simple $anytrustNodeConfigLine $timeboostNodeConfigLine
     else
         echo == Writing configs
-        docker compose run scripts write-config $anytrustNodeConfigLine
+        docker compose run scripts write-config $anytrustNodeConfigLine $timeboostNodeConfigLine
 
         echo == Initializing redis
         docker compose up --wait redis
@@ -531,6 +556,26 @@ if $force_init; then
     docker compose run scripts bridge-funds --ethamount 100000 --wait
     docker compose run scripts send-l2 --ethamount 100 --to l2owner --wait
     rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
+
+    if $l2timeboost; then
+        docker compose run scripts send-l2 --ethamount 100 --to auctioneer --wait
+        biddingTokenAddress=`docker compose run scripts create-erc20 --deployer auctioneer | tail -n 1 | awk '{ print $NF }'`
+        auctionContractAddress=`docker compose run scripts deploy-express-lane-auction --bidding-token $biddingTokenAddress | tail -n 1 | awk '{ print $NF }'`
+        auctioneerAddress=`docker compose run scripts print-address --account auctioneer | tail -n1 | tr -d '\r\n'`
+        echo == Starting up Timeboost auctioneer and bid validator.
+        echo == Bidding token: $biddingTokenAddress, auction contract $auctionContractAddress
+        docker compose run scripts write-timeboost-configs --auction-contract $auctionContractAddress
+        docker compose run --user root --entrypoint sh timeboost-auctioneer -c "chown -R 1000:1000 /data"
+
+        echo == Funding alice and bob user accounts for timeboost testing
+        docker compose run scripts send-l2 --ethamount 10 --to user_alice --wait
+        docker compose run scripts send-l2 --ethamount 10 --to user_bob --wait
+        docker compose run scripts transfer-erc20 --token $biddingTokenAddress --amount 10000 --from auctioneer --to user_alice
+        docker compose run scripts transfer-erc20 --token $biddingTokenAddress --amount 10000 --from auctioneer --to user_bob
+
+        docker compose run --entrypoint sh scripts -c "sed -i 's/\(\"execution\":{\"sequencer\":{\"enable\":true,\"dangerous\":{\"timeboost\":{\"enable\":\)false/\1true,\"auction-contract-address\":\"$auctionContractAddress\",\"auctioneer-address\":\"$auctioneerAddress\"/' /config/sequencer_config.json" --wait
+        docker compose restart $INITIAL_SEQ_NODES
+    fi
 
     if $tokenbridge; then
         echo == Deploying L1-L2 token bridge
