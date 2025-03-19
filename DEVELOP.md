@@ -1,3 +1,10 @@
+# Running sequencer dev setup
+
+```sh
+./test-node.bash --init-force --blockscout --detach --dev nitro
+docker compose stop sequencer
+```
+
 # Running validator and validation node
 
 Pull `https://github.com/wurdum/nitro-testnode/tree/without-sequencer` fork of `https://github.com/OffchainLabs/nitro-testnode`.
