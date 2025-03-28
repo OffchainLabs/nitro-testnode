@@ -26,6 +26,7 @@ import {
   createERC20Command,
   deployExpressLaneAuctionContractCommand,
   createWETHCommand,
+  createStylusDeployerCommand,
   transferERC20Command,
   sendL1Command,
   sendL2Command,
@@ -54,6 +55,7 @@ async function main() {
     .command(createERC20Command)
     .command(deployExpressLaneAuctionContractCommand)
     .command(createWETHCommand)
+    .command(createStylusDeployerCommand)
     .command(transferERC20Command)
     .command(sendL1Command)
     .command(sendL2Command)
