@@ -558,10 +558,6 @@ if $force_init; then
 
     echo == Funding l2 funnel and dev key
     docker compose up --wait $INITIAL_SEQ_NODES
-    sleep 60
-    # restart node to workaround stuck sequencer rpc not accepting connections
-    docker compose down $INITIAL_SEQ_NODES
-    docker compose up --wait $INITIAL_SEQ_NODES
     docker compose run scripts bridge-funds --ethamount 100000 --wait
     docker compose run scripts send-l2 --ethamount 100 --to l2owner --wait
     rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
@@ -657,10 +653,6 @@ if $force_init; then
         docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
         echo == Funding l3 funnel and dev key
-        docker compose up --wait l3node sequencer
-        sleep 60
-        # restart node to workaround stuck sequencer rpc not accepting connections
-        docker compose down l3node sequencer
         docker compose up --wait l3node sequencer
 
         if $l3_token_bridge; then
