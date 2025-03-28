@@ -34,6 +34,7 @@ import {
   setValidKeysetCommand,
   waitForSyncCommand,
   transferL3ChainOwnershipCommand,
+  createFeeTokenPricerCommand,
 } from "./ethcommands";
 
 async function main() {
@@ -53,6 +54,7 @@ async function main() {
     .command(bridgeNativeTokenToL3Command)
     .command(createERC20Command)
     .command(deployExpressLaneAuctionContractCommand)
+    .command(createFeeTokenPricerCommand)
     .command(createWETHCommand)
     .command(transferERC20Command)
     .command(sendL1Command)
