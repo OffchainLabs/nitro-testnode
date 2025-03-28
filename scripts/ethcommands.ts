@@ -579,7 +579,11 @@ export const createStylusDeployerCommand = {
     const deployerWallet = namedAccount(argv.deployer).connect(provider);
 
     const stylusDeployerAddress = await createStylusDeployer(deployerWallet);
-    console.log("Stylus deployer deployed at L2 address:", stylusDeployerAddress);
+    if (argv.l3) {
+      console.log("Stylus deployer deployed at L3 address:", stylusDeployerAddress);
+    } else {
+      console.log("Stylus deployer deployed at L2 address:", stylusDeployerAddress);
+    }
 
     provider.destroy();
   }
