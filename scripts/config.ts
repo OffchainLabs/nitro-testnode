@@ -346,7 +346,8 @@ function writeConfigs(argv: any) {
 
     let l3Config = JSON.parse(baseConfJSON)
     l3Config["parent-chain"].connection.url = argv.l2url
-    l3Config.node.staker["parent-chain-wallet"].account = namedAddress("l3owner")
+    // use the same account for l2 and l3 staker
+    // l3Config.node.staker["parent-chain-wallet"].account = namedAddress("l3owner")
     l3Config.node["batch-poster"]["parent-chain-wallet"].account = namedAddress("l3sequencer")
     l3Config.chain.id = 333333
     const l3ChainInfoFile = path.join(consts.configpath, "l3_chain_info.json")

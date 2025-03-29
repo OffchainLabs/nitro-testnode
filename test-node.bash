@@ -584,6 +584,7 @@ if $force_init; then
 
     if $l3node; then
         echo == Funding l3 users
+        docker compose run scripts send-l2 --ethamount 1000 --to validator --wait
         docker compose run scripts send-l2 --ethamount 1000 --to l3owner --wait
         docker compose run scripts send-l2 --ethamount 1000 --to l3sequencer --wait
 
