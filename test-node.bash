@@ -661,6 +661,9 @@ if $force_init; then
         echo == Deploy CacheManager on L3
         docker compose run -e CHILD_CHAIN_RPC="http://l3node:3347" -e CHAIN_OWNER_PRIVKEY=$l3ownerkey rollupcreator deploy-cachemanager-testnode
 
+        echo == create l3 traffic
+        docker compose run scripts send-l3 --ethamount 10 --to user_traffic_generator --wait
+        docker compose run scripts send-l3 --ethamount 0.0001 --from user_traffic_generator --to user_traffic_generator --wait --delay 500 --times 1000000 > /dev/null &
     fi
 fi
 
