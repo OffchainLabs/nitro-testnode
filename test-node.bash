@@ -6,9 +6,9 @@ NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.5.4-217e414
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
 # nitro-contract workaround for testnode
-# 1. authorizing validator signer key since validator wallet if buggy
+# 1. authorizing validator signer key since validator wallet is buggy
 #    - gas estimation sent from 0x0000 lead to balance and permission error
-DEFAULT_NITRO_CONTRACTS_VERSION="v3-dev-testnode" # of v3-dev-testnode
+DEFAULT_NITRO_CONTRACTS_VERSION="develop"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
 # Set default versions if not overriden by provided env vars
@@ -48,6 +48,7 @@ l3node=false
 consensusclient=false
 redundantsequencers=0
 l3_custom_fee_token=false
+l3_custom_fee_token_pricer=false
 l3_token_bridge=false
 l3_custom_fee_token_decimals=18
 batchposters=1
@@ -222,6 +223,14 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             l3_custom_fee_token=true
+            shift
+            ;;
+        --l3-fee-token-pricer)
+            if ! $l3_custom_fee_token; then
+                echo "Error: --l3-fee-token-pricer requires --l3-fee-token to be provided."
+                exit 1
+            fi
+            l3_custom_fee_token_pricer=true
             shift
             ;;
         --l3-fee-token-decimals)
@@ -464,7 +473,7 @@ if $force_init; then
 
     echo == create l1 traffic
     docker compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
-    docker compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 1000000 > /dev/null &
+    docker compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user --wait --delay 1000 --times 1000000 > /dev/null &
 
     l2ownerAddress=`docker compose run scripts print-address --account l2owner | tail -n 1 | tr -d '\r\n'`
 
@@ -538,10 +547,6 @@ if $force_init; then
 
     echo == Funding l2 funnel and dev key
     docker compose up --wait $INITIAL_SEQ_NODES
-    sleep 60
-    # restart node to workaround stuck sequencer rpc not accepting connections
-    docker compose down $INITIAL_SEQ_NODES
-    docker compose up --wait $INITIAL_SEQ_NODES
     docker compose run scripts bridge-funds --ethamount 100000 --wait
     docker compose run scripts send-l2 --ethamount 100 --to l2owner --wait
     rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
@@ -582,6 +587,7 @@ if $force_init; then
 
     if $l3node; then
         echo == Funding l3 users
+        docker compose run scripts send-l2 --ethamount 1000 --to validator --wait
         docker compose run scripts send-l2 --ethamount 1000 --to l3owner --wait
         docker compose run scripts send-l2 --ethamount 1000 --to l3sequencer --wait
 
@@ -595,7 +601,7 @@ if $force_init; then
 
         echo == create l2 traffic
         docker compose run scripts send-l2 --ethamount 100 --to user_traffic_generator --wait
-        docker compose run scripts send-l2 --ethamount 0.0001 --from user_traffic_generator --to user_fee_token_deployer --wait --delay 500 --times 1000000 > /dev/null &
+        docker compose run scripts send-l2 --ethamount 0.0001 --from user_traffic_generator --to user_traffic_generator --wait --delay 5000 --times 1000000 > /dev/null &
 
         echo == Writing l3 chain config
         l3owneraddress=`docker compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
@@ -609,6 +615,11 @@ if $force_init; then
             docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 10000 --from user_fee_token_deployer --to l3owner
             docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 10000 --from user_fee_token_deployer --to user_token_bridge_deployer
             EXTRA_L3_DEPLOY_FLAG="-e FEE_TOKEN_ADDRESS=$nativeTokenAddress"
+            if $l3_custom_fee_token_pricer; then
+                echo == Deploying custom fee token pricer
+                feeTokenPricerAddress=`docker compose run scripts create-fee-token-pricer --deployer user_fee_token_deployer | tail -n 1 | awk '{ print $NF }'`
+                EXTRA_L3_DEPLOY_FLAG="$EXTRA_L3_DEPLOY_FLAG -e FEE_TOKEN_PRICER_ADDRESS=$feeTokenPricerAddress"
+            fi
         fi
 
         echo == Deploying L3
@@ -619,10 +630,6 @@ if $force_init; then
         docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
         echo == Funding l3 funnel and dev key
-        docker compose up --wait l3node sequencer
-        sleep 60
-        # restart node to workaround stuck sequencer rpc not accepting connections
-        docker compose down l3node sequencer
         docker compose up --wait l3node sequencer
 
         if $l3_token_bridge; then
@@ -660,6 +667,9 @@ if $force_init; then
         echo == Deploy Stylus Deployer on L3
         docker compose run scripts create-stylus-deployer --deployer l3owner --l3
 
+        echo == create l3 traffic
+        docker compose run scripts send-l3 --ethamount 10 --to user_traffic_generator --wait
+        docker compose run scripts send-l3 --ethamount 0.0001 --from user_traffic_generator --to user_traffic_generator --wait --delay 5000 --times 1000000 > /dev/null &
     fi
 fi
 

@@ -299,8 +299,7 @@ function writeConfigs(argv: any) {
         let simpleConfig = JSON.parse(baseConfJSON)
         simpleConfig.node.staker.enable = true
         simpleConfig.node.staker["use-smart-contract-wallet"] = false
-        delete simpleConfig.node["block-validator"]
-        simpleConfig.node.staker.dangerous["without-block-validator"] = false
+        simpleConfig.node.staker.dangerous["without-block-validator"] = true
         simpleConfig.node.sequencer = true
         simpleConfig.node.dangerous["no-sequencer-coordinator"] = true
         simpleConfig.node["delayed-sequencer"].enable = true
@@ -314,7 +313,7 @@ function writeConfigs(argv: any) {
     } else {
         let validatorConfig = JSON.parse(baseConfJSON)
         validatorConfig.node.staker.enable = true
-        validatorConfig.node.staker["use-smart-contract-wallet"] = true
+        validatorConfig.node.staker["use-smart-contract-wallet"] = false
         let validconfJSON = JSON.stringify(validatorConfig)
         fs.writeFileSync(path.join(consts.configpath, "validator_config.json"), validconfJSON)
 
@@ -347,13 +346,14 @@ function writeConfigs(argv: any) {
 
     let l3Config = JSON.parse(baseConfJSON)
     l3Config["parent-chain"].connection.url = argv.l2url
-    l3Config.node.staker["parent-chain-wallet"].account = namedAddress("l3owner")
+    // use the same account for l2 and l3 staker
+    // l3Config.node.staker["parent-chain-wallet"].account = namedAddress("l3owner")
     l3Config.node["batch-poster"]["parent-chain-wallet"].account = namedAddress("l3sequencer")
     l3Config.chain.id = 333333
     const l3ChainInfoFile = path.join(consts.configpath, "l3_chain_info.json")
     l3Config.chain["info-files"] = [l3ChainInfoFile]
     l3Config.node.staker.enable = true
-    l3Config.node.staker["use-smart-contract-wallet"] = true
+    l3Config.node.staker["use-smart-contract-wallet"] = false
     l3Config.node.sequencer = true
     l3Config.execution["sequencer"].enable = true
     l3Config.node["dangerous"]["no-sequencer-coordinator"] = true
