@@ -5,7 +5,7 @@ import * as crypto from "crypto";
 import { runStress } from "./stress";
 const path = require("path");
 
-const specialAccounts = 6;
+const specialAccounts = 7;
 
 async function writeAccounts() {
   for (let i = 0; i < specialAccounts; i++) {
@@ -47,6 +47,9 @@ export function namedAccount(
   if (name == "l2owner") {
     return specialAccount(5);
   }
+  if (name == "auctioneer") {
+    return specialAccount(6);
+  }
   if (name.startsWith("user_")) {
     return new ethers.Wallet(
       ethers.utils.sha256(ethers.utils.toUtf8Bytes(name))
@@ -85,7 +88,8 @@ export function namedAddress(
 
 export const namedAccountHelpString =
   "Valid account names:\n" +
-  "  funnel | sequencer | validator | l2owner - known keys used by l2\n" +
+  "  funnel | sequencer | validator | l2owner\n" +
+  "    | auctioneer                           - known keys used by l2\n" +
   "  l3owner | l3sequencer                    - known keys used by l3\n" +
   "  user_[Alphanumeric]                      - key will be generated from username\n" +
   "  threaduser_[Alphanumeric]                - same as user_[Alphanumeric]_thread_[thread-id]\n" +

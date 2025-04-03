@@ -40,14 +40,14 @@ async function writeRedisPriorities(redisUrl: string, priorities: number) {
   let prio_sequencers = "bcd";
   let priostring = "";
   if (priorities == 0) {
-    priostring = "ws://sequencer:8548";
+    priostring = "http://sequencer:8547";
   }
   if (priorities > prio_sequencers.length) {
     priorities = prio_sequencers.length;
   }
   for (let index = 0; index < priorities; index++) {
     const this_prio =
-      "ws://sequencer_" + prio_sequencers.charAt(index) + ":8548";
+      "http://sequencer_" + prio_sequencers.charAt(index) + ":8547";
     if (index != 0) {
       priostring = priostring + ",";
     }
