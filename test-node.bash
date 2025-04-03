@@ -60,6 +60,8 @@ devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
 simple=true
 l2anytrust=false
+l2maxCodeSize=24576
+l2maxInitCodeSize=49152
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -278,6 +280,16 @@ while [[ $# -gt 0 ]]; do
             simple=false
             shift
             ;;
+        --maxCodeSize)
+            l2maxCodeSize="$2"
+            shift
+            shift
+            ;;
+        --maxInitCodeSize)
+            l2maxInitCodeSize="$2"
+            shift
+            shift
+            ;;
         *)
             echo Usage: $0 \[OPTIONS..]
             echo        $0 script [SCRIPT-ARGS]
@@ -472,10 +484,10 @@ if $force_init; then
 
     if $l2anytrust; then
         echo "== Writing l2 chain config (anytrust enabled)"
-        docker compose run scripts --l2owner $l2ownerAddress  write-l2-chain-config --anytrust
+        docker compose run scripts --l2owner $l2ownerAddress  write-l2-chain-config --anytrust --maxCodeSize $l2maxCodeSize --maxInitCodeSize $l2maxInitCodeSize
     else
         echo == Writing l2 chain config
-        docker compose run scripts --l2owner $l2ownerAddress  write-l2-chain-config
+        docker compose run scripts --l2owner $l2ownerAddress  write-l2-chain-config --maxCodeSize $l2maxCodeSize --maxInitCodeSize $l2maxInitCodeSize
     fi
 
     sequenceraddress=`docker compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
@@ -583,7 +595,7 @@ if $force_init; then
         echo == Writing l3 chain config
         l3owneraddress=`docker compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
         echo l3owneraddress $l3owneraddress
-        docker compose run scripts --l2owner $l3owneraddress  write-l3-chain-config
+        docker compose run scripts --l2owner $l3owneraddress  write-l3-chain-config --maxCodeSize $l2maxCodeSize --maxInitCodeSize $l2maxInitCodeSize
 
         EXTRA_L3_DEPLOY_FLAG=""
         if $l3_custom_fee_token; then
