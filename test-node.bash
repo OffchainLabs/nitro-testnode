@@ -306,8 +306,8 @@ while [[ $# -gt 0 ]]; do
             echo --l3-fee-token-decimals Number of decimals to use for custom fee token. Only valid if also '--l3-fee-token' is provided
             echo --l3-token-bridge Deploy L2-L3 token bridge. Only valid if also '--l3node' is provided
             echo --l2-anytrust     run the L2 as an AnyTrust chain
-            echo --max-code-size   Maximum size of contract code in bytes (default: 24576)
-            echo --max-init-code-size Maximum size of contract initialization code in bytes (default: 49152)
+            echo --max-code-size   Maximum size of contract code in bytes \(default: 24576\)
+            echo --max-init-code-size Maximum size of contract initialization code in bytes \(default: 49152\)
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
