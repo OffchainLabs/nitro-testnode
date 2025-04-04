@@ -347,6 +347,8 @@ function writeConfigs(argv: any) {
     l3Config.node["delayed-sequencer"]["use-merge-finality"] = false
     l3Config.node["batch-poster"].enable = true
     l3Config.node["batch-poster"]["redis-url"] = ""
+    l3Config.node["delayed-sequencer"]["MaxCodeSize"] = argv.maxCodeSize
+    l3Config.node["delayed-sequencer"]["MaxInitCodeSize"] = argv.maxInitCodeSize
     fs.writeFileSync(path.join(consts.configpath, "l3node_config.json"), JSON.stringify(l3Config))
 
     let validationNodeConfig = JSON.parse(JSON.stringify({
@@ -397,7 +399,9 @@ function writeL2ChainConfig(argv: any) {
             "DataAvailabilityCommittee": argv.anytrust,
             "InitialArbOSVersion": 32,
             "InitialChainOwner": argv.l2owner,
-            "GenesisBlockNum": 0
+            "GenesisBlockNum": 0,
+            "MaxCodeSize": argv.maxCodeSize,
+            "MaxInitCodeSize": argv.maxInitCodeSize
         }
     }
     const l2ChainConfigJSON = JSON.stringify(l2ChainConfig)
@@ -430,7 +434,9 @@ function writeL3ChainConfig(argv: any) {
             "DataAvailabilityCommittee": false,
             "InitialArbOSVersion": 31,
             "InitialChainOwner": argv.l2owner,
-            "GenesisBlockNum": 0
+            "GenesisBlockNum": 0,
+            "MaxCodeSize": argv.maxCodeSize,
+            "MaxInitCodeSize": argv.maxInitCodeSize
         }
     }
     const l3ChainConfigJSON = JSON.stringify(l3ChainConfig)
@@ -548,6 +554,16 @@ export const writeConfigCommand = {
             describe: "DAS committee member B BLS pub key",
             default: ""
         },
+        maxCodeSize: {
+            number: true,
+            describe: "maximum code size for contracts",
+            default: 24576
+        },
+        maxInitCodeSize: {
+            number: true,
+            describe: "maximum init code size for contract creation",
+            default: 49152
+        },
 
       },
     handler: (argv: any) => {
@@ -580,6 +596,16 @@ export const writeL2ChainConfigCommand = {
             describe: "enable anytrust in chainconfig",
             default: false
         },
+        maxCodeSize: {
+            number: true,
+            describe: "maximum code size for contracts",
+            default: 24576
+        },
+        maxInitCodeSize: {
+            number: true,
+            describe: "maximum init code size for contract creation",
+            default: 49152
+        }
     },
     handler: (argv: any) => {
         writeL2ChainConfig(argv)
@@ -589,6 +615,23 @@ export const writeL2ChainConfigCommand = {
 export const writeL3ChainConfigCommand = {
     command: "write-l3-chain-config",
     describe: "writes l3 chain config file",
+    builder: {
+        anytrust: {
+            boolean: true,
+            describe: "enable anytrust in chainconfig",
+            default: false
+        },
+        maxCodeSize: {
+            number: true,
+            describe: "maximum code size for contracts",
+            default: 24576
+        },
+        maxInitCodeSize: {
+            number: true,
+            describe: "maximum init code size for contract creation",
+            default: 49152
+        }
+    },
     handler: (argv: any) => {
         writeL3ChainConfig(argv)
     }
