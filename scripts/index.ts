@@ -47,8 +47,8 @@ async function main() {
       validationNodeUrl: { string: true, default: "ws://validation_node:8549" },
       l2owner: { string: true, default: "0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E" },
       committeeMember: { string: true, default: "not_set" },
+      ...stressOptions
     })
-    .options(stressOptions)
     .command(bridgeFundsCommand)
     .command(bridgeToL3Command)
     .command(bridgeNativeTokenToL3Command)
