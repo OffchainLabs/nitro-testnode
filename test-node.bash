@@ -52,6 +52,7 @@ consensusclient=false
 boldupgrade=false
 redundantsequencers=0
 l3_custom_fee_token=false
+l3_custom_fee_token_pricer=false
 l3_token_bridge=false
 l3_custom_fee_token_decimals=18
 batchposters=1
@@ -230,6 +231,14 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             l3_custom_fee_token=true
+            shift
+            ;;
+        --l3-fee-token-pricer)
+            if ! $l3_custom_fee_token; then
+                echo "Error: --l3-fee-token-pricer requires --l3-fee-token to be provided."
+                exit 1
+            fi
+            l3_custom_fee_token_pricer=true
             shift
             ;;
         --l3-fee-token-decimals)
@@ -627,6 +636,11 @@ if $force_init; then
             docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 10000 --from user_fee_token_deployer --to l3owner
             docker compose run scripts transfer-erc20 --token $nativeTokenAddress --amount 10000 --from user_fee_token_deployer --to user_token_bridge_deployer
             EXTRA_L3_DEPLOY_FLAG="-e FEE_TOKEN_ADDRESS=$nativeTokenAddress"
+            if $l3_custom_fee_token_pricer; then
+                echo == Deploying custom fee token pricer
+                feeTokenPricerAddress=`docker compose run scripts create-fee-token-pricer --deployer user_fee_token_deployer | tail -n 1 | awk '{ print $NF }'`
+                EXTRA_L3_DEPLOY_FLAG="$EXTRA_L3_DEPLOY_FLAG -e FEE_TOKEN_PRICER_ADDRESS=$feeTokenPricerAddress"
+            fi
         fi
 
         echo == Deploying L3
