@@ -2,7 +2,7 @@
 
 set -eu
 
-NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.6.0-rc.1
+NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.6.0-rc.1-914d81d
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
 # nitro-contract workaround for testnode
@@ -584,6 +584,11 @@ if $force_init; then
 
     echo == Deploy Stylus Deployer on L2
     docker compose run scripts create-stylus-deployer --deployer l2owner
+
+    # TODO: remove this once the gas estimation issue is fixed
+    echo == Gas Estimation workaround
+    docker compose run scripts send-l1 --ethamount 1 --to address_0x0000000000000000000000000000000000000000 --wait
+    docker compose run scripts send-l2 --ethamount 1 --to address_0x0000000000000000000000000000000000000000 --wait
 
     if $l3node; then
         echo == Funding l3 users

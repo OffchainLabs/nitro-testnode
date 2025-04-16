@@ -199,7 +199,6 @@ function writeConfigs(argv: any) {
         },
         "node": {
             "bold": {
-                "enable": true,
                 "rpc-block-number": "latest",
                 "strategy": "makeNodes",
                 "assertion-posting-interval": "10s"
@@ -298,7 +297,7 @@ function writeConfigs(argv: any) {
     if (argv.simple) {
         let simpleConfig = JSON.parse(baseConfJSON)
         simpleConfig.node.staker.enable = true
-        simpleConfig.node.staker["use-smart-contract-wallet"] = false
+        simpleConfig.node.staker["use-smart-contract-wallet"] = false // TODO: set to true when fixed
         simpleConfig.node.staker.dangerous["without-block-validator"] = true
         simpleConfig.node.sequencer = true
         simpleConfig.node.dangerous["no-sequencer-coordinator"] = true
@@ -313,7 +312,7 @@ function writeConfigs(argv: any) {
     } else {
         let validatorConfig = JSON.parse(baseConfJSON)
         validatorConfig.node.staker.enable = true
-        validatorConfig.node.staker["use-smart-contract-wallet"] = false
+        validatorConfig.node.staker["use-smart-contract-wallet"] = false // TODO: set to true when fixed
         let validconfJSON = JSON.stringify(validatorConfig)
         fs.writeFileSync(path.join(consts.configpath, "validator_config.json"), validconfJSON)
 
@@ -353,7 +352,7 @@ function writeConfigs(argv: any) {
     const l3ChainInfoFile = path.join(consts.configpath, "l3_chain_info.json")
     l3Config.chain["info-files"] = [l3ChainInfoFile]
     l3Config.node.staker.enable = true
-    l3Config.node.staker["use-smart-contract-wallet"] = false
+    l3Config.node.staker["use-smart-contract-wallet"] = false // TODO: set to true when fixed
     l3Config.node.sequencer = true
     l3Config.execution["sequencer"].enable = true
     l3Config.node["dangerous"]["no-sequencer-coordinator"] = true
