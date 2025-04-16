@@ -19,6 +19,17 @@
   optionalDependencies:
     sol2uml "2.2.0"
 
+"@arbitrum/nitro-contracts@^3.1.0":
+  version "3.1.0"
+  resolved "https://registry.yarnpkg.com/@arbitrum/nitro-contracts/-/nitro-contracts-3.1.0.tgz#89488e798593dd8d36f44ab1f684e47410e375a1"
+  integrity sha512-/nDcQ3bZ5D761vv5I2r2gS+HeMTj9A2wgKzSWGTkqJ1ewzz8b1892OLBWgNja24J5daBTgGYV4vlxT+75478+w==
+  dependencies:
+    "@offchainlabs/upgrade-executor" "1.1.0-beta.0"
+    "@openzeppelin/contracts" "4.7.3"
+    "@openzeppelin/contracts-upgradeable" "4.7.3"
+    patch-package "^6.5.1"
+    solady "0.0.182"
+
 "@arbitrum/token-bridge-contracts@1.2.0":
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/@arbitrum/token-bridge-contracts/-/token-bridge-contracts-1.2.0.tgz#b1dc02e123393848d0d8e5c167028bafa0ac8229"
@@ -2198,7 +2209,7 @@ parse5@^7.0.0:
   dependencies:
     entities "^4.4.0"
 
-patch-package@^6.4.7:
+patch-package@^6.4.7, patch-package@^6.5.1:
   version "6.5.1"
   resolved "https://registry.yarnpkg.com/patch-package/-/patch-package-6.5.1.tgz#3e5d00c16997e6160291fee06a521c42ac99b621"
   integrity sha512-I/4Zsalfhc6bphmJTlrLoOcAF87jcxko4q0qsv4bGcurbr8IskEOtdnt9iCmsQVGL1B+iUhSQqweyTLJfCF9rA==
@@ -2521,6 +2532,11 @@ sol2uml@2.2.0:
     ethers "^5.6.9"
     js-graph-algorithms "^1.0.18"
     klaw "^4.0.1"
+
+solady@0.0.182:
+  version "0.0.182"
+  resolved "https://registry.yarnpkg.com/solady/-/solady-0.0.182.tgz#bd8c47f128a3a752358ad052782773966d74c400"
+  integrity sha512-FW6xo1akJoYpkXMzu58/56FcNU3HYYNamEbnFO3iSibXk0nSHo0DV2Gu/zI3FPg3So5CCX6IYli1TT1IWATnvg==
 
 solidity-ast@^0.4.51:
   version "0.4.55"
