@@ -10,6 +10,8 @@ import * as fs from "fs";
 import { ARB_OWNER } from "./consts";
 import * as TransparentUpgradeableProxy from "@openzeppelin/contracts/build/contracts/TransparentUpgradeableProxy.json"
 import * as ExpressLaneAuctionContract from "@arbitrum/nitro-contracts/build/contracts/src/express-lane-auction/ExpressLaneAuction.sol/ExpressLaneAuction.json"
+import * as StylusDeployerContract from "@arbitrum/nitro-contracts/build/contracts/src/stylus/StylusDeployer.sol/StylusDeployer.json"
+
 const path = require("path");
 
 async function sendTransaction(argv: any, threadId: number) {
@@ -183,6 +185,36 @@ async function deployWETHContract(deployerWallet: Wallet): Promise<string> {
     await weth.deployTransaction.wait();
 
     return weth.address;
+}
+
+async function createStylusDeployer(deployerWallet: Wallet): Promise<string> {
+  // this factory should be deployed by the rollupcreater when deploy helper is used
+  const create2factory = '0x4e59b44847b379578588920ca78fbf26c0b4956c'
+  if (await deployerWallet.provider.getCode(create2factory) === '0x') {
+    // wait for 30 seconds, check again before throwing an error
+    await new Promise(resolve => setTimeout(resolve, 30000));
+    if (await deployerWallet.provider.getCode(create2factory) === '0x') {
+      throw new Error('Create2 factory not yet deployed')
+    }
+  }
+
+  const salt = ethers.constants.HashZero
+  const stylusDeployerBytecode = StylusDeployerContract.bytecode
+  const stylusDeployerAddress = ethers.utils.getCreate2Address(create2factory, salt, ethers.utils.keccak256(stylusDeployerBytecode))
+
+  // check if the address is already deployed
+  const code = await deployerWallet.provider.getCode(stylusDeployerAddress)
+  if (code !== '0x') {
+    console.log("Stylus deployer already deployed")
+  } else {
+    const stylusDeployerTx = await deployerWallet.sendTransaction({
+      to: create2factory,
+      data: ethers.utils.concat([salt, stylusDeployerBytecode])
+    })
+    await stylusDeployerTx.wait()
+  }
+
+  return stylusDeployerAddress
 }
 
 export const bridgeFundsCommand = {
@@ -590,6 +622,30 @@ export const createWETHCommand = {
       await depositTx.wait();
     }
   },
+};
+
+export const createStylusDeployerCommand = {
+  command: "create-stylus-deployer",
+  describe: "deploys the stylus deployer contract",
+  builder: {
+    deployer: { string: true, describe: "account (see general help)" },
+    l3: { boolean: false, describe: "deploy on L3, otherwise deploy on L2" },
+  },
+  handler: async (argv: any) => {
+    console.log("create-stylus-deployer");
+
+    const provider = new ethers.providers.WebSocketProvider(argv.l3 ? argv.l3url : argv.l2url);
+    const deployerWallet = namedAccount(argv.deployer).connect(provider);
+
+    const stylusDeployerAddress = await createStylusDeployer(deployerWallet);
+    if (argv.l3) {
+      console.log("Stylus deployer deployed at L3 address:", stylusDeployerAddress);
+    } else {
+      console.log("Stylus deployer deployed at L2 address:", stylusDeployerAddress);
+    }
+
+    provider.destroy();
+  }
 };
 
 export const sendL1Command = {

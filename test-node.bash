@@ -582,6 +582,9 @@ if $force_init; then
     echo == Deploy CacheManager on L2
     docker compose run -e CHILD_CHAIN_RPC="http://sequencer:8547" -e CHAIN_OWNER_PRIVKEY=$l2ownerKey rollupcreator deploy-cachemanager-testnode
 
+    echo == Deploy Stylus Deployer on L2
+    docker compose run scripts create-stylus-deployer --deployer l2owner
+
     if $l3node; then
         echo == Funding l3 users
         docker compose run scripts send-l2 --ethamount 1000 --to validator --wait
@@ -660,6 +663,9 @@ if $force_init; then
 
         echo == Deploy CacheManager on L3
         docker compose run -e CHILD_CHAIN_RPC="http://l3node:3347" -e CHAIN_OWNER_PRIVKEY=$l3ownerkey rollupcreator deploy-cachemanager-testnode
+
+        echo == Deploy Stylus Deployer on L3
+        docker compose run scripts create-stylus-deployer --deployer l3owner --l3
 
         echo == create l3 traffic
         docker compose run scripts send-l3 --ethamount 10 --to user_traffic_generator --wait
