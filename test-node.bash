@@ -8,8 +8,8 @@ BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.1-beta.0"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
 
-# The is the latest bold-merge commit in nitro-contracts at the time
-DEFAULT_BOLD_CONTRACTS_VERSION="42d80e40"
+# The is the latest bold-upgrade-qol-improvements commit in nitro-contracts at the time
+DEFAULT_BOLD_CONTRACTS_VERSION="9016cf1c"
 
 # Set default versions if not overriden by provided env vars
 : ${NITRO_CONTRACTS_BRANCH:=$DEFAULT_NITRO_CONTRACTS_VERSION}
@@ -587,15 +587,26 @@ if $force_init; then
         stakeTokenAddress=`docker compose run scripts create-weth --deployer l2owner --deposit 100 | tail -n 1 | awk '{ print $NF }'`
         echo BOLD stake token address: $stakeTokenAddress
         docker compose run scripts transfer-erc20 --token $stakeTokenAddress --l1 --amount 100 --from l2owner --to validator
+
+        echo == Deploying v3.1 templates
+        docker compose run -e DEPLOYER_PRIVKEY=$l2ownerKey -e MAX_DATA_SIZE=117964 boldupgrader deploy-factory --network custom
+        
         echo == Preparing BOLD upgrade
-        docker compose run -e TESTNODE_MODE=true -e ROLLUP_ADDRESS=$rollupAddress -e STAKE_TOKEN=$stakeTokenAddress boldupgrader script:bold-prepare
+        docker compose run boldupgrader script:bold-prepare --network custom
         # retry this 10 times because the staker might not have made a node yet
         for i in {1..10}; do
-            docker compose run -e TESTNODE_MODE=true -e ROLLUP_ADDRESS=$rollupAddress -e STAKE_TOKEN=$stakeTokenAddress boldupgrader script:bold-populate-lookup && break || true
+            docker compose run boldupgrader script:bold-populate-lookup --network custom && break || true
             echo "Failed to populate lookup table, retrying..."
             sleep 10
         done
-        docker compose run -e TESTNODE_MODE=true -e ROLLUP_ADDRESS=$rollupAddress -e STAKE_TOKEN=$stakeTokenAddress boldupgrader script:bold-local-execute
+        docker compose run boldupgrader script:bold-local-execute --network custom
+
+        echo == Update new configuration
+        docker compose run --entrypoint sh rollupcreator -c "jq '.[].rollup.rollup = \"0xa134abA9268643057091b15f99eb32D0D526190f\" | .[].rollup.\"stake-token\" = \"0x43C9c3Ab961c49f8d42227628617747b1da7bcF0\"' /config/l2_chain_info.json > /config/l2_chain_info_temp.json && mv /config/l2_chain_info_temp.json /config/l2_chain_info.json"
+        docker compose run --entrypoint sh rollupcreator -c "jq '.node.bold.enable = true | .node.bold.strategy = \"MakeNodes\" | .node.bold.\"rpc-block-number\" = \"latest\"' /config/sequencer_config.json > /config/sequencer_config_temp.json && mv /config/sequencer_config_temp.json /config/sequencer_config.json"
+
+        echo == Restart nodes
+        docker compose restart $INITIAL_SEQ_NODES
     fi
 
     if $l3node; then
