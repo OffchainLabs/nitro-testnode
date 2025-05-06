@@ -8,7 +8,7 @@ RUN git checkout ${NITRO_CONTRACTS_BRANCH}
 RUN yarn install && yarn cache clean
 RUN curl -L https://foundry.paradigm.xyz | bash
 ENV PATH="${PATH}:/root/.foundry/bin"
-RUN foundryup
+RUN foundryup --install 1.0.0
 RUN touch scripts/config.ts
 RUN yarn build:all
 ENTRYPOINT ["yarn"]
