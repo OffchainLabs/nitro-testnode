@@ -10,7 +10,7 @@ on:
       - master
       - develop
       - release
-  # run this job on the default branch daily
+  # run this job on the default branch (release) daily
   # the docker compose file contains some images with tags like 'latest' and 'stable'
   # we nightly run here just to double check no bugs have been merged into those tags and are now on release
   schedule:

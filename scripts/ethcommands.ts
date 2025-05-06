@@ -188,7 +188,7 @@ async function deployWETHContract(deployerWallet: Wallet): Promise<string> {
 }
 
 async function createStylusDeployer(deployerWallet: Wallet): Promise<string> {
-  // this factory should be deployed by the rollupcreater when deploy helper is used
+  // this factory should be deployed by the rollupcreator when deploy helper is used
   const create2factory = '0x4e59b44847b379578588920ca78fbf26c0b4956c'
   if (await deployerWallet.provider.getCode(create2factory) === '0x') {
     // wait for 30 seconds, check again before throwing an error
