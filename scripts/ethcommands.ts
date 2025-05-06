@@ -10,6 +10,8 @@ import * as fs from "fs";
 import { ARB_OWNER } from "./consts";
 import * as TransparentUpgradeableProxy from "@openzeppelin/contracts/build/contracts/TransparentUpgradeableProxy.json"
 import * as ExpressLaneAuctionContract from "@arbitrum/nitro-contracts/build/contracts/src/express-lane-auction/ExpressLaneAuction.sol/ExpressLaneAuction.json"
+import * as StylusDeployerContract from "@arbitrum/nitro-contracts/build/contracts/src/stylus/StylusDeployer.sol/StylusDeployer.json"
+
 const path = require("path");
 
 async function sendTransaction(argv: any, threadId: number) {
@@ -142,12 +144,77 @@ async function deployERC20Contract(deployerWallet: Wallet, decimals: number): Pr
     return token.address;
 }
 
+async function deployFeeTokenPricerContract(deployerWallet: Wallet, exchangeRate: BigNumber): Promise<string> {
+  //// Bytecode below is generated from this simple FeeTokenPricer contract
+
+  // pragma solidity ^0.8.16;
+  
+  // interface IFeeTokenPricer {
+  //     /**
+  //      * @notice Get the number of child chain's fee tokens per 1 parent chain's native token. Exchange rate must be
+  //      *         denominated in 18 decimals.
+  //      * @dev    For example, parent chain's native token is ETH, fee token is DAI. If price of 1ETH = 2000DAI, then function should return 2000*1e18.
+  //      *         If fee token is USDC instead and price of 1ETH = 2000USDC, function should still return 2000*1e18, no matter that USDC uses 6 decimals.
+  //      */
+  //     function getExchangeRate() external returns (uint256);
+  // }
+    
+  // contract ConstantFeeTokenPricer is IFeeTokenPricer {
+  //     uint256 immutable public constExchangeRate;
+  //     constructor(uint256 _constExchangeRate) {
+  //         constExchangeRate = _constExchangeRate;
+  //     }
+    
+  //     function getExchangeRate() external view returns (uint256) {
+  //         return constExchangeRate;
+  //     }
+  // }
+
+  const feeTokenPricerBytecode = "0x60a0604052348015600e575f80fd5b506040516101c63803806101c68339818101604052810190602e9190606d565b8060808181525050506093565b5f80fd5b5f819050919050565b604f81603f565b81146058575f80fd5b50565b5f815190506067816048565b92915050565b5f60208284031215607f57607e603b565b5b5f608a84828501605b565b91505092915050565b6080516101166100b05f395f8181606a0152608f01526101165ff3fe6080604052348015600e575f80fd5b50600436106030575f3560e01c8063b8910a29146034578063e6aa216c14604e575b5f80fd5b603a6068565b6040516045919060c9565b60405180910390f35b6054608c565b604051605f919060c9565b60405180910390f35b7f000000000000000000000000000000000000000000000000000000000000000081565b5f7f0000000000000000000000000000000000000000000000000000000000000000905090565b5f819050919050565b60c38160b3565b82525050565b5f60208201905060da5f83018460bc565b9291505056fea2646970667358221220ee17f22614d853ccf8b3f854137f68f06ff92f9f71ba8b811d78b1313eead0c564736f6c634300081a0033";
+  const abi = ["constructor(uint256 exchangeRate)"];
+  const feeTokenPricerFactory = new ContractFactory(abi, feeTokenPricerBytecode, deployerWallet);
+  const feeTokenPricer = await feeTokenPricerFactory.deploy(exchangeRate);
+  await feeTokenPricer.deployTransaction.wait();
+
+  return feeTokenPricer.address;
+}
+
 async function deployWETHContract(deployerWallet: Wallet): Promise<string> {
     const wethFactory = new ContractFactory(TestWETH9.abi, TestWETH9.bytecode, deployerWallet);
     const weth = await wethFactory.deploy("Wrapped Ether", "WETH");
     await weth.deployTransaction.wait();
 
     return weth.address;
+}
+
+async function createStylusDeployer(deployerWallet: Wallet): Promise<string> {
+  // this factory should be deployed by the rollupcreator when deploy helper is used
+  const create2factory = '0x4e59b44847b379578588920ca78fbf26c0b4956c'
+  if (await deployerWallet.provider.getCode(create2factory) === '0x') {
+    // wait for 30 seconds, check again before throwing an error
+    await new Promise(resolve => setTimeout(resolve, 30000));
+    if (await deployerWallet.provider.getCode(create2factory) === '0x') {
+      throw new Error('Create2 factory not yet deployed')
+    }
+  }
+
+  const salt = ethers.constants.HashZero
+  const stylusDeployerBytecode = StylusDeployerContract.bytecode
+  const stylusDeployerAddress = ethers.utils.getCreate2Address(create2factory, salt, ethers.utils.keccak256(stylusDeployerBytecode))
+
+  // check if the address is already deployed
+  const code = await deployerWallet.provider.getCode(stylusDeployerAddress)
+  if (code !== '0x') {
+    console.log("Stylus deployer already deployed")
+  } else {
+    const stylusDeployerTx = await deployerWallet.sendTransaction({
+      to: create2factory,
+      data: ethers.utils.concat([salt, stylusDeployerBytecode])
+    })
+    await stylusDeployerTx.wait()
+  }
+
+  return stylusDeployerAddress
 }
 
 export const bridgeFundsCommand = {
@@ -441,6 +508,29 @@ export const deployExpressLaneAuctionContractCommand = {
   }
 };
 
+export const createFeeTokenPricerCommand = {
+  command: "create-fee-token-pricer",
+  describe: "creates Constant Fee Token Pricer on L2",
+  builder: {
+    deployer: {
+      string: true,
+      describe: "account (see general help)"
+    },
+  },
+  handler: async (argv: any) => {
+    console.log("create-fee-token-pricer");
+
+    argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
+    const deployerWallet = new Wallet(
+      ethers.utils.sha256(ethers.utils.toUtf8Bytes(argv.deployer)),
+      argv.provider
+    );
+    const feeTokenPricerAddress = await deployFeeTokenPricerContract(deployerWallet, BigNumber.from("15000000000000000000"));
+    console.log("Contract deployed at address:", feeTokenPricerAddress);
+
+    argv.provider.destroy();
+  },
+};
 // Will revert if the keyset is already valid.
 async function setValidKeyset(argv: any, upgradeExecutorAddr: string, sequencerInboxAddr: string, keyset: string){
     const innerIface = new ethers.utils.Interface(["function setValidKeyset(bytes)"])
@@ -532,6 +622,30 @@ export const createWETHCommand = {
       await depositTx.wait();
     }
   },
+};
+
+export const createStylusDeployerCommand = {
+  command: "create-stylus-deployer",
+  describe: "deploys the stylus deployer contract",
+  builder: {
+    deployer: { string: true, describe: "account (see general help)" },
+    l3: { boolean: false, describe: "deploy on L3, otherwise deploy on L2" },
+  },
+  handler: async (argv: any) => {
+    console.log("create-stylus-deployer");
+
+    const provider = new ethers.providers.WebSocketProvider(argv.l3 ? argv.l3url : argv.l2url);
+    const deployerWallet = namedAccount(argv.deployer).connect(provider);
+
+    const stylusDeployerAddress = await createStylusDeployer(deployerWallet);
+    if (argv.l3) {
+      console.log("Stylus deployer deployed at L3 address:", stylusDeployerAddress);
+    } else {
+      console.log("Stylus deployer deployed at L2 address:", stylusDeployerAddress);
+    }
+
+    provider.destroy();
+  }
 };
 
 export const sendL1Command = {

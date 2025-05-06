@@ -26,6 +26,7 @@ import {
   createERC20Command,
   deployExpressLaneAuctionContractCommand,
   createWETHCommand,
+  createStylusDeployerCommand,
   transferERC20Command,
   sendL1Command,
   sendL2Command,
@@ -34,6 +35,7 @@ import {
   setValidKeysetCommand,
   waitForSyncCommand,
   transferL3ChainOwnershipCommand,
+  createFeeTokenPricerCommand,
 } from "./ethcommands";
 
 async function main() {
@@ -53,7 +55,9 @@ async function main() {
     .command(bridgeNativeTokenToL3Command)
     .command(createERC20Command)
     .command(deployExpressLaneAuctionContractCommand)
+    .command(createFeeTokenPricerCommand)
     .command(createWETHCommand)
+    .command(createStylusDeployerCommand)
     .command(transferERC20Command)
     .command(sendL1Command)
     .command(sendL2Command)
