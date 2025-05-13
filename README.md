@@ -16,7 +16,7 @@ Check out the release branch of the repository.
 > Notice: release branch may be force-pushed at any time.
 
 ```bash
-git clone -b release --recurse-submodules https://github.com/OffchainLabs/nitro-testnode.git
+git clone -b release --recurse-submodules https://github.com/OffchainLabs/nitro-testnode
 cd nitro-testnode
 ```
 
@@ -34,7 +34,7 @@ Check out the nitro repository. Use the test-node submodule of nitro repository.
 > Notice: testnode may not always be up-to-date with config options of current nitro node, and is not considered stable when operated in that way.
 
 ```bash
-git clone --recurse-submodules https://github.com/OffchainLabs/nitro.git
+git clone --recurse-submodules https://github.com/OffchainLabs/nitro
 cd nitro/nitro-testnode
 ```
 
