@@ -46,6 +46,7 @@ validate=false
 detach=false
 nowait=false
 blockscout=false
+blockscout_neth=false
 tokenbridge=false
 l3node=false
 consensusclient=false
@@ -176,6 +177,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --blockscout)
             blockscout=true
+            shift
+            ;;
+        --blockscout-neth)
+            blockscout_neth=true
             shift
             ;;
         --tokenbridge)
@@ -366,6 +371,9 @@ if $l3node; then
 fi
 if $blockscout; then
     NODES="$NODES blockscout"
+fi
+if $blockscout_neth; then
+    NODES="$NODES blockscout-neth"
 fi
 
 if $l2timeboost; then
