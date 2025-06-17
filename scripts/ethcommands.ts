@@ -452,6 +452,30 @@ export const createERC20Command = {
   },
 };
 
+export const createFeeTokenPricerCommand = {
+  command: "create-fee-token-pricer",
+  describe: "creates Constant Fee Token Pricer on L2",
+  builder: {
+    deployer: {
+      string: true,
+      describe: "account (see general help)"
+    },
+  },
+  handler: async (argv: any) => {
+    console.log("create-fee-token-pricer");
+
+    argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
+    const deployerWallet = new Wallet(
+      ethers.utils.sha256(ethers.utils.toUtf8Bytes(argv.deployer)),
+      argv.provider
+    );
+    const feeTokenPricerAddress = await deployFeeTokenPricerContract(deployerWallet, BigNumber.from("15000000000000000000"));
+    console.log("Contract deployed at address:", feeTokenPricerAddress);
+
+    argv.provider.destroy();
+  },
+};
+
 export const deployExpressLaneAuctionContractCommand = {
   command: "deploy-express-lane-auction",
   describe: "Deploy the ExpressLaneAuction contract",
@@ -508,29 +532,6 @@ export const deployExpressLaneAuctionContractCommand = {
   }
 };
 
-export const createFeeTokenPricerCommand = {
-  command: "create-fee-token-pricer",
-  describe: "creates Constant Fee Token Pricer on L2",
-  builder: {
-    deployer: {
-      string: true,
-      describe: "account (see general help)"
-    },
-  },
-  handler: async (argv: any) => {
-    console.log("create-fee-token-pricer");
-
-    argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
-    const deployerWallet = new Wallet(
-      ethers.utils.sha256(ethers.utils.toUtf8Bytes(argv.deployer)),
-      argv.provider
-    );
-    const feeTokenPricerAddress = await deployFeeTokenPricerContract(deployerWallet, BigNumber.from("15000000000000000000"));
-    console.log("Contract deployed at address:", feeTokenPricerAddress);
-
-    argv.provider.destroy();
-  },
-};
 // Will revert if the keyset is already valid.
 async function setValidKeyset(argv: any, upgradeExecutorAddr: string, sequencerInboxAddr: string, keyset: string){
     const innerIface = new ethers.utils.Interface(["function setValidKeyset(bytes)"])
