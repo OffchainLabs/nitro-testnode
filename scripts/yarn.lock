@@ -19,10 +19,10 @@
   optionalDependencies:
     sol2uml "2.2.0"
 
-"@arbitrum/nitro-contracts@^3.1.0":
-  version "3.1.0"
-  resolved "https://registry.yarnpkg.com/@arbitrum/nitro-contracts/-/nitro-contracts-3.1.0.tgz#89488e798593dd8d36f44ab1f684e47410e375a1"
-  integrity sha512-/nDcQ3bZ5D761vv5I2r2gS+HeMTj9A2wgKzSWGTkqJ1ewzz8b1892OLBWgNja24J5daBTgGYV4vlxT+75478+w==
+"@arbitrum/nitro-contracts@^3.1.1":
+  version "3.1.1"
+  resolved "https://registry.yarnpkg.com/@arbitrum/nitro-contracts/-/nitro-contracts-3.1.1.tgz#f2efac5329e3f187ade998bbbbad93070e2e90a3"
+  integrity sha512-30s5ocUZbDx22MybngvO7WZtCgYoPYmkHnnBl07FZnN3gOv+oy4WQB0Ln2QG4aBzPp6hCg76Yw9mQJDN/+OkCg==
   dependencies:
     "@offchainlabs/upgrade-executor" "1.1.0-beta.0"
     "@openzeppelin/contracts" "4.7.3"
