@@ -2,25 +2,22 @@
 
 set -eu
 
-NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.5.5-90ee45c
+NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.6.5-89cef87
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
-DEFAULT_NITRO_CONTRACTS_VERSION="v2.1.1-beta.0"
+# nitro-contract workaround for testnode
+# 1. authorizing validator signer key since validator wallet is buggy
+#    - gas estimation sent from 0x0000 lead to balance and permission error
+DEFAULT_NITRO_CONTRACTS_VERSION="v3.1.0"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
-
-# The is the latest bold-merge commit in nitro-contracts at the time
-DEFAULT_BOLD_CONTRACTS_VERSION="42d80e40"
 
 # Set default versions if not overriden by provided env vars
 : ${NITRO_CONTRACTS_BRANCH:=$DEFAULT_NITRO_CONTRACTS_VERSION}
-: ${BOLD_CONTRACTS_BRANCH:=$DEFAULT_BOLD_CONTRACTS_VERSION}
 : ${TOKEN_BRIDGE_BRANCH:=$DEFAULT_TOKEN_BRIDGE_VERSION}
 export NITRO_CONTRACTS_BRANCH
-export BOLD_CONTRACTS_BRANCH
 export TOKEN_BRIDGE_BRANCH
 
 echo "Using NITRO_CONTRACTS_BRANCH: $NITRO_CONTRACTS_BRANCH"
-echo "Using BOLD_CONTRACTS_BRANCH: $BOLD_CONTRACTS_BRANCH"
 echo "Using TOKEN_BRIDGE_BRANCH: $TOKEN_BRIDGE_BRANCH"
 
 mydir=`dirname $0`
@@ -49,7 +46,6 @@ blockscout=false
 tokenbridge=false
 l3node=false
 consensusclient=false
-boldupgrade=false
 redundantsequencers=0
 l3_custom_fee_token=false
 l3_custom_fee_token_pricer=false
@@ -217,10 +213,6 @@ while [[ $# -gt 0 ]]; do
             l1chainid=1337
             shift
             ;;
-        --bold-upgrade)
-            boldupgrade=true
-            shift
-            ;;
         --l3node)
             l3node=true
             shift
@@ -319,8 +311,8 @@ while [[ $# -gt 0 ]]; do
             echo --no-build-dev-nitro  don\'t rebuild dev nitro docker image
             echo --build-dev-blockscout     rebuild dev blockscout docker image
             echo --no-build-dev-blockscout  don\'t rebuild dev blockscout docker image
-            echo --build-utils         rebuild scripts, rollupcreator, boldupgrader, token bridge docker images
-            echo --no-build-utils      don\'t rebuild scripts, rollupcreator, boldupgrader, token bridge docker images
+            echo --build-utils         rebuild scripts, rollupcreator, token bridge docker images
+            echo --no-build-utils      don\'t rebuild scripts, rollupcreator, token bridge docker images
             echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_ or TOKEN_BRIDGE_BRANCH changes
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
@@ -392,14 +384,13 @@ if $dev_blockscout && $build_dev_blockscout; then
 fi
 
 if $build_utils; then
-  LOCAL_BUILD_NODES="scripts rollupcreator boldupgrader"
+  LOCAL_BUILD_NODES="scripts rollupcreator"
   # always build tokenbridge in CI mode to avoid caching issues
   if $tokenbridge || $l3_token_bridge || $ci; then
     LOCAL_BUILD_NODES="$LOCAL_BUILD_NODES tokenbridge"
   fi
 
   if [ "$ci" == true ]; then
-    # workaround to cache docker layers and keep using docker-compose in CI
     docker buildx bake --allow=fs=/tmp --file docker-compose.yaml --file docker-compose-ci-cache.json $LOCAL_BUILD_NODES
   else
     UTILS_NOCACHE=""
@@ -482,7 +473,7 @@ if $force_init; then
 
     echo == create l1 traffic
     docker compose run scripts send-l1 --ethamount 1000 --to user_l1user --wait
-    docker compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user_b --wait --delay 500 --times 1000000 > /dev/null &
+    docker compose run scripts send-l1 --ethamount 0.0001 --from user_l1user --to user_l1user --wait --delay 1000 --times 1000000 > /dev/null &
 
     l2ownerAddress=`docker compose run scripts print-address --account l2owner | tail -n 1 | tr -d '\r\n'`
 
@@ -591,24 +582,17 @@ if $force_init; then
     echo == Deploy CacheManager on L2
     docker compose run -e CHILD_CHAIN_RPC="http://sequencer:8547" -e CHAIN_OWNER_PRIVKEY=$l2ownerKey rollupcreator deploy-cachemanager-testnode
 
-    if $boldupgrade; then
-        echo == Deploying WETH as BOLD stake token
-        stakeTokenAddress=`docker compose run scripts create-weth --deployer l2owner --deposit 100 | tail -n 1 | awk '{ print $NF }'`
-        echo BOLD stake token address: $stakeTokenAddress
-        docker compose run scripts transfer-erc20 --token $stakeTokenAddress --l1 --amount 100 --from l2owner --to validator
-        echo == Preparing BOLD upgrade
-        docker compose run -e TESTNODE_MODE=true -e ROLLUP_ADDRESS=$rollupAddress -e STAKE_TOKEN=$stakeTokenAddress boldupgrader script:bold-prepare
-        # retry this 10 times because the staker might not have made a node yet
-        for i in {1..10}; do
-            docker compose run -e TESTNODE_MODE=true -e ROLLUP_ADDRESS=$rollupAddress -e STAKE_TOKEN=$stakeTokenAddress boldupgrader script:bold-populate-lookup && break || true
-            echo "Failed to populate lookup table, retrying..."
-            sleep 10
-        done
-        docker compose run -e TESTNODE_MODE=true -e ROLLUP_ADDRESS=$rollupAddress -e STAKE_TOKEN=$stakeTokenAddress boldupgrader script:bold-local-execute
-    fi
+    echo == Deploy Stylus Deployer on L2
+    docker compose run scripts create-stylus-deployer --deployer l2owner
+
+    # TODO: remove this once the gas estimation issue is fixed
+    echo == Gas Estimation workaround
+    docker compose run scripts send-l1 --ethamount 1 --to address_0x0000000000000000000000000000000000000000 --wait
+    docker compose run scripts send-l2 --ethamount 1 --to address_0x0000000000000000000000000000000000000000 --wait
 
     if $l3node; then
         echo == Funding l3 users
+        docker compose run scripts send-l2 --ethamount 1000 --to validator --wait
         docker compose run scripts send-l2 --ethamount 1000 --to l3owner --wait
         docker compose run scripts send-l2 --ethamount 1000 --to l3sequencer --wait
 
@@ -622,7 +606,7 @@ if $force_init; then
 
         echo == create l2 traffic
         docker compose run scripts send-l2 --ethamount 100 --to user_traffic_generator --wait
-        docker compose run scripts send-l2 --ethamount 0.0001 --from user_traffic_generator --to user_fee_token_deployer --wait --delay 500 --times 1000000 > /dev/null &
+        docker compose run scripts send-l2 --ethamount 0.0001 --from user_traffic_generator --to user_traffic_generator --wait --delay 500 --times 1000000 > /dev/null &
 
         echo == Writing l3 chain config
         l3owneraddress=`docker compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
@@ -685,6 +669,12 @@ if $force_init; then
         echo == Deploy CacheManager on L3
         docker compose run -e CHILD_CHAIN_RPC="http://l3node:3347" -e CHAIN_OWNER_PRIVKEY=$l3ownerkey rollupcreator deploy-cachemanager-testnode
 
+        echo == Deploy Stylus Deployer on L3
+        docker compose run scripts create-stylus-deployer --deployer l3owner --l3
+
+        echo == create l3 traffic
+        docker compose run scripts send-l3 --ethamount 10 --to user_traffic_generator --wait
+        docker compose run scripts send-l3 --ethamount 0.0001 --from user_traffic_generator --to user_traffic_generator --wait --delay 5000 --times 1000000 > /dev/null &
     fi
 fi
 
