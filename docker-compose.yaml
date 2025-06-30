@@ -546,6 +546,7 @@ volumes:
   postgres-data:
   postgres-data-neth:
   tokenbridge-data:
+  boldupgrader-data:
   das-committee-a-data:
   das-committee-b-data:
   das-mirror-data:
