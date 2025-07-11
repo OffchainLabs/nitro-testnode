@@ -58,6 +58,7 @@ l1chainid=1337
 simple=true
 l2anytrust=false
 l2timeboost=false
+nethermind_l2=false
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -285,6 +286,10 @@ while [[ $# -gt 0 ]]; do
             simple=false
             shift
             ;;
+        --nethermind-l2)
+            nethermind_l2=true
+            shift
+            ;;
         *)
             echo Usage: $0 \[OPTIONS..]
             echo        $0 script [SCRIPT-ARGS]
@@ -319,6 +324,7 @@ while [[ $# -gt 0 ]]; do
             echo --build-utils         rebuild scripts, rollupcreator, token bridge docker images
             echo --no-build-utils      don\'t rebuild scripts, rollupcreator, token bridge docker images
             echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_ or TOKEN_BRIDGE_BRANCH changes
+            echo --nethermind-l2    use Nethermind as an external L2 EL
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
             exit 0
@@ -442,6 +448,12 @@ if $force_init; then
         docker volume rm $leftoverVolumes
     fi
 
+    echo == Cleaning up ./nethermind_data directory...
+    if [ -d "./nethermind_data" ]; then
+        rm -rf ./nethermind_data
+        echo "   Nethermind data directory cleaned."
+    fi
+
     echo == Generating l1 keys
     docker compose run scripts write-accounts
     docker compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
@@ -473,6 +485,12 @@ if $force_init; then
 
     echo == Waiting for geth to sync
     docker compose run scripts wait-for-sync --url http://geth:8545
+    
+    if $nethermind_l2; then
+        echo == Starting nethermind-l2
+        docker compose up --wait nethermind-l2
+        echo == Skipping sync wait for nethermind-l2 \(external execution - will sync after sequencer starts\)
+    fi
 
     echo == Funding validator, sequencer and l2owner
     docker compose run scripts send-l1 --ethamount 1000 --to validator --wait
