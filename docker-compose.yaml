@@ -201,11 +201,9 @@ services:
       - "./data/config:/config"
 
   sequencer:
-    # Main sequencer always runs in dual EL mode (internal geth + external NM)
+    # Main sequencer runs with optional external NM (controlled by script)
     image: daniilankushin/nitro:latest
     depends_on:
-      nethermind-l2:
-        condition: service_healthy
       geth:
         condition: service_started
     pid: host # allow debugging
@@ -214,11 +212,10 @@ services:
       - "127.0.0.1:8547:8547"
       - "127.0.0.1:8548:8548"
     environment:
-      # Always-on dual EL mode: Nitro uses both internal geth and external NM
-      - PR_USE_EXTERNAL_EXECUTION=true
-      # Use correct EL URL for Docker networking
-      - PR_EXTERNAL_EXECUTION_RPC=http://nethermind-arbitrum-local:20545
-      - PR_NETH_RPC_CLIENT_URL=http://nethermind-arbitrum-local:20545
+      # External execution configuration set by script based on --nethermind-l2 flag
+      - PR_USE_EXTERNAL_EXECUTION=${USE_EXTERNAL_EXECUTION:-false}
+      - PR_EXTERNAL_EXECUTION_RPC=${EXTERNAL_EXECUTION_RPC:-}
+      - PR_NETH_RPC_CLIENT_URL=${NETH_RPC_CLIENT_URL:-}
     volumes:
       - "./data/seqdata:/home/user/.arbitrum"
       - "./data/l1keystore:/home/user/l1keystore"
@@ -545,7 +542,7 @@ services:
       - "20545:20545"
       - "20551:20551"
     volumes:
-      - ./nethermind_data:/app/nethermind_db
+      - nethermind-data:/app/nethermind_db
     command:
       - -c
       - arbitrum-local
@@ -581,3 +578,4 @@ volumes:
   das-committee-b-data:
   das-mirror-data:
   timeboost-auctioneer-data:
+  nethermind-data:

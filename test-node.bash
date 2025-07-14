@@ -378,6 +378,10 @@ if $l2timeboost; then
     NODES="$NODES timeboost-auctioneer timeboost-bid-validator"
 fi
 
+if $nethermind_l2; then
+    NODES="$NODES nethermind-l2"
+fi
+
 if $dev_nitro && $build_dev_nitro; then
   echo == Building Nitro
   if ! [ -n "${NITRO_SRC+set}" ]; then
@@ -448,12 +452,6 @@ if $force_init; then
         docker volume rm $leftoverVolumes
     fi
 
-    echo == Cleaning up ./nethermind_data directory...
-    if [ -d "./nethermind_data" ]; then
-        rm -rf ./nethermind_data
-        echo "   Nethermind data directory cleaned."
-    fi
-
     echo == Generating l1 keys
     docker compose run scripts write-accounts
     docker compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
@@ -487,9 +485,23 @@ if $force_init; then
     docker compose run scripts wait-for-sync --url http://geth:8545
     
     if $nethermind_l2; then
+        echo == Initializing nethermind-l2 volume permissions
+        docker compose run --user root --entrypoint sh nethermind-l2 -c "mkdir -p /app/nethermind_db && chown -R 999:999 /app/nethermind_db"
         echo == Starting nethermind-l2
         docker compose up --wait nethermind-l2
         echo == Skipping sync wait for nethermind-l2 \(external execution - will sync after sequencer starts\)
+        
+        # Configure sequencer to use external execution
+        export USE_EXTERNAL_EXECUTION=true
+        export EXTERNAL_EXECUTION_RPC=http://nethermind-arbitrum-local:20545
+        export NETH_RPC_CLIENT_URL=http://nethermind-arbitrum-local:20545
+    else
+        echo == Skipping nethermind-l2 \(using internal execution only\)
+        
+        # Configure sequencer to use internal execution only
+        export USE_EXTERNAL_EXECUTION=false
+        export EXTERNAL_EXECUTION_RPC=
+        export NETH_RPC_CLIENT_URL=
     fi
 
     echo == Funding validator, sequencer and l2owner
