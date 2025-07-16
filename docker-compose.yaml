@@ -201,13 +201,21 @@ services:
       - "./data/config:/config"
 
   sequencer:
+    # Main sequencer runs with optional external NM (controlled by script)
+    image: daniilankushin/nitro:latest
+    depends_on:
+      geth:
+        condition: service_started
     pid: host # allow debugging
-    image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/nitro
     ports:
       - "127.0.0.1:8547:8547"
       - "127.0.0.1:8548:8548"
-      - "127.0.0.1:9642:9642"
+    environment:
+      # External execution configuration set by script based on --nethermind-l2 flag
+      - PR_USE_EXTERNAL_EXECUTION=${USE_EXTERNAL_EXECUTION:-false}
+      - PR_EXTERNAL_EXECUTION_RPC=${EXTERNAL_EXECUTION_RPC:-}
+      - PR_NETH_RPC_CLIENT_URL=${NETH_RPC_CLIENT_URL:-}
     volumes:
       - "./data/seqdata:/home/user/.arbitrum"
       - "./data/l1keystore:/home/user/l1keystore"
@@ -222,8 +230,6 @@ services:
       - --graphql.enable
       - --graphql.vhosts=*
       - --graphql.corsdomain=*
-    depends_on:
-      - geth
 
   sequencer_b:
     pid: host # allow debugging
@@ -529,6 +535,27 @@ services:
     depends_on:
       - redis
 
+  nethermind-l2:
+    image: daniilankushin/nethermind-arbitrum:latest
+    container_name: nethermind-arbitrum-local
+    ports:
+      - "20545:20545"
+      - "20551:20551"
+    volumes:
+      - nethermind-data:/app/nethermind_db
+    command:
+      - -c
+      - arbitrum-local
+      - --JsonRpc.Host
+      - 0.0.0.0
+      - --JsonRpc.EngineHost
+      - 0.0.0.0
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/localhost/20545' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   l1data:
   consensus:
@@ -551,3 +578,4 @@ volumes:
   das-committee-b-data:
   das-mirror-data:
   timeboost-auctioneer-data:
+  nethermind-data:

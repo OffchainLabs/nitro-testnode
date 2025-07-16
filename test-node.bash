@@ -58,6 +58,7 @@ l1chainid=1337
 simple=true
 l2anytrust=false
 l2timeboost=false
+nethermind_l2=false
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -285,6 +286,10 @@ while [[ $# -gt 0 ]]; do
             simple=false
             shift
             ;;
+        --nethermind-l2)
+            nethermind_l2=true
+            shift
+            ;;
         *)
             echo Usage: $0 \[OPTIONS..]
             echo        $0 script [SCRIPT-ARGS]
@@ -319,6 +324,7 @@ while [[ $# -gt 0 ]]; do
             echo --build-utils         rebuild scripts, rollupcreator, token bridge docker images
             echo --no-build-utils      don\'t rebuild scripts, rollupcreator, token bridge docker images
             echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_ or TOKEN_BRIDGE_BRANCH changes
+            echo --nethermind-l2    use Nethermind as an external L2 EL
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
             exit 0
@@ -370,6 +376,10 @@ fi
 
 if $l2timeboost; then
     NODES="$NODES timeboost-auctioneer timeboost-bid-validator"
+fi
+
+if $nethermind_l2; then
+    NODES="$NODES nethermind-l2"
 fi
 
 if $dev_nitro && $build_dev_nitro; then
@@ -473,6 +483,26 @@ if $force_init; then
 
     echo == Waiting for geth to sync
     docker compose run scripts wait-for-sync --url http://geth:8545
+    
+    if $nethermind_l2; then
+        echo == Initializing nethermind-l2 volume permissions
+        docker compose run --user root --entrypoint sh nethermind-l2 -c "mkdir -p /app/nethermind_db && chown -R 999:999 /app/nethermind_db"
+        echo == Starting nethermind-l2
+        docker compose up --wait nethermind-l2
+        echo == Skipping sync wait for nethermind-l2 \(external execution - will sync after sequencer starts\)
+        
+        # Configure sequencer to use external execution
+        export USE_EXTERNAL_EXECUTION=true
+        export EXTERNAL_EXECUTION_RPC=http://nethermind-arbitrum-local:20545
+        export NETH_RPC_CLIENT_URL=http://nethermind-arbitrum-local:20545
+    else
+        echo == Skipping nethermind-l2 \(using internal execution only\)
+        
+        # Configure sequencer to use internal execution only
+        export USE_EXTERNAL_EXECUTION=false
+        export EXTERNAL_EXECUTION_RPC=
+        export NETH_RPC_CLIENT_URL=
+    fi
 
     echo == Funding validator, sequencer and l2owner
     docker compose run scripts send-l1 --ethamount 1000 --to validator --wait
