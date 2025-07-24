@@ -326,11 +326,11 @@ function writeConfigs(argv: any) {
         sequencerConfig.execution["sequencer"].enable = true
         sequencerConfig.node["delayed-sequencer"].enable = true
         if (argv.timeboost) {
-          sequencerConfig.execution.sequencer.dangerous = {};
-          sequencerConfig.execution.sequencer.dangerous.timeboost = {
-             "enable": false, // Create it false initially, turn it on with sed in test-node.bash after contract setup.
-             "redis-url": argv.redisUrl
-          };
+            sequencerConfig.execution.sequencer.dangerous = {};
+            sequencerConfig.execution.sequencer.dangerous.timeboost = {
+                "enable": false, // Create it false initially, turn it on with sed in test-node.bash after contract setup.
+                "redis-url": argv.redisUrl
+            };
         }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
 
@@ -409,7 +409,7 @@ function writeL2ChainConfig(argv: any) {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
             "DataAvailabilityCommittee": argv.anytrust,
-            "InitialArbOSVersion": 32, // TODO For Timeboost, this still needs to be set to 31
+            "InitialArbOSVersion": 40,
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
@@ -442,7 +442,7 @@ function writeL3ChainConfig(argv: any) {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
             "DataAvailabilityCommittee": false,
-            "InitialArbOSVersion": 32,
+            "InitialArbOSVersion": 40,
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
@@ -539,56 +539,56 @@ function dasBackendsJsonConfig(argv: any) {
 }
 
 export const writeTimeboostConfigsCommand = {
-  command: "write-timeboost-configs",
-  describe: "writes configs for the timeboost autonomous auctioneer and bid validator",
-  builder: {
-    "auction-contract": {
-      string: true,
-      describe: "auction contract address",
-      demandOption: true
+    command: "write-timeboost-configs",
+    describe: "writes configs for the timeboost autonomous auctioneer and bid validator",
+    builder: {
+        "auction-contract": {
+            string: true,
+            describe: "auction contract address",
+            demandOption: true
+        },
     },
-  },
-  handler: (argv: any) => {
-    writeAutonomousAuctioneerConfig(argv)
-    writeBidValidatorConfig(argv)
-  }
+    handler: (argv: any) => {
+        writeAutonomousAuctioneerConfig(argv)
+        writeBidValidatorConfig(argv)
+    }
 }
 
 function writeAutonomousAuctioneerConfig(argv: any) {
-  const autonomousAuctioneerConfig = {
-    "auctioneer-server": {
-      "auction-contract-address": argv.auctionContract,
-      "db-directory": "/data",
-      "redis-url": "redis://redis:6379",
-      "use-redis-coordinator": true,
-      "redis-coordinator-url": "redis://redis:6379",
-      "wallet":  {
-        "account": namedAddress("auctioneer"),
-        "password": consts.l1passphrase,
-        "pathname": consts.l1keystore
-      },
-    },
-    "bid-validator": {
-      "enable": false
+    const autonomousAuctioneerConfig = {
+        "auctioneer-server": {
+            "auction-contract-address": argv.auctionContract,
+            "db-directory": "/data",
+            "redis-url": "redis://redis:6379",
+            "use-redis-coordinator": true,
+            "redis-coordinator-url": "redis://redis:6379",
+            "wallet": {
+                "account": namedAddress("auctioneer"),
+                "password": consts.l1passphrase,
+                "pathname": consts.l1keystore
+            },
+        },
+        "bid-validator": {
+            "enable": false
+        }
     }
-  }
-  const autonomousAuctioneerConfigJSON = JSON.stringify(autonomousAuctioneerConfig)
-  fs.writeFileSync(path.join(consts.configpath, "autonomous_auctioneer_config.json"), autonomousAuctioneerConfigJSON)
+    const autonomousAuctioneerConfigJSON = JSON.stringify(autonomousAuctioneerConfig)
+    fs.writeFileSync(path.join(consts.configpath, "autonomous_auctioneer_config.json"), autonomousAuctioneerConfigJSON)
 }
 
 function writeBidValidatorConfig(argv: any) {
-  const bidValidatorConfig = {
-    "auctioneer-server": {
-      "enable": false
-    },
-    "bid-validator": {
-      "auction-contract-address": argv.auctionContract,
-      "redis-url": "redis://redis:6379",
-      "sequencer-endpoint": "http://sequencer:8547"
+    const bidValidatorConfig = {
+        "auctioneer-server": {
+            "enable": false
+        },
+        "bid-validator": {
+            "auction-contract-address": argv.auctionContract,
+            "redis-url": "redis://redis:6379",
+            "sequencer-endpoint": "http://sequencer:8547"
+        }
     }
-  }
-  const bidValidatorConfigJSON = JSON.stringify(bidValidatorConfig)
-  fs.writeFileSync(path.join(consts.configpath, "bid_validator_config.json"), bidValidatorConfigJSON)
+    const bidValidatorConfigJSON = JSON.stringify(bidValidatorConfig)
+    fs.writeFileSync(path.join(consts.configpath, "bid_validator_config.json"), bidValidatorConfigJSON)
 }
 
 export const writeConfigCommand = {
