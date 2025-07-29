@@ -645,7 +645,7 @@ if $force_init; then
             if $tokenbridge; then
                 # we deployed an L1 L2 token bridge
                 # we need to pull out the L2 WETH address and pass it as an override to the L2 L3 token bridge deployment
-                l2Weth=`docker compose run --entrypoint sh tokenbridge -c "cat l1l2_network.json" | jq -r '.l2Network.tokenBridge.l2Weth'`
+                l2Weth=`docker compose run --entrypoint sh tokenbridge -c "cat l1l2_network.json" | jq -r '.l2Network.tokenBridge.childWeth'`
             fi
             docker compose run -e PARENT_WETH_OVERRIDE=$l2Weth -e ROLLUP_OWNER_KEY=$l3ownerkey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_RPC=http://sequencer:8547 -e PARENT_KEY=$deployer_key  -e CHILD_RPC=http://l3node:3347 -e CHILD_KEY=$deployer_key tokenbridge deploy:local:token-bridge
             docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json l2l3_network.json"
