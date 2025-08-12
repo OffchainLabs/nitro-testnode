@@ -201,7 +201,7 @@ services:
       - "./data/config:/config"
 
   sequencer:
-    # Main sequencer runs with optional external NM (controlled by script)
+    # Main vanilla sequencer (no external execution, uses internal geth)
     image: daniilankushin/nitro:latest
     depends_on:
       geth:
@@ -211,11 +211,6 @@ services:
     ports:
       - "127.0.0.1:8547:8547"
       - "127.0.0.1:8548:8548"
-    environment:
-      # External execution configuration set by script based on --nethermind-l2 flag
-      - PR_USE_EXTERNAL_EXECUTION=${USE_EXTERNAL_EXECUTION:-false}
-      - PR_EXTERNAL_EXECUTION_RPC=${EXTERNAL_EXECUTION_RPC:-}
-      - PR_NETH_RPC_CLIENT_URL=${NETH_RPC_CLIENT_URL:-}
     volumes:
       - "./data/seqdata:/home/user/.arbitrum"
       - "./data/l1keystore:/home/user/l1keystore"
@@ -231,13 +226,71 @@ services:
       - --graphql.vhosts=*
       - --graphql.corsdomain=*
 
+  follower:
+    # Vanilla sequencer follower (no external execution)
+    image: daniilankushin/nitro:latest
+    depends_on:
+      geth:
+        condition: service_started
+      sequencer:
+        condition: service_started
+    pid: host # allow debugging
+    entrypoint: /usr/local/bin/nitro
+    ports:
+      - "127.0.0.1:8647:8547"
+      - "127.0.0.1:8648:8548"
+    environment:
+      # Vanilla follower configuration
+      - PR_OVERRIDE_FORWARDER_URL=ws://sequencer:9642
+      - PR_MAX_MESSAGES_TO_DIGEST=100000
+    volumes:
+      - "./data/followerdata:/home/user/.arbitrum"
+      - "./data/l1keystore:/home/user/l1keystore"
+      - "./data/config:/config"
+    command:
+      - --conf.file=/config/sequencer_follower_config.json
+      - --http.api=net,web3,eth,txpool,debug
+      - --http.port=8547
+      - --ws.port=8548
+
+  follower-nethermind:
+    # Sequencer follower with Nethermind external execution
+    image: daniilankushin/nitro:latest
+    depends_on:
+      geth:
+        condition: service_started
+      nethermind-l2:
+        condition: service_healthy
+      sequencer:
+        condition: service_started
+    pid: host # allow debugging
+    entrypoint: /usr/local/bin/nitro
+    ports:
+      - "127.0.0.1:8747:8547"
+      - "127.0.0.1:8748:8548"
+    environment:
+      # Follower configuration with external execution
+      - PR_USE_EXTERNAL_EXECUTION=true
+      - PR_NETH_RPC_CLIENT_URL=http://nethermind-l2:20545
+      - PR_OVERRIDE_FORWARDER_URL=ws://sequencer:9642
+      - PR_MAX_MESSAGES_TO_DIGEST=100000
+    volumes:
+      - "./data/followerdata-nethermind:/home/user/.arbitrum"
+      - "./data/l1keystore:/home/user/l1keystore"
+      - "./data/config:/config"
+    command:
+      - --conf.file=/config/sequencer_follower_config.json
+      - --http.api=net,web3,eth,txpool,debug
+      - --http.port=8547
+      - --ws.port=8548
+
   sequencer_b:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/nitro
     ports:
-      - "127.0.0.1:8647:8547"
-      - "127.0.0.1:8648:8548"
+      - "127.0.0.1:8747:8547"
+      - "127.0.0.1:8748:8548"
     volumes:
       - "seqdata_b:/home/user/.arbitrum/local/nitro"
       - "./data/config:/config"
@@ -561,6 +614,8 @@ volumes:
   consensus:
   l1keystore:
   seqdata:
+  followerdata:
+  followerdata-nethermind:
   seqdata_b:
   seqdata_c:
   seqdata_d:

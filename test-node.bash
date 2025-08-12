@@ -59,6 +59,8 @@ simple=true
 l2anytrust=false
 l2timeboost=false
 nethermind_l2=false
+follower=false
+follower_nethermind=false
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -286,8 +288,13 @@ while [[ $# -gt 0 ]]; do
             simple=false
             shift
             ;;
-        --nethermind-l2)
-            nethermind_l2=true
+        --follower)
+            follower=true
+            shift
+            ;;
+        --follower-nethermind)
+            follower=true
+            follower_nethermind=true
             shift
             ;;
         *)
@@ -324,7 +331,8 @@ while [[ $# -gt 0 ]]; do
             echo --build-utils         rebuild scripts, rollupcreator, token bridge docker images
             echo --no-build-utils      don\'t rebuild scripts, rollupcreator, token bridge docker images
             echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_ or TOKEN_BRIDGE_BRANCH changes
-            echo --nethermind-l2    use Nethermind as an external L2 EL
+            echo --follower         add a sequencer follower \(vanilla by default\)
+            echo --follower-nethermind make the follower use Nethermind external execution
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
             exit 0
@@ -378,8 +386,17 @@ if $l2timeboost; then
     NODES="$NODES timeboost-auctioneer timeboost-bid-validator"
 fi
 
-if $nethermind_l2; then
+# Conditionally include Nethermind and follower based on flags
+if $follower_nethermind; then
     NODES="$NODES nethermind-l2"
+fi
+
+if $follower; then
+    if $follower_nethermind; then
+        NODES="$NODES follower-nethermind"
+    else
+        NODES="$NODES follower"
+    fi
 fi
 
 if $dev_nitro && $build_dev_nitro; then
@@ -441,7 +458,7 @@ fi
 
 if $force_init; then
     echo == Removing old data..
-    docker compose down
+    docker compose down --remove-orphans
     leftoverContainers=`docker container ls -a --filter label=com.docker.compose.project=nitro-testnode -q | xargs echo`
     if [ `echo $leftoverContainers | wc -w` -gt 0 ]; then
         docker rm $leftoverContainers
@@ -484,24 +501,41 @@ if $force_init; then
     echo == Waiting for geth to sync
     docker compose run scripts wait-for-sync --url http://geth:8545
     
-    if $nethermind_l2; then
+    # Start Nethermind if follower will use it
+    if $follower_nethermind; then
         echo == Initializing nethermind-l2 volume permissions
-        docker compose run --user root --entrypoint sh nethermind-l2 -c "mkdir -p /app/nethermind_db && chown -R 999:999 /app/nethermind_db"
+        # Ensure clean state by removing any existing database
+        if $force_init; then
+            docker compose run --rm --user root --entrypoint sh nethermind-l2 -c "rm -rf /app/nethermind_db/*"
+        fi
+        docker compose run --rm --user root --entrypoint sh nethermind-l2 -c "mkdir -p /app/nethermind_db && chown -R 999:999 /app/nethermind_db"
         echo == Starting nethermind-l2
         docker compose up --wait nethermind-l2
-        echo == Skipping sync wait for nethermind-l2 \(external execution - will sync after sequencer starts\)
         
-        # Configure sequencer to use external execution
-        export USE_EXTERNAL_EXECUTION=true
-        export EXTERNAL_EXECUTION_RPC=http://nethermind-arbitrum-local:20545
-        export NETH_RPC_CLIENT_URL=http://nethermind-arbitrum-local:20545
+        echo == Waiting for nethermind-l2 to be ready
+        # Wait for nethermind-l2 to be responsive - check basic RPC availability
+        for i in {1..30}; do
+            if curl -s -X POST -H "Content-Type: application/json" \
+                --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+                http://localhost:20545 2>/dev/null | grep -q "result"; then
+                echo == Nethermind RPC is responsive
+                break
+            fi
+            echo -n "."
+            sleep 1
+        done
+        echo
+    fi
+    
+    # Display configuration summary
+    if $follower; then
+        if $follower_nethermind; then
+            echo == Main sequencer will use vanilla mode, follower will use Nethermind
+        else
+            echo == Main sequencer will use vanilla mode, follower will use vanilla mode
+        fi
     else
-        echo == Skipping nethermind-l2 \(using internal execution only\)
-        
-        # Configure sequencer to use internal execution only
-        export USE_EXTERNAL_EXECUTION=false
-        export EXTERNAL_EXECUTION_RPC=
-        export NETH_RPC_CLIENT_URL=
+        echo == Running vanilla sequencer only \(no follower\)
     fi
 
     echo == Funding validator, sequencer and l2owner
