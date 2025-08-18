@@ -61,6 +61,8 @@ l2timeboost=false
 nethermind_l2=false
 follower=false
 follower_nethermind=false
+sequencer_nethermind=false
+execution_mode="internal"
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -297,6 +299,19 @@ while [[ $# -gt 0 ]]; do
             follower_nethermind=true
             shift
             ;;
+        --sequencer-nethermind)
+            sequencer_nethermind=true
+            # disallow follower in this mode (depends_on expects vanilla sequencer)
+            follower=false
+            follower_nethermind=false
+            shift
+            ;;
+        --exec-mode)
+            # values: internal | external | dual
+            execution_mode="$2"
+            shift
+            shift
+            ;;
         *)
             echo Usage: $0 \[OPTIONS..]
             echo        $0 script [SCRIPT-ARGS]
@@ -333,14 +348,22 @@ while [[ $# -gt 0 ]]; do
             echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_ or TOKEN_BRIDGE_BRANCH changes
             echo --follower         add a sequencer follower \(vanilla by default\)
             echo --follower-nethermind make the follower use Nethermind external execution
+            echo "--sequencer-nethermind run the sequencer with Nethermind as EL (experimental; delayed-msgs unsupported)"
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
             exit 0
     esac
 done
 
-NODES="sequencer"
-INITIAL_SEQ_NODES="sequencer"
+SEQUENCER_SERVICE="sequencer"
+NODES="$SEQUENCER_SERVICE"
+INITIAL_SEQ_NODES="$SEQUENCER_SERVICE"
+
+if $sequencer_nethermind; then
+    SEQUENCER_SERVICE="sequencer-nethermind"
+    NODES="$SEQUENCER_SERVICE"
+    INITIAL_SEQ_NODES="$SEQUENCER_SERVICE"
+fi
 
 if ! $simple; then
     NODES="$NODES redis"
@@ -387,7 +410,7 @@ if $l2timeboost; then
 fi
 
 # Conditionally include Nethermind and follower based on flags
-if $follower_nethermind; then
+if $follower_nethermind || $sequencer_nethermind; then
     NODES="$NODES nethermind-l2"
 fi
 
@@ -502,7 +525,7 @@ if $force_init; then
     docker compose run scripts wait-for-sync --url http://geth:8545
     
     # Start Nethermind if follower will use it
-    if $follower_nethermind; then
+    if $follower_nethermind || $sequencer_nethermind; then
         echo == Initializing nethermind-l2 volume permissions
         # Ensure clean state by removing any existing database
         if $force_init; then
@@ -528,14 +551,18 @@ if $force_init; then
     fi
     
     # Display configuration summary
-    if $follower; then
-        if $follower_nethermind; then
-            echo == Main sequencer will use vanilla mode, follower will use Nethermind
-        else
-            echo == Main sequencer will use vanilla mode, follower will use vanilla mode
-        fi
+    if $sequencer_nethermind; then
+        echo == Sequencer will use Nethermind as external EL \(DelayedSequencer unsupported\)
     else
-        echo == Running vanilla sequencer only \(no follower\)
+        if $follower; then
+            if $follower_nethermind; then
+                echo == Main sequencer will use vanilla mode, follower will use Nethermind
+            else
+                echo == Main sequencer will use vanilla mode, follower will use vanilla mode
+            fi
+        else
+            echo == Running vanilla sequencer only \(no follower\)
+        fi
     fi
 
     echo == Funding validator, sequencer and l2owner
@@ -559,7 +586,7 @@ if $force_init; then
 
     sequenceraddress=`docker compose run scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
     l2ownerKey=`docker compose run scripts print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
-    wasmroot=`docker compose run --entrypoint sh sequencer -c "cat /home/user/target/machines/latest/module-root.txt"`
+    wasmroot=`docker compose run --entrypoint sh "$SEQUENCER_SERVICE" -c "cat /home/user/target/machines/latest/module-root.txt"`
 
     echo == Deploying L2 chain
     docker compose run -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
@@ -734,7 +761,9 @@ if $force_init; then
     fi
 
     echo == Starting sequencer
-    run_container_with_websocket_check sequencer 8548 5 10
+    PR_EXECUTION_MODE="${execution_mode}" docker compose up -d "$SEQUENCER_SERVICE"
+    # wait for WS to be up after env injection
+    run_container_with_websocket_check "$SEQUENCER_SERVICE" 8548 5 10
 
     echo == Funding l2 funnel and dev key
     docker compose up --wait $INITIAL_SEQ_NODES
@@ -888,19 +917,13 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Ensure latest scripts CLI (index.js) is built so new commands are available
+echo "== Ensuring latest scripts image (rebuilding scripts to pick up CLI changes)"
+docker compose build --no-rm scripts
+
 if [ -f "./data/config/sequencer_config.json" ]; then
-    echo "== Writing local sequencer config"
-    jq --arg dir "$SCRIPT_DIR" '
-        .["parent-chain"].connection.url = "ws://localhost:8546" |
-        .chain["info-files"] = [$dir + "/data/config/l2_chain_info.json"] |
-        .node.staker["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
-        .node["seq-coordinator"]["redis-url"] = "redis://localhost:6379" |
-        .node["batch-poster"]["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
-        .node["batch-poster"]["redis-url"] = "redis://localhost:6379" |
-        .node["block-validator"]["validation-server"].url = "ws://localhost:8949" |
-        .node["block-validator"]["validation-server"].jwtsecret = $dir + "/data/config/val_jwt.hex" |
-        .node["data-availability"]["parent-chain-node-url"] = "ws://localhost:8546"
-    ' ./data/config/sequencer_config.json > ./data/config/sequencer_config_local.json
+    echo "== Writing local sequencer config via scripts"
+    docker compose run scripts write-local-sequencer-config --dir "$SCRIPT_DIR"
 else
     echo "Warning: ./data/config/sequencer_config.json does not exist. Skipping sequencer config update."
 fi
@@ -915,7 +938,7 @@ else
 fi
 
 if [ -f "./data/config/validator_config.json" ]; then
-    echo "== Writing local validator config"
+    echo "== Writing local validator config via jq (unchanged)"
     jq --arg dir "$SCRIPT_DIR" '
         .["parent-chain"].connection.url = "ws://localhost:8546" |
         .chain["info-files"] = [$dir + "/data/config/l2_chain_info.json"] |
@@ -928,4 +951,12 @@ if [ -f "./data/config/validator_config.json" ]; then
     ' ./data/config/validator_config.json > ./data/config/validator_config_local.json
 else
     echo "Warning: ./data/config/validator_config.json does not exist. Skipping validator config update."
+fi
+
+# Generate local follower config as well
+if [ -f "./data/config/sequencer_follower_config.json" ]; then
+    echo "== Writing local follower config via scripts"
+    docker compose run scripts write-local-follower-config --dir "$SCRIPT_DIR"
+else
+    echo "Warning: ./data/config/sequencer_follower_config.json does not exist. Skipping follower config update."
 fi

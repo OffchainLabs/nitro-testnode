@@ -226,6 +226,41 @@ services:
       - --graphql.vhosts=*
       - --graphql.corsdomain=*
 
+  sequencer-nethermind:
+    # Sequencer using Nethermind as external execution layer
+    image: daniilankushin/nitro:latest
+    depends_on:
+      geth:
+        condition: service_started
+      nethermind-l2:
+        condition: service_healthy
+    pid: host # allow debugging
+    entrypoint: /usr/local/bin/nitro
+    ports:
+      - "127.0.0.1:8547:8547"
+      - "127.0.0.1:8548:8548"
+    environment:
+      - PR_EXECUTION_MODE=${PR_EXECUTION_MODE:-external}
+      - PR_NETH_RPC_CLIENT_URL=http://nethermind-l2:20545
+    volumes:
+      - "./data/seqdata:/home/user/.arbitrum"
+      - "./data/l1keystore:/home/user/l1keystore"
+      - "./data/config:/config"
+      - "tokenbridge-data:/tokenbridge-data"
+    command:
+      - --conf.file=/config/sequencer_config.json
+      - --node.feed.output.enable
+      - --node.feed.output.port=9642
+      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
+      - --node.seq-coordinator.my-url=http://sequencer:8547
+      - --graphql.enable
+      - --graphql.vhosts=*
+      - --graphql.corsdomain=*
+    networks:
+      default:
+        aliases:
+          - sequencer
+
   follower:
     # Vanilla sequencer follower (no external execution)
     image: daniilankushin/nitro:latest
@@ -242,7 +277,6 @@ services:
     environment:
       # Vanilla follower configuration
       - PR_OVERRIDE_FORWARDER_URL=ws://sequencer:9642
-      - PR_MAX_MESSAGES_TO_DIGEST=100000
     volumes:
       - "./data/followerdata:/home/user/.arbitrum"
       - "./data/l1keystore:/home/user/l1keystore"
@@ -270,10 +304,9 @@ services:
       - "127.0.0.1:8748:8548"
     environment:
       # Follower configuration with external execution
-      - PR_USE_EXTERNAL_EXECUTION=true
+      - PR_EXECUTION_MODE=${PR_EXECUTION_MODE:-external}
       - PR_NETH_RPC_CLIENT_URL=http://nethermind-l2:20545
       - PR_OVERRIDE_FORWARDER_URL=ws://sequencer:9642
-      - PR_MAX_MESSAGES_TO_DIGEST=100000
     volumes:
       - "./data/followerdata-nethermind:/home/user/.arbitrum"
       - "./data/l1keystore:/home/user/l1keystore"
@@ -499,7 +532,6 @@ services:
   rollupcreator:
     depends_on:
       - geth
-      - sequencer
     pid: host
     build:
       context: rollupcreator/
@@ -589,7 +621,7 @@ services:
       - redis
 
   nethermind-l2:
-    image: daniilankushin/nethermind-arbitrum:latest
+    image: nethermind.jfrog.io/core-oci-local-dev/nethermind-arbitrum:latest
     container_name: nethermind-arbitrum-local
     ports:
       - "20545:20545"

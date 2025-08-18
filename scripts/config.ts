@@ -712,3 +712,77 @@ export const writeL2DASKeysetConfigCommand = {
     }
 }
 
+
+// ---- Local overrides helpers and commands ----
+
+function applyLocalOverrides(cfg: any, baseDir: string): any {
+    const join = (...p: string[]) => path.join(baseDir, ...p);
+    // Parent chain and chain info
+    if (cfg?.["parent-chain"]?.connection) {
+        cfg["parent-chain"].connection.url = "ws://localhost:8546";
+    }
+    if (cfg?.chain) {
+        cfg.chain["info-files"] = [join("data/config/l2_chain_info.json")];
+    }
+    // Wallet keystores
+    if (cfg?.node?.staker?.["parent-chain-wallet"]) {
+        cfg.node.staker["parent-chain-wallet"].pathname = join("data/l1keystore");
+    }
+    if (cfg?.node?.["batch-poster"]?.["parent-chain-wallet"]) {
+        cfg.node["batch-poster"]["parent-chain-wallet"].pathname = join("data/l1keystore");
+    }
+    // Redis URLs
+    if (cfg?.node?.["seq-coordinator"]) {
+        cfg.node["seq-coordinator"]["redis-url"] = "redis://localhost:6379";
+    }
+    if (cfg?.node?.["batch-poster"]) {
+        cfg.node["batch-poster"]["redis-url"] = "redis://localhost:6379";
+    }
+    // Block validator auth
+    if (cfg?.node?.["block-validator"]?.["validation-server"]) {
+        cfg.node["block-validator"]["validation-server"].url = "ws://localhost:8949";
+        cfg.node["block-validator"]["validation-server"].jwtsecret = join("data/config/val_jwt.hex");
+    }
+    // Data availability parent chain URL
+    if (cfg?.node?.["data-availability"]) {
+        cfg.node["data-availability"]["parent-chain-node-url"] = "ws://localhost:8546";
+    }
+    return cfg;
+}
+
+export const writeLocalSequencerConfigCommand = {
+    command: "write-local-sequencer-config",
+    describe: "writes local sequencer config (sequencer_config_local.json)",
+    builder: { dir: { string: true, demandOption: true } },
+    handler: (argv: any) => {
+        const src = path.join(consts.configpath, "sequencer_config.json");
+        if (!fs.existsSync(src)) {
+            console.warn(`Source config not found: ${src}`);
+            return;
+        }
+        const raw = fs.readFileSync(src).toString();
+        const base = JSON.parse(raw);
+        const local = applyLocalOverrides(base, argv.dir);
+        const dst = path.join(consts.configpath, "sequencer_config_local.json");
+        fs.writeFileSync(dst, JSON.stringify(local));
+    }
+};
+
+export const writeLocalFollowerConfigCommand = {
+    command: "write-local-follower-config",
+    describe: "writes local follower config (sequencer_follower_config_local.json)",
+    builder: { dir: { string: true, demandOption: true } },
+    handler: (argv: any) => {
+        const src = path.join(consts.configpath, "sequencer_follower_config.json");
+        if (!fs.existsSync(src)) {
+            console.warn(`Source config not found: ${src}`);
+            return;
+        }
+        const raw = fs.readFileSync(src).toString();
+        const base = JSON.parse(raw);
+        const local = applyLocalOverrides(base, argv.dir);
+        const dst = path.join(consts.configpath, "sequencer_follower_config_local.json");
+        fs.writeFileSync(dst, JSON.stringify(local));
+    }
+};
+
