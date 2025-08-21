@@ -12,8 +12,10 @@ import {
   writeL2DASMirrorConfigCommand,
   writeL2DASKeysetConfigCommand,
   writeTimeboostConfigsCommand,
-  writeLocalSequencerConfigCommand,
-  writeLocalFollowerConfigCommand
+  writeDockerSequencerConfigCommand,
+  writeDockerFollowerConfigCommand,
+  writeNativeSequencerConfigCommand,
+  writeNativeFollowerConfigCommand
 } from "./config";
 import {
   printAddressCommand,
@@ -77,8 +79,10 @@ async function main() {
     .command(writePrysmCommand)
     .command(writeAccountsCommand)
     .command(writeTimeboostConfigsCommand)
-    .command(writeLocalSequencerConfigCommand)
-    .command(writeLocalFollowerConfigCommand)
+    .command(writeDockerSequencerConfigCommand)
+    .command(writeDockerFollowerConfigCommand)
+    .command(writeNativeSequencerConfigCommand)
+    .command(writeNativeFollowerConfigCommand)
     .command(printAddressCommand)
     .command(printPrivateKeyCommand)
     .command(redisReadCommand)

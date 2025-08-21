@@ -713,76 +713,135 @@ export const writeL2DASKeysetConfigCommand = {
 }
 
 
-// ---- Local overrides helpers and commands ----
+// ---- Docker and Native execution config overrides ----
 
-function applyLocalOverrides(cfg: any, baseDir: string): any {
+function applyDockerOverrides(cfg: any, baseDir: string): any {
     const join = (...p: string[]) => path.join(baseDir, ...p);
+    // Use container paths for Docker services instead of host paths
+    const containerPath = (relativePath: string) => path.posix.join("/", relativePath);
+    
     // Parent chain and chain info
+    if (cfg?.["parent-chain"]?.connection) {
+        cfg["parent-chain"].connection.url = "ws://geth:8546";
+    }
+    if (cfg?.chain) {
+        cfg.chain["info-files"] = [containerPath("config/l2_chain_info.json")];
+    }
+    // Wallet keystores
+    if (cfg?.node?.staker?.["parent-chain-wallet"]) {
+        cfg.node.staker["parent-chain-wallet"].pathname = "/home/user/l1keystore";
+    }
+    if (cfg?.node?.["batch-poster"]?.["parent-chain-wallet"]) {
+        cfg.node["batch-poster"]["parent-chain-wallet"].pathname = "/home/user/l1keystore";
+    }
+    // Redis URLs
+    if (cfg?.node?.["seq-coordinator"]) {
+        cfg.node["seq-coordinator"]["redis-url"] = "redis://redis:6379";
+    }
+    if (cfg?.node?.["batch-poster"]) {
+        cfg.node["batch-poster"]["redis-url"] = "redis://redis:6379";
+    }
+    // Block validator auth
+    if (cfg?.node?.["block-validator"]?.["validation-server"]) {
+        cfg.node["block-validator"]["validation-server"].url = "ws://127.0.0.1:8949";
+        cfg.node["block-validator"]["validation-server"].jwtsecret = containerPath("config/val_jwt.hex");
+    }
+    // Data availability parent chain URL
+    if (cfg?.node?.["data-availability"]) {
+        cfg.node["data-availability"]["parent-chain-node-url"] = "ws://geth:8546";
+    }
+    return cfg;
+}
+
+function applyNativeOverrides(cfg: any, baseDir: string): any {
+    // For host execution, use relative paths from arbitrum-nitro directory
+    
+    // Parent chain and chain info for host execution
     if (cfg?.["parent-chain"]?.connection) {
         cfg["parent-chain"].connection.url = "ws://localhost:8546";
     }
     if (cfg?.chain) {
-        cfg.chain["info-files"] = [join("data/config/l2_chain_info.json")];
+        cfg.chain["info-files"] = ["../arbitrum-nitro-testnode/data/config/l2_chain_info.json"];
     }
-    // Wallet keystores
+    // Wallet keystores for host execution
     if (cfg?.node?.staker?.["parent-chain-wallet"]) {
-        cfg.node.staker["parent-chain-wallet"].pathname = join("data/l1keystore");
+        cfg.node.staker["parent-chain-wallet"].pathname = "../arbitrum-nitro-testnode/data/l1keystore";
     }
     if (cfg?.node?.["batch-poster"]?.["parent-chain-wallet"]) {
-        cfg.node["batch-poster"]["parent-chain-wallet"].pathname = join("data/l1keystore");
+        cfg.node["batch-poster"]["parent-chain-wallet"].pathname = "../arbitrum-nitro-testnode/data/l1keystore";
     }
-    // Redis URLs
+    // Redis URLs for host execution
     if (cfg?.node?.["seq-coordinator"]) {
         cfg.node["seq-coordinator"]["redis-url"] = "redis://localhost:6379";
     }
     if (cfg?.node?.["batch-poster"]) {
         cfg.node["batch-poster"]["redis-url"] = "redis://localhost:6379";
     }
-    // Block validator auth
+    // Block validator auth for host execution
     if (cfg?.node?.["block-validator"]?.["validation-server"]) {
         cfg.node["block-validator"]["validation-server"].url = "ws://localhost:8949";
-        cfg.node["block-validator"]["validation-server"].jwtsecret = join("data/config/val_jwt.hex");
+        cfg.node["block-validator"]["validation-server"].jwtsecret = "../arbitrum-nitro-testnode/data/config/val_jwt.hex";
     }
-    // Data availability parent chain URL
+    // Data availability parent chain URL for host execution
     if (cfg?.node?.["data-availability"]) {
         cfg.node["data-availability"]["parent-chain-node-url"] = "ws://localhost:8546";
     }
     return cfg;
 }
 
-export const writeLocalSequencerConfigCommand = {
-    command: "write-local-sequencer-config",
-    describe: "writes local sequencer config (sequencer_config_local.json)",
+export const writeDockerSequencerConfigCommand = {
+    command: "write-docker-sequencer-config",
+    describe: "writes Docker sequencer config (sequencer_config_docker.json)",
     builder: { dir: { string: true, demandOption: true } },
     handler: (argv: any) => {
         const src = path.join(consts.configpath, "sequencer_config.json");
-        if (!fs.existsSync(src)) {
-            console.warn(`Source config not found: ${src}`);
-            return;
-        }
         const raw = fs.readFileSync(src).toString();
         const base = JSON.parse(raw);
-        const local = applyLocalOverrides(base, argv.dir);
-        const dst = path.join(consts.configpath, "sequencer_config_local.json");
-        fs.writeFileSync(dst, JSON.stringify(local));
+        const docker = applyDockerOverrides(base, argv.dir);
+        const dst = path.join(consts.configpath, "sequencer_config_docker.json");
+        fs.writeFileSync(dst, JSON.stringify(docker));
     }
 };
 
-export const writeLocalFollowerConfigCommand = {
-    command: "write-local-follower-config",
-    describe: "writes local follower config (sequencer_follower_config_local.json)",
+export const writeDockerFollowerConfigCommand = {
+    command: "write-docker-follower-config", 
+    describe: "writes Docker follower config (sequencer_follower_config_docker.json)",
     builder: { dir: { string: true, demandOption: true } },
     handler: (argv: any) => {
         const src = path.join(consts.configpath, "sequencer_follower_config.json");
-        if (!fs.existsSync(src)) {
-            console.warn(`Source config not found: ${src}`);
-            return;
-        }
         const raw = fs.readFileSync(src).toString();
         const base = JSON.parse(raw);
-        const local = applyLocalOverrides(base, argv.dir);
-        const dst = path.join(consts.configpath, "sequencer_follower_config_local.json");
-        fs.writeFileSync(dst, JSON.stringify(local));
+        const docker = applyDockerOverrides(base, argv.dir);
+        const dst = path.join(consts.configpath, "sequencer_follower_config_docker.json");
+        fs.writeFileSync(dst, JSON.stringify(docker));
+    }
+};
+
+export const writeNativeSequencerConfigCommand = {
+    command: "write-native-sequencer-config",
+    describe: "writes native binary sequencer config (sequencer_config_native.json)",
+    builder: { dir: { string: true, demandOption: true } },
+    handler: (argv: any) => {
+        const src = path.join(consts.configpath, "sequencer_config.json");
+        const raw = fs.readFileSync(src).toString();
+        const base = JSON.parse(raw);
+        const native = applyNativeOverrides(base, argv.dir);
+        const dst = path.join(consts.configpath, "sequencer_config_native.json");
+        fs.writeFileSync(dst, JSON.stringify(native));
+    }
+};
+
+export const writeNativeFollowerConfigCommand = {
+    command: "write-native-follower-config",
+    describe: "writes native binary follower config (sequencer_follower_config_native.json)",
+    builder: { dir: { string: true, demandOption: true } },
+    handler: (argv: any) => {
+        const src = path.join(consts.configpath, "sequencer_follower_config.json");
+        const raw = fs.readFileSync(src).toString();
+        const base = JSON.parse(raw);
+        const native = applyNativeOverrides(base, argv.dir);
+        const dst = path.join(consts.configpath, "sequencer_follower_config_native.json");
+        fs.writeFileSync(dst, JSON.stringify(native));
     }
 };
 

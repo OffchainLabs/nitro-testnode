@@ -201,7 +201,7 @@ services:
       - "./data/config:/config"
 
   sequencer:
-    # Main vanilla sequencer (no external execution, uses internal geth)
+    # Main vanilla sequencer (no compare execution, uses internal geth)
     image: daniilankushin/nitro:latest
     depends_on:
       geth:
@@ -217,7 +217,7 @@ services:
       - "./data/config:/config"
       - "tokenbridge-data:/tokenbridge-data"
     command:
-      - --conf.file=/config/sequencer_config.json
+      - --conf.file=/config/sequencer_config_docker.json
       - --node.feed.output.enable
       - --node.feed.output.port=9642
       - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
@@ -227,7 +227,7 @@ services:
       - --graphql.corsdomain=*
 
   sequencer-nethermind:
-    # Sequencer using Nethermind as external execution layer
+    # Sequencer using Nethermind as compare execution layer
     image: daniilankushin/nitro:latest
     depends_on:
       geth:
@@ -240,7 +240,7 @@ services:
       - "127.0.0.1:8547:8547"
       - "127.0.0.1:8548:8548"
     environment:
-      - PR_EXECUTION_MODE=${PR_EXECUTION_MODE:-external}
+      - PR_EXECUTION_MODE=${PR_EXECUTION_MODE:-compare}
       - PR_NETH_RPC_CLIENT_URL=http://nethermind-l2:20545
     volumes:
       - "./data/seqdata:/home/user/.arbitrum"
@@ -248,7 +248,7 @@ services:
       - "./data/config:/config"
       - "tokenbridge-data:/tokenbridge-data"
     command:
-      - --conf.file=/config/sequencer_config.json
+      - --conf.file=/config/sequencer_config_docker.json
       - --node.feed.output.enable
       - --node.feed.output.port=9642
       - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
@@ -262,7 +262,7 @@ services:
           - sequencer
 
   follower:
-    # Vanilla sequencer follower (no external execution)
+    # Vanilla sequencer follower (no compare execution)
     image: daniilankushin/nitro:latest
     depends_on:
       geth:
@@ -282,13 +282,13 @@ services:
       - "./data/l1keystore:/home/user/l1keystore"
       - "./data/config:/config"
     command:
-      - --conf.file=/config/sequencer_follower_config.json
+      - --conf.file=/config/sequencer_follower_config_docker.json
       - --http.api=net,web3,eth,txpool,debug
       - --http.port=8547
       - --ws.port=8548
 
   follower-nethermind:
-    # Sequencer follower with Nethermind external execution
+    # Sequencer follower with Nethermind compare execution
     image: daniilankushin/nitro:latest
     depends_on:
       geth:
@@ -303,8 +303,8 @@ services:
       - "127.0.0.1:8747:8547"
       - "127.0.0.1:8748:8548"
     environment:
-      # Follower configuration with external execution
-      - PR_EXECUTION_MODE=${PR_EXECUTION_MODE:-external}
+      # Follower configuration with compare execution
+      - PR_EXECUTION_MODE=${PR_EXECUTION_MODE:-compare}
       - PR_NETH_RPC_CLIENT_URL=http://nethermind-l2:20545
       - PR_OVERRIDE_FORWARDER_URL=ws://sequencer:9642
     volumes:
@@ -312,7 +312,37 @@ services:
       - "./data/l1keystore:/home/user/l1keystore"
       - "./data/config:/config"
     command:
-      - --conf.file=/config/sequencer_follower_config.json
+      - --conf.file=/config/sequencer_follower_config_docker.json
+      - --http.api=net,web3,eth,txpool,debug
+      - --http.port=8547
+      - --ws.port=8548
+
+  follower-nethermind-external:
+    # Sequencer follower with external Nethermind compare execution (connects to host machine)
+    image: nitro-optimized:latest
+    depends_on:
+      geth:
+        condition: service_started
+      sequencer:
+        condition: service_started
+    pid: host # allow debugging
+    entrypoint: /usr/local/bin/nitro
+    ports:
+      - "127.0.0.1:8747:8547"
+      - "127.0.0.1:8748:8548"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # Follower configuration with external Nethermind compare execution
+      - PR_EXECUTION_MODE=${PR_EXECUTION_MODE:-compare}
+      - PR_NETH_RPC_CLIENT_URL=http://host.docker.internal:20545
+      - PR_OVERRIDE_FORWARDER_URL=ws://sequencer:9642
+    volumes:
+      - "./data/followerdata-nethermind-external:/home/user/.arbitrum"
+      - "./data/l1keystore:/home/user/l1keystore"
+      - "./data/config:/config"
+    command:
+      - --conf.file=/config/sequencer_follower_config_docker.json
       - --http.api=net,web3,eth,txpool,debug
       - --http.port=8547
       - --ws.port=8548
@@ -666,3 +696,4 @@ volumes:
   das-mirror-data:
   timeboost-auctioneer-data:
   nethermind-data:
+  followerdata-nethermind-external:

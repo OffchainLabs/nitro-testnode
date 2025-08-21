@@ -61,6 +61,7 @@ l2timeboost=false
 nethermind_l2=false
 follower=false
 follower_nethermind=false
+follower_nethermind_external=false
 sequencer_nethermind=false
 execution_mode="internal"
 
@@ -297,6 +298,13 @@ while [[ $# -gt 0 ]]; do
         --follower-nethermind)
             follower=true
             follower_nethermind=true
+            follower_nethermind_external=false
+            shift
+            ;;
+        --follower-nethermind-external)
+            follower=true
+            follower_nethermind=false
+            follower_nethermind_external=true
             shift
             ;;
         --sequencer-nethermind)
@@ -304,6 +312,7 @@ while [[ $# -gt 0 ]]; do
             # disallow follower in this mode (depends_on expects vanilla sequencer)
             follower=false
             follower_nethermind=false
+            follower_nethermind_external=false
             shift
             ;;
         --exec-mode)
@@ -348,6 +357,7 @@ while [[ $# -gt 0 ]]; do
             echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_ or TOKEN_BRIDGE_BRANCH changes
             echo --follower         add a sequencer follower \(vanilla by default\)
             echo --follower-nethermind make the follower use Nethermind external execution
+            echo --follower-nethermind-external make the follower use external Nethermind \(requires \'make clean-run\' first\)
             echo "--sequencer-nethermind run the sequencer with Nethermind as EL (experimental; delayed-msgs unsupported)"
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
@@ -417,6 +427,8 @@ fi
 if $follower; then
     if $follower_nethermind; then
         NODES="$NODES follower-nethermind"
+    elif $follower_nethermind_external; then
+        NODES="$NODES follower-nethermind-external"
     else
         NODES="$NODES follower"
     fi
@@ -524,8 +536,8 @@ if $force_init; then
     echo == Waiting for geth to sync
     docker compose run scripts wait-for-sync --url http://geth:8545
     
-    # Start Nethermind if follower will use it
-    if $follower_nethermind || $sequencer_nethermind; then
+    # Start Nethermind if follower will use it (but not for external mode)
+    if ($follower_nethermind || $sequencer_nethermind) && ! $follower_nethermind_external; then
         echo == Initializing nethermind-l2 volume permissions
         # Ensure clean state by removing any existing database
         if $force_init; then
@@ -556,7 +568,9 @@ if $force_init; then
     else
         if $follower; then
             if $follower_nethermind; then
-                echo == Main sequencer will use vanilla mode, follower will use Nethermind
+                echo == Main sequencer will use vanilla mode, follower will use containerized Nethermind
+            elif $follower_nethermind_external; then
+                echo == Main sequencer will use vanilla mode, follower will use external Nethermind \(make sure to run \'make clean-run\' first\)
             else
                 echo == Main sequencer will use vanilla mode, follower will use vanilla mode
             fi
@@ -760,6 +774,22 @@ if $force_init; then
         docker compose run scripts redis-init --redundancy $redundantsequencers
     fi
 
+    # Generate both Docker and native configs immediately after base configs are written
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    echo == Generating Docker and native configs
+    
+    echo == Writing Docker sequencer config
+    docker compose run scripts write-docker-sequencer-config --dir "$SCRIPT_DIR"
+    
+    echo == Writing Docker follower config
+    docker compose run scripts write-docker-follower-config --dir "$SCRIPT_DIR"
+    
+    echo == Writing native sequencer config
+    docker compose run scripts write-native-sequencer-config --dir "$SCRIPT_DIR"
+    
+    echo == Writing native follower config
+    docker compose run scripts write-native-follower-config --dir "$SCRIPT_DIR"
+
     echo == Starting sequencer
     PR_EXECUTION_MODE="${execution_mode}" docker compose up -d "$SEQUENCER_SERVICE"
     # wait for WS to be up after env injection
@@ -898,6 +928,8 @@ if $force_init; then
     fi
 fi
 
+
+
 if $run; then
     UP_FLAG=""
     if $detach; then
@@ -913,50 +945,4 @@ if $run; then
     echo
 
     docker compose up $UP_FLAG $NODES
-fi
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Ensure latest scripts CLI (index.js) is built so new commands are available
-echo "== Ensuring latest scripts image (rebuilding scripts to pick up CLI changes)"
-docker compose build --no-rm scripts
-
-if [ -f "./data/config/sequencer_config.json" ]; then
-    echo "== Writing local sequencer config via scripts"
-    docker compose run scripts write-local-sequencer-config --dir "$SCRIPT_DIR"
-else
-    echo "Warning: ./data/config/sequencer_config.json does not exist. Skipping sequencer config update."
-fi
-
-if [ -f "./data/config/validation_node_config.json" ]; then
-    echo "== Writing local validation node config"
-    jq --arg dir "$SCRIPT_DIR" '
-        .auth.jwtsecret = $dir + "/data/config/val_jwt.hex"
-    ' ./data/config/validation_node_config.json > ./data/config/validation_node_config_local.json
-else
-    echo "Warning: ./data/config/validation_node_config.json does not exist. Skipping validation node config update."
-fi
-
-if [ -f "./data/config/validator_config.json" ]; then
-    echo "== Writing local validator config via jq (unchanged)"
-    jq --arg dir "$SCRIPT_DIR" '
-        .["parent-chain"].connection.url = "ws://localhost:8546" |
-        .chain["info-files"] = [$dir + "/data/config/l2_chain_info.json"] |
-        .node.staker["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
-        .node["seq-coordinator"]["redis-url"] = "redis://localhost:6379" |
-        .node["batch-poster"]["parent-chain-wallet"].pathname = $dir + "/data/l1keystore" |
-        .node["block-validator"]["validation-server"].url = "ws://localhost:8549" |
-        .node["block-validator"]["validation-server"].jwtsecret = $dir + "/data/config/val_jwt.hex" |
-        .node["data-availability"]["parent-chain-node-url"] = "ws://localhost:8546"
-    ' ./data/config/validator_config.json > ./data/config/validator_config_local.json
-else
-    echo "Warning: ./data/config/validator_config.json does not exist. Skipping validator config update."
-fi
-
-# Generate local follower config as well
-if [ -f "./data/config/sequencer_follower_config.json" ]; then
-    echo "== Writing local follower config via scripts"
-    docker compose run scripts write-local-follower-config --dir "$SCRIPT_DIR"
-else
-    echo "Warning: ./data/config/sequencer_follower_config.json does not exist. Skipping follower config update."
 fi
