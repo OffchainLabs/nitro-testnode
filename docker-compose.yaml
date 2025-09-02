@@ -202,7 +202,7 @@ services:
 
   sequencer:
     # Main vanilla sequencer (no compare execution, uses internal geth)
-    image: daniilankushin/nitro:latest
+    image: nethermind.jfrog.io/core-oci-local-dev/arbitrum-nitro:latest
     depends_on:
       geth:
         condition: service_started
@@ -228,7 +228,7 @@ services:
 
   sequencer-nethermind:
     # Sequencer using Nethermind as compare execution layer
-    image: daniilankushin/nitro:latest
+    image: nethermind.jfrog.io/core-oci-local-dev/arbitrum-nitro:latest
     depends_on:
       geth:
         condition: service_started
@@ -263,7 +263,7 @@ services:
 
   follower:
     # Vanilla sequencer follower (no compare execution)
-    image: daniilankushin/nitro:latest
+    image: nethermind.jfrog.io/core-oci-local-dev/arbitrum-nitro:latest
     depends_on:
       geth:
         condition: service_started
@@ -289,7 +289,7 @@ services:
 
   follower-nethermind:
     # Sequencer follower with Nethermind compare execution
-    image: daniilankushin/nitro:latest
+    image: nethermind.jfrog.io/core-oci-local-dev/arbitrum-nitro:latest
     depends_on:
       geth:
         condition: service_started
