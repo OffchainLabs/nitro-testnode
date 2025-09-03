@@ -318,8 +318,8 @@ while [[ $# -gt 0 ]]; do
             echo --tokenbridge     deploy L1-L2 token bridge.
             echo --no-tokenbridge  don\'t build or launch tokenbridge
             echo --no-run          does not launch nodes \(useful with build or init\)
-            echo --no-l2-traffic   disables L2 spam transaction traffic (default: enabled)
-            echo --no-l3-traffic   disables L3 spam transaction traffic (default: enabled)
+            echo --no-l2-traffic   disables L2 spam transaction traffic \(default: enabled\)
+            echo --no-l3-traffic   disables L3 spam transaction traffic \(default: enabled\)
             echo --no-simple       run a full configuration with separate sequencer/batch-poster/validator/relayer
             echo --build-dev-nitro     rebuild dev nitro docker image
             echo --no-build-dev-nitro  don\'t rebuild dev nitro docker image
@@ -687,6 +687,7 @@ if $force_init; then
 
         echo == Deploy Stylus Deployer on L3
         docker compose run scripts create-stylus-deployer --deployer l3owner --l3
+
         if $l3_traffic; then
             echo == create l3 traffic
             docker compose run scripts send-l3 --ethamount 10 --to user_traffic_generator --wait
