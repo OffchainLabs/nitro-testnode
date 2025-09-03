@@ -70,6 +70,10 @@ build_utils=false
 force_build_utils=false
 build_node_images=false
 
+# Create some traffic on L2 and L3 so blocks are reliably produced
+l2_traffic=true
+l3_traffic=true
+
 while [[ $# -gt 0 ]]; do
     case $1 in
         --init)
@@ -280,6 +284,14 @@ while [[ $# -gt 0 ]]; do
             simple=false
             shift
             ;;
+        --no-l2-traffic)
+            l2_traffic=false
+            shift
+            ;;
+        --no-l3-traffic)
+            l3_traffic=false
+            shift
+            ;;
         *)
             echo Usage: $0 \[OPTIONS..]
             echo        $0 script [SCRIPT-ARGS]
@@ -306,6 +318,8 @@ while [[ $# -gt 0 ]]; do
             echo --tokenbridge     deploy L1-L2 token bridge.
             echo --no-tokenbridge  don\'t build or launch tokenbridge
             echo --no-run          does not launch nodes \(useful with build or init\)
+            echo --no-l2-traffic   disables L2 spam transaction traffic \(default: enabled\)
+            echo --no-l3-traffic   disables L3 spam transaction traffic \(default: enabled\)
             echo --no-simple       run a full configuration with separate sequencer/batch-poster/validator/relayer
             echo --build-dev-nitro     rebuild dev nitro docker image
             echo --no-build-dev-nitro  don\'t rebuild dev nitro docker image
@@ -590,6 +604,12 @@ if $force_init; then
     docker compose run scripts send-l1 --ethamount 1 --to address_0x0000000000000000000000000000000000000000 --wait
     docker compose run scripts send-l2 --ethamount 1 --to address_0x0000000000000000000000000000000000000000 --wait
 
+    if $l2_traffic; then
+        echo == create l2 traffic
+        docker compose run scripts send-l2 --ethamount 100 --to user_traffic_generator --wait
+        docker compose run scripts send-l2 --ethamount 0.0001 --from user_traffic_generator --to user_traffic_generator --wait --delay 500 --times 1000000 > /dev/null &
+    fi
+
     if $l3node; then
         echo == Funding l3 users
         docker compose run scripts send-l2 --ethamount 1000 --to validator --wait
@@ -603,10 +623,6 @@ if $force_init; then
         echo == Funding token deployer
         docker compose run scripts send-l1 --ethamount 100 --to user_fee_token_deployer --wait
         docker compose run scripts send-l2 --ethamount 100 --to user_fee_token_deployer --wait
-
-        echo == create l2 traffic
-        docker compose run scripts send-l2 --ethamount 100 --to user_traffic_generator --wait
-        docker compose run scripts send-l2 --ethamount 0.0001 --from user_traffic_generator --to user_traffic_generator --wait --delay 500 --times 1000000 > /dev/null &
 
         echo == Writing l3 chain config
         l3owneraddress=`docker compose run scripts print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
@@ -672,9 +688,11 @@ if $force_init; then
         echo == Deploy Stylus Deployer on L3
         docker compose run scripts create-stylus-deployer --deployer l3owner --l3
 
-        echo == create l3 traffic
-        docker compose run scripts send-l3 --ethamount 10 --to user_traffic_generator --wait
-        docker compose run scripts send-l3 --ethamount 0.0001 --from user_traffic_generator --to user_traffic_generator --wait --delay 5000 --times 1000000 > /dev/null &
+        if $l3_traffic; then
+            echo == create l3 traffic
+            docker compose run scripts send-l3 --ethamount 10 --to user_traffic_generator --wait
+            docker compose run scripts send-l3 --ethamount 0.0001 --from user_traffic_generator --to user_traffic_generator --wait --delay 5000 --times 1000000 > /dev/null &
+        fi
     fi
 fi
 
