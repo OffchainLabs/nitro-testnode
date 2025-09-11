@@ -25,7 +25,7 @@ cd "$mydir"
 
 if [[ $# -gt 0 ]] && [[ $1 == "script" ]]; then
     shift
-    docker compose run scripts "$@"
+    docker compose run --rm scripts "$@"
     exit $?
 fi
 
