@@ -86,14 +86,13 @@ services:
 
   # Creates a genesis state for the beacon chain using a YAML configuration file and
   # a deterministic set of validators
-  # TODO: Make num validators customizable
   create_beacon_chain_genesis:
     image: "gcr.io/prysmaticlabs/prysm/cmd/prysmctl:latest"
     command:
       - testnet
       - generate-genesis
       - --fork=deneb
-      - --num-validators=64
+      - --num-validators=${NUM_VALIDATORS:-64}
       - --genesis-time-delay=15
       - --output-ssz=/consensus/genesis.ssz
       - --chain-config-file=/config/prysm.yaml
@@ -135,7 +134,7 @@ services:
       - "consensus:/consensus"
       - "config:/config"
 
-  # We run a validator client with 64, deterministically-generated keys that match
+  # We run a validator client with deterministically-generated keys that match
   # The validator keys present in the beacon chain genesis state generated a few steps above.
   prysm_validator:
     image: "gcr.io/prysmaticlabs/prysm/validator:stable"
@@ -143,7 +142,7 @@ services:
       - --beacon-rpc-provider=prysm_beacon_chain:5000
       - --datadir=/consensus/validatordata
       - --accept-terms-of-use
-      - --interop-num-validators=64
+      - --interop-num-validators=${NUM_VALIDATORS:-64}
       - --interop-start-index=0
       - --chain-config-file=/config/prysm.yaml
     depends_on:
