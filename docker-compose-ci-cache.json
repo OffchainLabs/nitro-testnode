@@ -1,0 +1,37 @@
+{
+  "target": {
+    "scripts": {
+      "cache-from": [
+        "type=local,src=/tmp/.buildx-cache"
+      ],
+      "cache-to": [
+        "type=local,dest=/tmp/.buildx-cache,mode=max"
+      ],
+      "output": [
+        "type=docker"
+      ]
+    },
+    "rollupcreator": {
+      "cache-from": [
+        "type=local,src=/tmp/.buildx-cache"
+      ],
+      "cache-to": [
+        "type=local,dest=/tmp/.buildx-cache,mode=max"
+      ],
+      "output": [
+        "type=docker"
+      ]
+    },
+    "tokenbridge": {
+      "cache-from": [
+        "type=local,src=/tmp/.buildx-cache"
+      ],
+      "cache-to": [
+        "type=local,dest=/tmp/.buildx-cache,mode=max"
+      ],
+      "output": [
+        "type=docker"
+      ]
+    }
+  }
+}
