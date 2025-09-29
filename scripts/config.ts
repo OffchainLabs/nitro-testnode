@@ -73,8 +73,14 @@ function writeGethGenesisConfig(argv: any) {
                 "cancunTime": 1706778826,
                 "terminalTotalDifficulty": 0,
                 "terminalTotalDifficultyPassed": true,
+                "pragueTime": 1706778826,
                 "blobSchedule": {
                     "cancun": {
+                        "target": 3,
+                        "max": 6,
+                        "baseFeeUpdateFraction": 3338477
+                    },
+                    "prague": {
                         "target": 3,
                         "max": 6,
                         "baseFeeUpdateFraction": 3338477
