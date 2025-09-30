@@ -87,6 +87,7 @@ function writeGethGenesisConfig(argv: any) {
         "timestamp": "0x0",
         "gasLimit": "0x1C9C380",
         "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "baseFeePerGas": "0x3B9ACA00",
         "alloc": {
         "0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E": {
           "balance": "1000000000000000000000000000000000"
