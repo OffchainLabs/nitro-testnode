@@ -326,8 +326,8 @@ function writeConfigs(argv: any) {
         sequencerConfig.execution["sequencer"].enable = true
         sequencerConfig.node["delayed-sequencer"].enable = true
         if (argv.timeboost) {
-            sequencerConfig.execution.sequencer.dangerous = {};
-            sequencerConfig.execution.sequencer.dangerous.timeboost = {
+            sequencerConfig.execution.sequencer = {};
+            sequencerConfig.execution.sequencer.timeboost = {
                 "enable": false, // Create it false initially, turn it on with sed in test-node.bash after contract setup.
                 "redis-url": argv.redisUrl
             };
