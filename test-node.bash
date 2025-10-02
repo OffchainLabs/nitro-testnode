@@ -23,9 +23,13 @@ echo "Using TOKEN_BRIDGE_BRANCH: $TOKEN_BRIDGE_BRANCH"
 mydir=`dirname $0`
 cd "$mydir"
 
+run_script() {
+  docker compose run --rm scripts "$@"
+}
+
 if [[ $# -gt 0 ]] && [[ $1 == "script" ]]; then
     shift
-    docker compose run --rm scripts "$@"
+    run_script "$@"
     exit $?
 fi
 
@@ -420,10 +424,6 @@ fi
 if $build_node_images; then
     docker compose build --no-rm $NODES
 fi
-
-run_script() {
-  docker compose run --rm scripts "$@"
-}
 
 if $force_init; then
     echo == Removing old data..
