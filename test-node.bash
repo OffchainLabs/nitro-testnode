@@ -571,7 +571,7 @@ if $force_init; then
         run_script transfer-erc20 --token $biddingTokenAddress --amount 10000 --from auctioneer --to user_alice
         run_script transfer-erc20 --token $biddingTokenAddress --amount 10000 --from auctioneer --to user_bob
 
-        docker compose run --rm --entrypoint sh scripts -c "sed -i 's/\(\"execution\":{\"sequencer\":{\"enable\":true,\"dangerous\":{\"timeboost\":{\"enable\":\)false/\1true,\"auction-contract-address\":\"$auctionContractAddress\",\"auctioneer-address\":\"$auctioneerAddress\"/' /config/sequencer_config.json" --wait
+        docker compose run --rm --entrypoint sh scripts -c "sed -i 's/\(\"execution\":{\"sequencer\":{\"enable\":true,\"timeboost\":{\"enable\":\)false/\1true,\"auction-contract-address\":\"$auctionContractAddress\",\"auctioneer-address\":\"$auctioneerAddress\"/' /config/sequencer_config.json" --wait
         docker compose restart $INITIAL_SEQ_NODES
     fi
 
