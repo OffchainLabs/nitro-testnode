@@ -440,9 +440,9 @@ if $force_init; then
 
     echo == Generating l1 keys
     run_script write-accounts
-    docker compose run --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
-    docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
-    docker compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
+    docker compose run --rm --entrypoint sh geth -c "echo passphrase > /datadir/passphrase"
+    docker compose run --rm --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
+    docker compose run --rm --entrypoint sh geth -c "chown -R 1000:1000 /config"
 
     echo == Writing geth configs
     run_script write-geth-genesis-config
@@ -452,11 +452,11 @@ if $force_init; then
       run_script write-prysm-config
 
       echo == Creating prysm genesis
-      docker compose run create_beacon_chain_genesis
+      docker compose run --rm create_beacon_chain_genesis
     fi
 
     echo == Initializing go-ethereum genesis configuration
-    docker compose run geth init --state.scheme hash --datadir /datadir/ /config/geth_genesis.json
+    docker compose run --rm geth init --state.scheme hash --datadir /datadir/ /config/geth_genesis.json
 
     if $consensusclient; then
       echo == Running prysm
@@ -491,14 +491,14 @@ if $force_init; then
 
     sequenceraddress=`run_script print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
     l2ownerKey=`run_script print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
-    wasmroot=`docker compose run --entrypoint sh sequencer -c "cat /home/user/target/machines/latest/module-root.txt"`
+    wasmroot=`docker compose run --rm --entrypoint sh sequencer -c "cat /home/user/target/machines/latest/module-root.txt"`
 
     echo == Deploying L2 chain
-    docker compose run -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
+    docker compose run --rm -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
     if $l2timeboost; then
-        docker compose run --entrypoint sh rollupcreator -c 'jq ".[] | .\"track-block-metadata-from\"=1 | [.]" /config/deployed_chain_info.json > /config/l2_chain_info.json'
+        docker compose run --rm --entrypoint sh rollupcreator -c 'jq ".[] | .\"track-block-metadata-from\"=1 | [.]" /config/deployed_chain_info.json > /config/l2_chain_info.json'
     else
-        docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
+        docker compose run --rm --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
     fi
 
 fi # $force_init
@@ -510,18 +510,18 @@ timeboostNodeConfigLine=""
 if $l2anytrust; then
     if $force_init; then
         echo == Generating AnyTrust Config
-        docker compose run --user root --entrypoint sh datool -c "mkdir /das-committee-a/keys /das-committee-a/data /das-committee-a/metadata /das-committee-b/keys /das-committee-b/data /das-committee-b/metadata /das-mirror/data /das-mirror/metadata"
-        docker compose run --user root --entrypoint sh datool -c "chown -R 1000:1000 /das*"
-        docker compose run datool keygen --dir /das-committee-a/keys
-        docker compose run datool keygen --dir /das-committee-b/keys
+        docker compose run --rm --user root --entrypoint sh datool -c "mkdir /das-committee-a/keys /das-committee-a/data /das-committee-a/metadata /das-committee-b/keys /das-committee-b/data /das-committee-b/metadata /das-mirror/data /das-mirror/metadata"
+        docker compose run --rm --user root --entrypoint sh datool -c "chown -R 1000:1000 /das*"
+        docker compose run --rm datool keygen --dir /das-committee-a/keys
+        docker compose run --rm datool keygen --dir /das-committee-b/keys
         run_script write-l2-das-committee-config
         run_script write-l2-das-mirror-config
 
-        das_bls_a=`docker compose run --entrypoint sh datool -c "cat /das-committee-a/keys/das_bls.pub"`
-        das_bls_b=`docker compose run --entrypoint sh datool -c "cat /das-committee-b/keys/das_bls.pub"`
+        das_bls_a=`docker compose run --rm --entrypoint sh datool -c "cat /das-committee-a/keys/das_bls.pub"`
+        das_bls_b=`docker compose run --rm --entrypoint sh datool -c "cat /das-committee-b/keys/das_bls.pub"`
 
         run_script write-l2-das-keyset-config --dasBlsA $das_bls_a --dasBlsB $das_bls_b
-        docker compose run --entrypoint sh datool -c "/usr/local/bin/datool dumpkeyset --conf.file /config/l2_das_keyset.json | grep 'Keyset: ' | awk '{ printf \"%s\", \$2 }' > /config/l2_das_keyset.hex"
+        docker compose run --rm --entrypoint sh datool -c "/usr/local/bin/datool dumpkeyset --conf.file /config/l2_das_keyset.json | grep 'Keyset: ' | awk '{ printf \"%s\", \$2 }' > /config/l2_das_keyset.hex"
         run_script set-valid-keyset
 
         anytrustNodeConfigLine="--anytrust --dasBlsA $das_bls_a --dasBlsB $das_bls_b"
@@ -553,7 +553,7 @@ if $force_init; then
     docker compose up --wait $INITIAL_SEQ_NODES
     run_script bridge-funds --ethamount 100000 --wait
     run_script send-l2 --ethamount 100 --to l2owner --wait
-    rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
+    rollupAddress=`docker compose run --rm --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
 
     if $l2timeboost; then
         run_script send-l2 --ethamount 100 --to auctioneer --wait
@@ -563,7 +563,7 @@ if $force_init; then
         echo == Starting up Timeboost auctioneer and bid validator.
         echo == Bidding token: $biddingTokenAddress, auction contract $auctionContractAddress
         run_script write-timeboost-configs --auction-contract $auctionContractAddress
-        docker compose run --user root --entrypoint sh timeboost-auctioneer -c "chown -R 1000:1000 /data"
+        docker compose run --rm --user root --entrypoint sh timeboost-auctioneer -c "chown -R 1000:1000 /data"
 
         echo == Funding alice and bob user accounts for timeboost testing
         run_script send-l2 --ethamount 10 --to user_alice --wait
@@ -571,20 +571,20 @@ if $force_init; then
         run_script transfer-erc20 --token $biddingTokenAddress --amount 10000 --from auctioneer --to user_alice
         run_script transfer-erc20 --token $biddingTokenAddress --amount 10000 --from auctioneer --to user_bob
 
-        docker compose run --entrypoint sh scripts -c "sed -i 's/\(\"execution\":{\"sequencer\":{\"enable\":true,\"dangerous\":{\"timeboost\":{\"enable\":\)false/\1true,\"auction-contract-address\":\"$auctionContractAddress\",\"auctioneer-address\":\"$auctioneerAddress\"/' /config/sequencer_config.json" --wait
+        docker compose run --rm --entrypoint sh scripts -c "sed -i 's/\(\"execution\":{\"sequencer\":{\"enable\":true,\"dangerous\":{\"timeboost\":{\"enable\":\)false/\1true,\"auction-contract-address\":\"$auctionContractAddress\",\"auctioneer-address\":\"$auctioneerAddress\"/' /config/sequencer_config.json" --wait
         docker compose restart $INITIAL_SEQ_NODES
     fi
 
     if $tokenbridge; then
         echo == Deploying L1-L2 token bridge
         sleep 10 # no idea why this sleep is needed but without it the deploy fails randomly
-        docker compose run -e ROLLUP_OWNER_KEY=$l2ownerKey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_KEY=$devprivkey -e PARENT_RPC=http://geth:8545 -e CHILD_KEY=$devprivkey -e CHILD_RPC=http://sequencer:8547 tokenbridge deploy:local:token-bridge
-        docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json l1l2_network.json && cp network.json localNetwork.json"
+        docker compose run --rm -e ROLLUP_OWNER_KEY=$l2ownerKey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_KEY=$devprivkey -e PARENT_RPC=http://geth:8545 -e CHILD_KEY=$devprivkey -e CHILD_RPC=http://sequencer:8547 tokenbridge deploy:local:token-bridge
+        docker compose run --rm --entrypoint sh tokenbridge -c "cat network.json && cp network.json l1l2_network.json && cp network.json localNetwork.json"
         echo
     fi
 
     echo == Deploy CacheManager on L2
-    docker compose run -e CHILD_CHAIN_RPC="http://sequencer:8547" -e CHAIN_OWNER_PRIVKEY=$l2ownerKey rollupcreator deploy-cachemanager-testnode
+    docker compose run --rm -e CHILD_CHAIN_RPC="http://sequencer:8547" -e CHAIN_OWNER_PRIVKEY=$l2ownerKey rollupcreator deploy-cachemanager-testnode
 
     echo == Deploy Stylus Deployer on L2
     run_script create-stylus-deployer --deployer l2owner
@@ -635,8 +635,8 @@ if $force_init; then
         l3ownerkey=`run_script print-private-key --account l3owner | tail -n 1 | tr -d '\r\n'`
         l3sequenceraddress=`run_script print-address --account l3sequencer | tail -n 1 | tr -d '\r\n'`
 
-        docker compose run -e DEPLOYER_PRIVKEY=$l3ownerkey -e PARENT_CHAIN_RPC="http://sequencer:8547" -e PARENT_CHAIN_ID=412346 -e CHILD_CHAIN_NAME="orbit-dev-test" -e MAX_DATA_SIZE=104857 -e OWNER_ADDRESS=$l3owneraddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$l3sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l3_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/l3deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_l3_chain_info.json" $EXTRA_L3_DEPLOY_FLAG rollupcreator create-rollup-testnode
-        docker compose run --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
+        docker compose run --rm -e DEPLOYER_PRIVKEY=$l3ownerkey -e PARENT_CHAIN_RPC="http://sequencer:8547" -e PARENT_CHAIN_ID=412346 -e CHILD_CHAIN_NAME="orbit-dev-test" -e MAX_DATA_SIZE=104857 -e OWNER_ADDRESS=$l3owneraddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$l3sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l3_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/l3deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_l3_chain_info.json" $EXTRA_L3_DEPLOY_FLAG rollupcreator create-rollup-testnode
+        docker compose run --rm --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
         echo == Funding l3 funnel and dev key
         docker compose up --wait l3node sequencer
@@ -644,19 +644,19 @@ if $force_init; then
         if $l3_token_bridge; then
             echo == Deploying L2-L3 token bridge
             deployer_key=`printf "%s" "user_token_bridge_deployer" | openssl dgst -sha256 | sed 's/^.*= //'`
-            rollupAddress=`docker compose run --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_l3_chain_info.json | tail -n 1 | tr -d '\r\n'"`
+            rollupAddress=`docker compose run --rm --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_l3_chain_info.json | tail -n 1 | tr -d '\r\n'"`
             l2Weth=""
             if $tokenbridge; then
                 # we deployed an L1 L2 token bridge
                 # we need to pull out the L2 WETH address and pass it as an override to the L2 L3 token bridge deployment
-                l2Weth=`docker compose run --entrypoint sh tokenbridge -c "cat l1l2_network.json" | jq -r '.l2Network.tokenBridge.l2Weth'`
+                l2Weth=`docker compose run --rm --entrypoint sh tokenbridge -c "cat l1l2_network.json" | jq -r '.l2Network.tokenBridge.l2Weth'`
             fi
-            docker compose run -e PARENT_WETH_OVERRIDE=$l2Weth -e ROLLUP_OWNER_KEY=$l3ownerkey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_RPC=http://sequencer:8547 -e PARENT_KEY=$deployer_key  -e CHILD_RPC=http://l3node:3347 -e CHILD_KEY=$deployer_key tokenbridge deploy:local:token-bridge
-            docker compose run --entrypoint sh tokenbridge -c "cat network.json && cp network.json l2l3_network.json"
+            docker compose run --rm -e PARENT_WETH_OVERRIDE=$l2Weth -e ROLLUP_OWNER_KEY=$l3ownerkey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_RPC=http://sequencer:8547 -e PARENT_KEY=$deployer_key  -e CHILD_RPC=http://l3node:3347 -e CHILD_KEY=$deployer_key tokenbridge deploy:local:token-bridge
+            docker compose run --rm --entrypoint sh tokenbridge -c "cat network.json && cp network.json l2l3_network.json"
 
             # set L3 UpgradeExecutor, deployed by token bridge creator in previous step, to be the L3 chain owner. L3owner (EOA) and alias of L2 UpgradeExectuor have the executor role on the L3 UpgradeExecutor
             echo == Set L3 UpgradeExecutor to be chain owner
-            tokenBridgeCreator=`docker compose run --entrypoint sh tokenbridge -c "cat l2l3_network.json" | jq -r '.l1TokenBridgeCreator'`
+            tokenBridgeCreator=`docker compose run --rm --entrypoint sh tokenbridge -c "cat l2l3_network.json" | jq -r '.l1TokenBridgeCreator'`
             run_script transfer-l3-chain-ownership --creator $tokenBridgeCreator
             echo
         fi
@@ -671,7 +671,7 @@ if $force_init; then
         run_script send-l3 --ethamount 10 --to l3owner --wait
 
         echo == Deploy CacheManager on L3
-        docker compose run -e CHILD_CHAIN_RPC="http://l3node:3347" -e CHAIN_OWNER_PRIVKEY=$l3ownerkey rollupcreator deploy-cachemanager-testnode
+        docker compose run --rm -e CHILD_CHAIN_RPC="http://l3node:3347" -e CHAIN_OWNER_PRIVKEY=$l3ownerkey rollupcreator deploy-cachemanager-testnode
 
         echo == Deploy Stylus Deployer on L3
         run_script create-stylus-deployer --deployer l3owner --l3
