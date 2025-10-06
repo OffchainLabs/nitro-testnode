@@ -87,6 +87,7 @@ function writeGethGenesisConfig(argv: any) {
         "timestamp": "0x0",
         "gasLimit": "0x1C9C380",
         "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "baseFeePerGas": "0x3B9ACA00",
         "alloc": {
         "0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E": {
           "balance": "1000000000000000000000000000000000"
@@ -325,8 +326,7 @@ function writeConfigs(argv: any) {
         sequencerConfig.execution["sequencer"].enable = true
         sequencerConfig.node["delayed-sequencer"].enable = true
         if (argv.timeboost) {
-            sequencerConfig.execution.sequencer.dangerous = {};
-            sequencerConfig.execution.sequencer.dangerous.timeboost = {
+            sequencerConfig.execution.sequencer.timeboost = {
                 "enable": false, // Create it false initially, turn it on with sed in test-node.bash after contract setup.
                 "redis-url": argv.redisUrl
             };

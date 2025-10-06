@@ -47,7 +47,7 @@ services:
       - "127.0.0.1:6379:6379"
 
   geth:
-    image: ethereum/client-go:v1.14.13
+    image: ethereum/client-go:v1.16.4
     ports:
       - "127.0.0.1:8545:8545"
       - "127.0.0.1:8551:8551"
@@ -88,7 +88,7 @@ services:
   # a deterministic set of validators
   # TODO: Make num validators customizable
   create_beacon_chain_genesis:
-    image: "gcr.io/prysmaticlabs/prysm/cmd/prysmctl:latest"
+    image: "gcr.io/prysmaticlabs/prysm/cmd/prysmctl:v6.1.1"
     command:
       - testnet
       - generate-genesis
@@ -107,7 +107,7 @@ services:
   # The account used in go-ethereum is set as the suggested fee recipient for transactions
   # proposed via the validators attached to the beacon node.
   prysm_beacon_chain:
-    image: "gcr.io/prysmaticlabs/prysm/beacon-chain:stable"
+    image: "gcr.io/prysmaticlabs/prysm/beacon-chain:v6.1.1"
     command:
       - --datadir=/consensus/beacondata
       - --rpc-port=5000
