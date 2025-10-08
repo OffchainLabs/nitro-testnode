@@ -527,7 +527,7 @@ function writeL2ReferenceDAConfig(argv: any) {
             "signing-key": {
                 "key-file": "/data/keys/ecdsa"
             },
-            "validator-contract": "0x5E1497dD1f08C87b2d8FE23e9AAB6c1De833D927",
+            "validator-contract": argv.validatorAddress,
         },
         "provider-server": {
             "enable-da-writer": true,
@@ -722,6 +722,13 @@ export const writeL2DASKeysetConfigCommand = {
 export const writeL2ReferenceDAConfigCommand = {
     command: "write-l2-referenceda-config",
     describe: "writes reference DA config file",
+    builder: {
+        validatorAddress: {
+            string: true,
+            describe: "L2 validator contract address",
+            demandOption: true
+        }
+    },
     handler: (argv: any) => {
         writeL2ReferenceDAConfig(argv)
     }

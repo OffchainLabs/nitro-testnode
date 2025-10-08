@@ -510,6 +510,10 @@ if $force_init; then
     else
         docker compose run --rm --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
     fi
+    if $l2referenceda; then
+        l2referenceDAValidatorAddress=0x5E1497dD1f08C87b2d8FE23e9AAB6c1De833D927
+        # TODO: deploy contracts-local/ReferenceDAProofValidator.sol, save its address and pass to daprovider config
+    fi
 
 fi # $force_init
 
@@ -549,7 +553,7 @@ if $l2referenceda; then
         echo "== Generating Reference DA Config"
         docker compose run --rm --user root --entrypoint sh datool -c "mkdir /referenceda-provider/keys && chown -R 1000:1000 /referenceda-provider*"
         docker compose run --rm datool keygen --dir /referenceda-provider/keys --ecdsa
-        run_script write-l2-referenceda-config
+        run_script write-l2-referenceda-config --validator-address $l2referenceDAValidatorAddress
     fi
 
     if $run; then
