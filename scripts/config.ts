@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as consts from './consts'
 import { ethers } from "ethers";
-import { namedAccount, namedAddress } from './accounts'
+import { namedAddress } from './accounts'
 
 const path = require("path");
 
@@ -519,6 +519,22 @@ function writeL2DASKeysetConfig(argv: any) {
     fs.writeFileSync(path.join(consts.configpath, "l2_das_keyset.json"), l2DASKeysetConfigJSON)
 }
 
+function writeL2ReferenceDAConfig(argv: any) {
+    const l2ReferenceDAConfig = {
+        "mode": "referenceda",
+        "referenceda": {
+            "enable": true,
+            "validator-contract": "0x5E1497dD1f08C87b2d8FE23e9AAB6c1De833D927",
+            // "signing-key": TODO
+        },
+        "provider-server": {
+            "enable-da-writer": true,
+        }
+    }
+    const l2ReferenceDAConfigJSON = JSON.stringify(l2ReferenceDAConfig)
+    fs.writeFileSync(path.join(consts.configpath, "referenceda_provider.json"), l2ReferenceDAConfigJSON)
+}
+
 function dasBackendsJsonConfig(argv: any) {
     const backends = {
         "enable": false,
@@ -701,3 +717,10 @@ export const writeL2DASKeysetConfigCommand = {
     }
 }
 
+export const writeL2ReferenceDAConfigCommand = {
+    command: "write-l2-referenceda-config",
+    describe: "writes reference DA config file",
+    handler: (argv: any) => {
+        writeL2ReferenceDAConfig(argv)
+    }
+}
