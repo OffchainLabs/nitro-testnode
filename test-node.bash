@@ -491,12 +491,9 @@ if $force_init; then
 
     l2ownerAddress=`run_script print-address --account l2owner | tail -n 1 | tr -d '\r\n'`
 
-    if $l2anytrust; then
-        echo "== Writing l2 chain config (anytrust enabled)"
-        run_script --l2owner $l2ownerAddress write-l2-chain-config --anytrust
-    elif $l2referenceda; then
-        echo "== Writing l2 chain config (reference da enabled)"
-        run_script --l2owner $l2ownerAddress write-l2-chain-config --referenceda
+    if $l2anytrust || $l2referenceda; then
+        echo "== Writing l2 chain config (DA committee enabled)"
+        run_script --l2owner $l2ownerAddress write-l2-chain-config --da-committee
     else
         echo "== Writing l2 chain config"
         run_script --l2owner $l2ownerAddress write-l2-chain-config

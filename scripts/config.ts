@@ -407,7 +407,7 @@ function writeL2ChainConfig(argv: any) {
         "arbitrum": {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
-            "DataAvailabilityCommittee": argv.anytrust || argv.referenceda,
+            "DataAvailabilityCommittee": argv.daCommittee,
             "InitialArbOSVersion": 40,
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
@@ -645,14 +645,9 @@ export const writeL2ChainConfigCommand = {
     command: "write-l2-chain-config",
     describe: "writes l2 chain config file",
     builder: {
-        anytrust: {
+        daCommittee: {
             boolean: true,
-            describe: "enable anytrust in chainconfig",
-            default: false
-        },
-        referenceda: {
-            boolean: true,
-            describe: "enable reference DA in chainconfig",
+            describe: "enable DA committee in chainconfig",
             default: false
         }
     },
