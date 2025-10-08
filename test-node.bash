@@ -518,6 +518,7 @@ if $force_init; then
 fi # $force_init
 
 anytrustNodeConfigLine=""
+referenceDaNodeConfigLine=""
 timeboostNodeConfigLine=""
 
 # Remaining init may require AnyTrust committee/mirrors to have been started
@@ -554,6 +555,8 @@ if $l2referenceda; then
         docker compose run --rm --user root --entrypoint sh datool -c "mkdir /referenceda-provider/keys && chown -R 1000:1000 /referenceda-provider*"
         docker compose run --rm datool keygen --dir /referenceda-provider/keys --ecdsa
         run_script write-l2-referenceda-config --validator-address $l2referenceDAValidatorAddress
+
+        referenceDaNodeConfigLine="--referenceDA --referenceDAValidatorContract $l2referenceDAValidatorAddress"
     fi
 
     if $run; then
@@ -568,10 +571,10 @@ if $force_init; then
     fi
     if $simple; then
         echo == Writing configs
-        run_script write-config --simple $anytrustNodeConfigLine $timeboostNodeConfigLine
+        run_script write-config --simple $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine
     else
         echo == Writing configs
-        run_script write-config $anytrustNodeConfigLine $timeboostNodeConfigLine
+        run_script write-config $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine
 
         echo == Initializing redis
         docker compose up --wait redis

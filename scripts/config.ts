@@ -260,7 +260,7 @@ function writeConfigs(argv: any) {
                 }
             },
             "data-availability": {
-                "enable": argv.anytrust,
+                "enable": argv.anytrust || argv.referenceDA,
                 "rpc-aggregator": dasBackendsJsonConfig(argv),
                 "rest-aggregator": {
                     "enable": true,
@@ -294,6 +294,23 @@ function writeConfigs(argv: any) {
 
     const baseConfJSON = JSON.stringify(baseConfig)
 
+    const configureReferenceDA = (config: any) => {
+        config.node["da"] = {
+            "mode": "referenceda",
+            "referenceda": {
+                "enable": true,
+                "validator-contract": argv.referenceDAValidatorContract,
+            },
+            "external-provider": {
+                "enable": true,
+                "with-writer": true,
+                "rpc": {
+                    "url": "http://0.0.0.0:9880"
+                }
+            }
+        }
+    }
+
     if (argv.simple) {
         let simpleConfig = JSON.parse(baseConfJSON)
         simpleConfig.node.staker.enable = true
@@ -307,6 +324,9 @@ function writeConfigs(argv: any) {
         simpleConfig.execution["sequencer"].enable = true
         if (argv.anytrust) {
             simpleConfig.node["data-availability"]["rpc-aggregator"].enable = true
+        }
+        if (argv.referenceDA) {
+            configureReferenceDA(simpleConfig)
         }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(simpleConfig))
     } else {
@@ -338,6 +358,9 @@ function writeConfigs(argv: any) {
         posterConfig.node["batch-poster"].enable = true
         if (argv.anytrust) {
             posterConfig.node["data-availability"]["rpc-aggregator"].enable = true
+        }
+        if (argv.referenceDA) {
+            configureReferenceDA(posterConfig)
         }
         fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
     }
@@ -630,6 +653,16 @@ export const writeConfigCommand = {
         dasBlsB: {
             string: true,
             describe: "DAS committee member B BLS pub key",
+            default: ""
+        },
+        referenceDA: {
+            boolean: true,
+            describe: "run nodes in reference DA mode",
+            default: false
+        },
+        referenceDAValidatorContract: {
+            string: true,
+            describe: "L2 reference DA validator contract address",
             default: ""
         },
         timeboost: {
