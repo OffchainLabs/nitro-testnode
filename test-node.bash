@@ -493,10 +493,13 @@ if $force_init; then
 
     if $l2anytrust; then
         echo "== Writing l2 chain config (anytrust enabled)"
-        run_script --l2owner $l2ownerAddress  write-l2-chain-config --anytrust
+        run_script --l2owner $l2ownerAddress write-l2-chain-config --anytrust
+    elif $l2referenceda; then
+        echo "== Writing l2 chain config (reference da enabled)"
+        run_script --l2owner $l2ownerAddress write-l2-chain-config --referenceda
     else
-        echo == Writing l2 chain config
-        run_script --l2owner $l2ownerAddress  write-l2-chain-config
+        echo "== Writing l2 chain config"
+        run_script --l2owner $l2ownerAddress write-l2-chain-config
     fi
 
     sequenceraddress=`run_script print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
