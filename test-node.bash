@@ -60,6 +60,7 @@ devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
 simple=true
 l2anytrust=false
+l2referenceda=false
 l2timeboost=false
 
 # Use the dev versions of nitro/blockscout
@@ -262,6 +263,10 @@ while [[ $# -gt 0 ]]; do
             l2anytrust=true
             shift
             ;;
+        --l2-referenceda)
+            l2referenceda=true
+            shift
+            ;;
         --l2-timeboost)
             l2timeboost=true
             shift
@@ -301,6 +306,7 @@ while [[ $# -gt 0 ]]; do
             echo --l3-fee-token-decimals Number of decimals to use for custom fee token. Only valid if also '--l3-fee-token' is provided
             echo --l3-token-bridge Deploy L2-L3 token bridge. Only valid if also '--l3node' is provided
             echo --l2-anytrust     run the L2 as an AnyTrust chain
+            echo --l2-referenceda  run the L2 with reference external data availability provider
             echo --l2-timeboost    run the L2 with Timeboost enabled, including auctioneer and bid validator
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
