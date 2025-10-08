@@ -357,6 +357,10 @@ if [ $batchposters -gt 2 ]; then
     NODES="$NODES poster_c"
 fi
 
+if $l2anytrust && $l2referenceda; then
+    echo "Error: --l2-anytrust and --l2-referenceda cannot be enabled at the same time."
+    exit 1
+fi
 
 if $validate; then
     NODES="$NODES validator"
