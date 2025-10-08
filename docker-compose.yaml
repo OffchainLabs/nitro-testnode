@@ -431,6 +431,18 @@ services:
     command:
       - --conf.file=/config/l2_das_mirror.json
 
+  referenceda-provider:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/daprovider
+    ports:
+      - "127.0.0.1:9880:9880"
+    volumes:
+      - "config:/config"
+      - "referenceda-provider:/data"
+    command:
+      - --conf.file=/config/referenceda_provider.json
+
   timeboost-auctioneer:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
@@ -481,4 +493,5 @@ volumes:
   das-committee-a-data:
   das-committee-b-data:
   das-mirror-data:
+  referenceda-provider:
   timeboost-auctioneer-data:
