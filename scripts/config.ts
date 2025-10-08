@@ -524,8 +524,10 @@ function writeL2ReferenceDAConfig(argv: any) {
         "mode": "referenceda",
         "referenceda": {
             "enable": true,
+            "signing-key": {
+                "key-file": "/data/keys/ecdsa"
+            },
             "validator-contract": "0x5E1497dD1f08C87b2d8FE23e9AAB6c1De833D927",
-            // "signing-key": TODO
         },
         "provider-server": {
             "enable-da-writer": true,

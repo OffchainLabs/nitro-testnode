@@ -543,6 +543,21 @@ if $l2anytrust; then
     fi
 fi
 
+# Remaining init may require Reference DA service to have been started
+if $l2referenceda; then
+    if $force_init; then
+        echo "== Generating Reference DA Config"
+        docker compose run --rm --user root --entrypoint sh datool -c "mkdir /referenceda-provider/keys && chown -R 1000:1000 /referenceda-provider*"
+        docker compose run --rm datool keygen --dir /referenceda-provider/keys --ecdsa
+        run_script write-l2-referenceda-config
+    fi
+
+    if $run; then
+        echo "== Starting Reference DA service"
+        docker compose up --wait referenceda-provider
+    fi
+fi
+
 if $force_init; then
     if $l2timeboost; then
         timeboostNodeConfigLine="--timeboost"

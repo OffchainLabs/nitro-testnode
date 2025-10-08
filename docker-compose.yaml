@@ -391,7 +391,7 @@ services:
       - "das-committee-a-data:/das-committee-a"
       - "das-committee-b-data:/das-committee-b"
       - "das-mirror-data:/das-mirror"
-    command:
+      - "referenceda-provider-data:/referenceda-provider"
 
   das-committee-a:
     pid: host # allow debugging
@@ -439,7 +439,7 @@ services:
       - "127.0.0.1:9880:9880"
     volumes:
       - "config:/config"
-      - "referenceda-provider:/data"
+      - "referenceda-provider-data:/data"
     command:
       - --conf.file=/config/referenceda_provider.json
 
@@ -493,5 +493,5 @@ volumes:
   das-committee-a-data:
   das-committee-b-data:
   das-mirror-data:
-  referenceda-provider:
+  referenceda-provider-data:
   timeboost-auctioneer-data:
