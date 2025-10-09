@@ -83,6 +83,7 @@ services:
       - --mine
       - --miner.etherbase=0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E
       - --gcmode=archive
+      - --rpc.allow-unprotected-txs
 
   # Creates a genesis state for the beacon chain using a YAML configuration file and
   # a deterministic set of validators
