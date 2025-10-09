@@ -511,8 +511,9 @@ if $force_init; then
         docker compose run --rm --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
     fi
     if $l2referenceda; then
-        l2referenceDAValidatorAddress=0x5E1497dD1f08C87b2d8FE23e9AAB6c1De833D927
-        # TODO: deploy contracts-local/ReferenceDAProofValidator.sol, save its address and pass to daprovider config
+        echo "== Deploying Reference DA Proof Validator contract on L2"
+        docker compose run --rm --entrypoint sh referenceda-provider -c "true" # Noop to mount shared volumes with contracts for manual build and deployment
+        l2referenceDAValidatorAddress=`docker compose run --rm --entrypoint sh rollupcreator -c "cd /contracts-local && forge create src/osp/ReferenceDAProofValidator.sol:ReferenceDAProofValidator --rpc-url http://geth:8545 --private-key $l2ownerKey --broadcast --constructor-args [$sequenceraddress]" | awk '/Deployed to:/ {print $NF}'`
     fi
 
 fi # $force_init

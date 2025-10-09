@@ -381,7 +381,9 @@ services:
         NITRO_CONTRACTS_BRANCH: ${NITRO_CONTRACTS_BRANCH:-}
     volumes:
       - "config:/config"
-      - /var/run/docker.sock:/var/run/docker.sock
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "contracts:/contracts"
+      - "contracts-local:/contracts-local"
 
   datool:
     image: nitro-node-dev-testnode
@@ -440,6 +442,8 @@ services:
     volumes:
       - "config:/config"
       - "referenceda-provider-data:/data"
+      - "contracts:/contracts"
+      - "contracts-local:/contracts-local"
     command:
       - --conf.file=/config/referenceda_provider.json
 
@@ -495,3 +499,5 @@ volumes:
   das-mirror-data:
   referenceda-provider-data:
   timeboost-auctioneer-data:
+  contracts:
+  contracts-local:
