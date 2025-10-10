@@ -9,7 +9,7 @@ BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 # 1. authorizing validator signer key since validator wallet is buggy
 #    - gas estimation sent from 0x0000 lead to balance and permission error
 DEFAULT_NITRO_CONTRACTS_VERSION="v3.1.0"
-DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.2"
+DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.5"
 
 # Set default versions if not overriden by provided env vars
 : ${NITRO_CONTRACTS_BRANCH:=$DEFAULT_NITRO_CONTRACTS_VERSION}
@@ -74,6 +74,10 @@ build_dev_blockscout=false
 build_utils=false
 force_build_utils=false
 build_node_images=false
+
+# Create some traffic on L2 and L3 so blocks are reliably produced
+l2_traffic=true
+l3_traffic=true
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -289,6 +293,14 @@ while [[ $# -gt 0 ]]; do
             simple=false
             shift
             ;;
+        --no-l2-traffic)
+            l2_traffic=false
+            shift
+            ;;
+        --no-l3-traffic)
+            l3_traffic=false
+            shift
+            ;;
         *)
             echo Usage: $0 \[OPTIONS..]
             echo        $0 script [SCRIPT-ARGS]
@@ -316,6 +328,8 @@ while [[ $# -gt 0 ]]; do
             echo --tokenbridge     deploy L1-L2 token bridge.
             echo --no-tokenbridge  don\'t build or launch tokenbridge
             echo --no-run          does not launch nodes \(useful with build or init\)
+            echo --no-l2-traffic   disables L2 spam transaction traffic \(default: enabled\)
+            echo --no-l3-traffic   disables L3 spam transaction traffic \(default: enabled\)
             echo --no-simple       run a full configuration with separate sequencer/batch-poster/validator/relayer
             echo --build-dev-nitro     rebuild dev nitro docker image
             echo --no-build-dev-nitro  don\'t rebuild dev nitro docker image
@@ -627,6 +641,12 @@ if $force_init; then
     run_script send-l1 --ethamount 1 --to address_0x0000000000000000000000000000000000000000 --wait
     run_script send-l2 --ethamount 1 --to address_0x0000000000000000000000000000000000000000 --wait
 
+    if $l2_traffic; then
+        echo == create l2 traffic
+        run_script send-l2 --ethamount 100 --to user_traffic_generator --wait
+        run_script send-l2 --ethamount 0.0001 --from user_traffic_generator --to user_traffic_generator --wait --delay 500 --times 1000000 > /dev/null &
+    fi
+
     if $l3node; then
         echo == Funding l3 users
         run_script send-l2 --ethamount 1000 --to validator --wait
@@ -640,10 +660,6 @@ if $force_init; then
         echo == Funding token deployer
         run_script send-l1 --ethamount 100 --to user_fee_token_deployer --wait
         run_script send-l2 --ethamount 100 --to user_fee_token_deployer --wait
-
-        echo == create l2 traffic
-        run_script send-l2 --ethamount 100 --to user_traffic_generator --wait
-        run_script send-l2 --ethamount 0.0001 --from user_traffic_generator --to user_traffic_generator --wait --delay 500 --times 1000000 > /dev/null &
 
         echo == Writing l3 chain config
         l3owneraddress=`run_script print-address --account l3owner | tail -n 1 | tr -d '\r\n'`
@@ -682,7 +698,7 @@ if $force_init; then
             if $tokenbridge; then
                 # we deployed an L1 L2 token bridge
                 # we need to pull out the L2 WETH address and pass it as an override to the L2 L3 token bridge deployment
-                l2Weth=`docker compose run --rm --entrypoint sh tokenbridge -c "cat l1l2_network.json" | jq -r '.l2Network.tokenBridge.l2Weth'`
+                l2Weth=`docker compose run --rm --entrypoint sh tokenbridge -c "cat l1l2_network.json" | jq -r '.l2Network.tokenBridge.childWeth'`
             fi
             docker compose run --rm -e PARENT_WETH_OVERRIDE=$l2Weth -e ROLLUP_OWNER_KEY=$l3ownerkey -e ROLLUP_ADDRESS=$rollupAddress -e PARENT_RPC=http://sequencer:8547 -e PARENT_KEY=$deployer_key  -e CHILD_RPC=http://l3node:3347 -e CHILD_KEY=$deployer_key tokenbridge deploy:local:token-bridge
             docker compose run --rm --entrypoint sh tokenbridge -c "cat network.json && cp network.json l2l3_network.json"
@@ -709,9 +725,11 @@ if $force_init; then
         echo == Deploy Stylus Deployer on L3
         run_script create-stylus-deployer --deployer l3owner --l3
 
-        echo == create l3 traffic
-        run_script send-l3 --ethamount 10 --to user_traffic_generator --wait
-        run_script send-l3 --ethamount 0.0001 --from user_traffic_generator --to user_traffic_generator --wait --delay 5000 --times 1000000 > /dev/null &
+        if $l3_traffic; then
+            echo == create l3 traffic
+            run_script send-l3 --ethamount 10 --to user_traffic_generator --wait
+            run_script send-l3 --ethamount 0.0001 --from user_traffic_generator --to user_traffic_generator --wait --delay 5000 --times 1000000 > /dev/null &
+        fi
     fi
 fi
 
