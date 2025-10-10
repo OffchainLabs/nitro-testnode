@@ -491,9 +491,9 @@ if $force_init; then
 
     l2ownerAddress=`run_script print-address --account l2owner | tail -n 1 | tr -d '\r\n'`
 
-    if $l2anytrust || $l2referenceda; then
-        echo "== Writing l2 chain config (DA committee enabled)"
-        run_script --l2owner $l2ownerAddress write-l2-chain-config --da-committee
+    if $l2anytrust; then
+        echo "== Writing l2 chain config (anytrust enabled)"
+        run_script --l2owner $l2ownerAddress write-l2-chain-config --anytrust
     else
         echo "== Writing l2 chain config"
         run_script --l2owner $l2ownerAddress write-l2-chain-config
@@ -557,7 +557,7 @@ if $l2referenceda; then
         docker compose run --rm datool keygen --dir /referenceda-provider/keys --ecdsa
         run_script write-l2-referenceda-config --validator-address $l2referenceDAValidatorAddress
 
-        referenceDaNodeConfigLine="--referenceDA --referenceDAValidatorContract $l2referenceDAValidatorAddress"
+        referenceDaNodeConfigLine="--referenceDA"
     fi
 
     if $run; then
