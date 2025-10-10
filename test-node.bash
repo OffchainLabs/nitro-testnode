@@ -524,10 +524,21 @@ if $force_init; then
     else
         docker compose run --rm --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
     fi
+
     if $l2referenceda; then
-        echo "== Deploying Reference DA Proof Validator contract on L2"
         docker compose run --rm --entrypoint sh referenceda-provider -c "true" # Noop to mount shared volumes with contracts for manual build and deployment
-        l2referenceDAValidatorAddress=`docker compose run --rm --entrypoint sh rollupcreator -c "cd /contracts-local && forge create src/osp/ReferenceDAProofValidator.sol:ReferenceDAProofValidator --rpc-url http://geth:8545 --private-key $l2ownerKey --broadcast --constructor-args [$sequenceraddress]" | awk '/Deployed to:/ {print $NF}'`
+
+        echo "== Generating Reference DA keys"
+        docker compose run --rm --user root --entrypoint sh datool -c "mkdir /referenceda-provider/keys && chown -R 1000:1000 /referenceda-provider*"
+        docker compose run --rm datool keygen --dir /referenceda-provider/keys --ecdsa
+
+        referenceDASignerAddress=`docker compose run --rm --entrypoint sh rollupcreator -c "cat /referenceda-provider/keys/ecdsa.pub | sed 's/^04//' | tr -d '\n' | cast keccak | tail -c 41 | cast to-check-sum-address"`
+
+        echo "== Deploying Reference DA Proof Validator contract on L2"
+        l2referenceDAValidatorAddress=`docker compose run --rm --entrypoint sh rollupcreator -c "cd /contracts-local && forge create src/osp/ReferenceDAProofValidator.sol:ReferenceDAProofValidator --rpc-url http://geth:8545 --private-key $l2ownerKey --broadcast --constructor-args [$referenceDASignerAddress]" | awk '/Deployed to:/ {print $NF}'`
+
+        echo "== Generating Reference DA Config"
+        run_script write-l2-referenceda-config --validator-address $l2referenceDAValidatorAddress
     fi
 
 fi # $force_init
@@ -563,26 +574,17 @@ if $l2anytrust; then
     fi
 fi
 
-# Remaining init may require Reference DA service to have been started
-if $l2referenceda; then
-    if $force_init; then
-        echo "== Generating Reference DA Config"
-        docker compose run --rm --user root --entrypoint sh datool -c "mkdir /referenceda-provider/keys && chown -R 1000:1000 /referenceda-provider*"
-        docker compose run --rm datool keygen --dir /referenceda-provider/keys --ecdsa
-        run_script write-l2-referenceda-config --validator-address $l2referenceDAValidatorAddress
-
-        referenceDaNodeConfigLine="--referenceDA"
-    fi
-
-    if $run; then
-        echo "== Starting Reference DA service"
-        docker compose up --wait referenceda-provider
-    fi
+if $l2referenceda && $run; then
+    echo "== Starting Reference DA service"
+    docker compose up --wait referenceda-provider
 fi
 
 if $force_init; then
     if $l2timeboost; then
         timeboostNodeConfigLine="--timeboost"
+    fi
+    if $l2referenceda; then
+        referenceDaNodeConfigLine="--referenceDA"
     fi
     if $simple; then
         echo == Writing configs

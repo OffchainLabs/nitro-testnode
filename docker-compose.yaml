@@ -385,6 +385,7 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "contracts:/contracts"
       - "contracts-local:/contracts-local"
+      - "referenceda-provider-data:/referenceda-provider"
 
   datool:
     image: nitro-node-dev-testnode
