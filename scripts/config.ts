@@ -541,11 +541,12 @@ function writeL2ReferenceDAConfig(argv: any) {
                 "key-file": "/data/keys/ecdsa"
             },
             "validator-contract": argv.validatorAddress,
+            "parent-chain-node-url": argv.l1url,
         },
         "provider-server": {
             "addr": "0.0.0.0",
             "enable-da-writer": true,
-        }
+        },
     }
     const l2ReferenceDAConfigJSON = JSON.stringify(l2ReferenceDAConfig)
     fs.writeFileSync(path.join(consts.configpath, "referenceda_provider.json"), l2ReferenceDAConfigJSON)
@@ -746,7 +747,7 @@ export const writeL2ReferenceDAConfigCommand = {
             string: true,
             describe: "L2 validator contract address",
             demandOption: true
-        }
+        },
     },
     handler: (argv: any) => {
         writeL2ReferenceDAConfig(argv)
