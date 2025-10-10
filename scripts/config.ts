@@ -334,10 +334,16 @@ function writeConfigs(argv: any) {
         validatorConfig.node.staker.enable = true
         validatorConfig.node.staker["use-smart-contract-wallet"] = false // TODO: set to true when fixed
         let validconfJSON = JSON.stringify(validatorConfig)
+        if (argv.referenceDA) {
+            configureReferenceDA(validatorConfig)
+        }
         fs.writeFileSync(path.join(consts.configpath, "validator_config.json"), validconfJSON)
 
         let unsafeStakerConfig = JSON.parse(validconfJSON)
         unsafeStakerConfig.node.staker.dangerous["without-block-validator"] = true
+        if (argv.referenceDA) {
+            configureReferenceDA(unsafeStakerConfig)
+        }
         fs.writeFileSync(path.join(consts.configpath, "unsafe_staker_config.json"), JSON.stringify(unsafeStakerConfig))
 
         let sequencerConfig = JSON.parse(baseConfJSON)
@@ -350,6 +356,9 @@ function writeConfigs(argv: any) {
                 "enable": false, // Create it false initially, turn it on with sed in test-node.bash after contract setup.
                 "redis-url": argv.redisUrl
             };
+        }
+        if (argv.referenceDA) {
+            configureReferenceDA(sequencerConfig)
         }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
 
