@@ -586,11 +586,11 @@ if $force_init; then
     if $l2referenceda; then
         referenceDaNodeConfigLine="--referenceDA"
     fi
+
+    echo "== Writing configs"
     if $simple; then
-        echo == Writing configs
         run_script write-config --simple $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine
     else
-        echo == Writing configs
         run_script write-config $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine
 
         echo == Initializing redis

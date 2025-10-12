@@ -187,7 +187,7 @@ function getChainInfo(): ChainInfo {
 function writeConfigs(argv: any) {
     const valJwtSecret = path.join(consts.configpath, "val_jwt.hex")
     const chainInfoFile = path.join(consts.configpath, "l2_chain_info.json")
-    let baseConfig: any = {
+    let baseConfig = {
         "ensure-rollup-deployment": false,
         "parent-chain": {
             "connection": {
@@ -269,7 +269,8 @@ function writeConfigs(argv: any) {
                 // TODO Fix das config to not need this redundant config
                 "parent-chain-node-url": argv.l1url,
                 "sequencer-inbox-address": "not_set"
-            }
+            },
+            "da": {},
         },
         "execution": {
             "sequencer": {
@@ -305,8 +306,10 @@ function writeConfigs(argv: any) {
         }
     }
 
+    const baseConfJSON = JSON.stringify(baseConfig)
+
     if (argv.simple) {
-        let simpleConfig = baseConfig
+        let simpleConfig = JSON.parse(baseConfJSON)
         simpleConfig.node.staker.enable = true
         simpleConfig.node.staker["use-smart-contract-wallet"] = false // TODO: set to true when fixed
         simpleConfig.node.staker.dangerous["without-block-validator"] = true
@@ -321,16 +324,17 @@ function writeConfigs(argv: any) {
         }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(simpleConfig))
     } else {
-        let validatorConfig = baseConfig
+        let validatorConfig = JSON.parse(baseConfJSON)
         validatorConfig.node.staker.enable = true
         validatorConfig.node.staker["use-smart-contract-wallet"] = false // TODO: set to true when fixed
-        fs.writeFileSync(path.join(consts.configpath, "validator_config.json"), JSON.stringify(validatorConfig))
+        let validconfJSON = JSON.stringify(validatorConfig)
+        fs.writeFileSync(path.join(consts.configpath, "validator_config.json"), validconfJSON)
 
-        let unsafeStakerConfig = validatorConfig
+        let unsafeStakerConfig = JSON.parse(validconfJSON)
         unsafeStakerConfig.node.staker.dangerous["without-block-validator"] = true
         fs.writeFileSync(path.join(consts.configpath, "unsafe_staker_config.json"), JSON.stringify(unsafeStakerConfig))
 
-        let sequencerConfig = baseConfig
+        let sequencerConfig = JSON.parse(baseConfJSON)
         sequencerConfig.node.sequencer = true
         sequencerConfig.node["seq-coordinator"].enable = true
         sequencerConfig.execution["sequencer"].enable = true
@@ -343,7 +347,7 @@ function writeConfigs(argv: any) {
         }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
 
-        let posterConfig = baseConfig
+        let posterConfig = JSON.parse(baseConfJSON)
         posterConfig.node["seq-coordinator"].enable = true
         posterConfig.node["batch-poster"].enable = true
         if (argv.anytrust) {
@@ -355,7 +359,7 @@ function writeConfigs(argv: any) {
         fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
     }
 
-    let l3Config = baseConfig
+    let l3Config = JSON.parse(baseConfJSON)
     l3Config["parent-chain"].connection.url = argv.l2url
     // use the same account for l2 and l3 staker
     // l3Config.node.staker["parent-chain-wallet"].account = namedAddress("l3owner")
@@ -375,7 +379,7 @@ function writeConfigs(argv: any) {
     l3Config.node["batch-poster"]["redis-url"] = ""
     fs.writeFileSync(path.join(consts.configpath, "l3node_config.json"), JSON.stringify(l3Config))
 
-    let validationNodeConfig = {
+    let validationNodeConfig = JSON.parse(JSON.stringify({
         "persistent": {
             "chain": "local"
         },
@@ -393,7 +397,7 @@ function writeConfigs(argv: any) {
             "jwtsecret": valJwtSecret,
             "addr": "0.0.0.0",
         },
-    }
+    }))
     fs.writeFileSync(path.join(consts.configpath, "validation_node_config.json"), JSON.stringify(validationNodeConfig))
 }
 
