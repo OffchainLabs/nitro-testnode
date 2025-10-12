@@ -269,8 +269,7 @@ function writeConfigs(argv: any) {
                 // TODO Fix das config to not need this redundant config
                 "parent-chain-node-url": argv.l1url,
                 "sequencer-inbox-address": "not_set"
-            },
-            "da": {},
+            }
         },
         "execution": {
             "sequencer": {
@@ -294,7 +293,7 @@ function writeConfigs(argv: any) {
     baseConfig.node["data-availability"]["sequencer-inbox-address"] = ethers.utils.hexlify(getChainInfo()[0]["rollup"]["sequencer-inbox"]);
 
     if (argv.referenceDA) {
-        baseConfig.node["da"] = {
+        (baseConfig as any).node["da"] = {
             "mode": "external",
             "external-provider": {
                 "enable": true,
