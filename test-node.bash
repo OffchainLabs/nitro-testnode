@@ -532,7 +532,7 @@ if $force_init; then
         docker compose run --rm --user root --entrypoint sh datool -c "mkdir /referenceda-provider/keys && chown -R 1000:1000 /referenceda-provider*"
         docker compose run --rm datool keygen --dir /referenceda-provider/keys --ecdsa
 
-        referenceDASignerAddress=`docker compose run --rm --entrypoint sh rollupcreator -c "cat /referenceda-provider/keys/ecdsa.pub | sed 's/^04//' | tr -d '\n' | cast keccak | tail -c 41 | cast to-check-sum-address"`
+        referenceDASignerAddress=`docker compose run --rm --entrypoint sh rollupcreator -c "cat /referenceda-provider/keys/ecdsa.pub | sed 's/^04/0x/' | tr -d '\n' | cast keccak | tail -c 41 | cast to-check-sum-address"`
 
         echo "== Deploying Reference DA Proof Validator contract on L2"
         l2referenceDAValidatorAddress=`docker compose run --rm --entrypoint sh rollupcreator -c "cd /contracts-local && forge create src/osp/ReferenceDAProofValidator.sol:ReferenceDAProofValidator --rpc-url http://geth:8545 --private-key $l2ownerKey --broadcast --constructor-args [$referenceDASignerAddress]" | awk '/Deployed to:/ {print $NF}'`
