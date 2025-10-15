@@ -60,6 +60,7 @@ devprivkey=b6b15c8cb491557369f3c7d2c287b053eb229daa9c22138887752191c9520659
 l1chainid=1337
 simple=true
 l2anytrust=false
+l2referenceda=false
 l2timeboost=false
 
 # Use the dev versions of nitro/blockscout
@@ -266,6 +267,10 @@ while [[ $# -gt 0 ]]; do
             l2anytrust=true
             shift
             ;;
+        --l2-referenceda)
+            l2referenceda=true
+            shift
+            ;;
         --l2-timeboost)
             l2timeboost=true
             shift
@@ -313,6 +318,7 @@ while [[ $# -gt 0 ]]; do
             echo --l3-fee-token-decimals Number of decimals to use for custom fee token. Only valid if also '--l3-fee-token' is provided
             echo --l3-token-bridge Deploy L2-L3 token bridge. Only valid if also '--l3node' is provided
             echo --l2-anytrust     run the L2 as an AnyTrust chain
+            echo --l2-referenceda  run the L2 with reference external data availability provider
             echo --l2-timeboost    run the L2 with Timeboost enabled, including auctioneer and bid validator
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
@@ -331,7 +337,7 @@ while [[ $# -gt 0 ]]; do
             echo --no-build-dev-blockscout  don\'t rebuild dev blockscout docker image
             echo --build-utils         rebuild scripts, rollupcreator, token bridge docker images
             echo --no-build-utils      don\'t rebuild scripts, rollupcreator, token bridge docker images
-            echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_ or TOKEN_BRIDGE_BRANCH changes
+            echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_BRANCH or TOKEN_BRIDGE_BRANCH changes
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
             exit 0
@@ -365,6 +371,10 @@ if [ $batchposters -gt 2 ]; then
     NODES="$NODES poster_c"
 fi
 
+if $l2anytrust && $l2referenceda; then
+    echo "Error: --l2-anytrust and --l2-referenceda cannot be enabled at the same time."
+    exit 1
+fi
 
 if $validate; then
     NODES="$NODES validator"
@@ -497,17 +507,17 @@ if $force_init; then
 
     if $l2anytrust; then
         echo "== Writing l2 chain config (anytrust enabled)"
-        run_script --l2owner $l2ownerAddress  write-l2-chain-config --anytrust
+        run_script --l2owner $l2ownerAddress write-l2-chain-config --anytrust
     else
-        echo == Writing l2 chain config
-        run_script --l2owner $l2ownerAddress  write-l2-chain-config
+        echo "== Writing l2 chain config"
+        run_script --l2owner $l2ownerAddress write-l2-chain-config
     fi
 
     sequenceraddress=`run_script print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
     l2ownerKey=`run_script print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
     wasmroot=`docker compose run --rm --entrypoint sh sequencer -c "cat /home/user/target/machines/latest/module-root.txt"`
 
-    echo == Deploying L2 chain
+    echo "== Deploying L2 chain"
     docker compose run --rm -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
     if $l2timeboost; then
         docker compose run --rm --entrypoint sh rollupcreator -c 'jq ".[] | .\"track-block-metadata-from\"=1 | [.]" /config/deployed_chain_info.json > /config/l2_chain_info.json'
@@ -515,9 +525,26 @@ if $force_init; then
         docker compose run --rm --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
     fi
 
+    if $l2referenceda; then
+        docker compose run --rm --entrypoint sh referenceda-provider -c "true" # Noop to mount shared volumes with contracts for manual build and deployment
+
+        echo "== Generating Reference DA keys"
+        docker compose run --rm --user root --entrypoint sh datool -c "mkdir /referenceda-provider/keys && chown -R 1000:1000 /referenceda-provider*"
+        docker compose run --rm datool keygen --dir /referenceda-provider/keys --ecdsa
+
+        referenceDASignerAddress=`docker compose run --rm --entrypoint sh rollupcreator -c "cat /referenceda-provider/keys/ecdsa.pub | sed 's/^04/0x/' | tr -d '\n' | cast keccak | tail -c 41 | cast to-check-sum-address"`
+
+        echo "== Deploying Reference DA Proof Validator contract on L2"
+        l2referenceDAValidatorAddress=`docker compose run --rm --entrypoint sh rollupcreator -c "cd /contracts-local && forge create src/osp/ReferenceDAProofValidator.sol:ReferenceDAProofValidator --rpc-url http://geth:8545 --private-key $l2ownerKey --broadcast --constructor-args [$referenceDASignerAddress]" | awk '/Deployed to:/ {print $NF}'`
+
+        echo "== Generating Reference DA Config"
+        run_script write-l2-referenceda-config --validator-address $l2referenceDAValidatorAddress
+    fi
+
 fi # $force_init
 
 anytrustNodeConfigLine=""
+referenceDaNodeConfigLine=""
 timeboostNodeConfigLine=""
 
 # Remaining init may require AnyTrust committee/mirrors to have been started
@@ -547,16 +574,24 @@ if $l2anytrust; then
     fi
 fi
 
+if $l2referenceda && $run; then
+    echo "== Starting Reference DA service"
+    docker compose up --wait referenceda-provider
+fi
+
 if $force_init; then
     if $l2timeboost; then
         timeboostNodeConfigLine="--timeboost"
     fi
+    if $l2referenceda; then
+        referenceDaNodeConfigLine="--referenceDA"
+    fi
+
+    echo "== Writing configs"
     if $simple; then
-        echo == Writing configs
-        run_script write-config --simple $anytrustNodeConfigLine $timeboostNodeConfigLine
+        run_script write-config --simple $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine
     else
-        echo == Writing configs
-        run_script write-config $anytrustNodeConfigLine $timeboostNodeConfigLine
+        run_script write-config $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine
 
         echo == Initializing redis
         docker compose up --wait redis
