@@ -293,15 +293,13 @@ function writeConfigs(argv: any) {
     baseConfig.node["data-availability"]["sequencer-inbox-address"] = ethers.utils.hexlify(getChainInfo()[0]["rollup"]["sequencer-inbox"]);
 
     if (argv.referenceDA) {
-        (baseConfig as any).node["da"] = {
-            "mode": "external",
-            "external-provider": {
-                "enable": true,
-                "with-writer": false,
-                "rpc": {
-                    "url": "http://referenceda-provider:9880"
-                }
-            }
+        (baseConfig as any).node["da-provider"] = {
+            "enable": true,
+            "with-writer": false,
+            "rpc": {
+                "url": "http://referenceda-provider:9880"
+            },
+            "use-data-streaming": false
         }
     }
 
@@ -353,7 +351,7 @@ function writeConfigs(argv: any) {
             posterConfig.node["data-availability"]["rpc-aggregator"].enable = true
         }
         if (argv.referenceDA) {
-            posterConfig.node["da"]["external-provider"]["with-writer"] = true
+            posterConfig.node["da-provider"]["with-writer"] = true
         }
         fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
     }
