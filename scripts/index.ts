@@ -11,6 +11,7 @@ import {
   writeL2DASCommitteeConfigCommand,
   writeL2DASMirrorConfigCommand,
   writeL2DASKeysetConfigCommand,
+  writeL2ReferenceDAConfigCommand,
   writeTimeboostConfigsCommand
 } from "./config";
 import {
@@ -72,6 +73,7 @@ async function main() {
     .command(writeL2DASCommitteeConfigCommand)
     .command(writeL2DASMirrorConfigCommand)
     .command(writeL2DASKeysetConfigCommand)
+    .command(writeL2ReferenceDAConfigCommand)
     .command(writePrysmCommand)
     .command(writeAccountsCommand)
     .command(writeTimeboostConfigsCommand)
