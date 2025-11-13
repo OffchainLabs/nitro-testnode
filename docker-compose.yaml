@@ -120,7 +120,7 @@ services:
       - --rpc-host=0.0.0.0
       - --grpc-gateway-host=0.0.0.0
       - --chain-id=1337
-      - --execution-endpoint=http://geth:8545
+      - --execution-endpoint=http://geth:8551
       - --accept-terms-of-use
       - --jwt-secret=/config/jwt.hex
       - --suggested-fee-recipient=0x000000000000000000000000000000000000dEaD
