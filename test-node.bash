@@ -2,7 +2,7 @@
 
 set -eu
 
-NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.8.0-62c0aa7
+NITRO_NODE_VERSION=offchainlabs/nitro-node:v3.9.2-52e8959
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
 # nitro-contract workaround for testnode
@@ -600,6 +600,7 @@ if $force_init; then
 
     echo == Funding l2 funnel and dev key
     docker compose up --wait $INITIAL_SEQ_NODES
+    sleep 45 # in case we need to create a smart contract wallet, allow for parent chain to recieve the contract creation tx and process it
     run_script bridge-funds --ethamount 100000 --wait
     run_script send-l2 --ethamount 100 --to l2owner --wait
     rollupAddress=`docker compose run --rm --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
@@ -691,6 +692,7 @@ if $force_init; then
 
         echo == Funding l3 funnel and dev key
         docker compose up --wait l3node sequencer
+        sleep 45 # in case we need to create a smart contract wallet, allow for parent chain to recieve the contract creation tx and process it
 
         if $l3_token_bridge; then
             echo == Deploying L2-L3 token bridge
