@@ -201,7 +201,9 @@ function writeConfigs(argv: any) {
         "node": {
             "bold": {
                 "rpc-block-number": "latest",
-                "assertion-posting-interval": "10s"
+                "assertion-posting-interval": "10s",
+                "assertion-confirming-interval": "10s",
+                "parent-chain-block-time": 1,
             },
             "staker": {
                 "dangerous": {
