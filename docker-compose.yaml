@@ -47,7 +47,7 @@ services:
       - "127.0.0.1:6379:6379"
 
   geth:
-    image: ethereum/client-go:v1.14.13
+    image: ethereum/client-go:v1.16.4
     ports:
       - "127.0.0.1:8545:8545"
       - "127.0.0.1:8551:8551"
@@ -89,7 +89,7 @@ services:
   # a deterministic set of validators
   # TODO: Make num validators customizable
   create_beacon_chain_genesis:
-    image: "gcr.io/prysmaticlabs/prysm/cmd/prysmctl:latest"
+    image: "gcr.io/prysmaticlabs/prysm/cmd/prysmctl:v6.1.1"
     command:
       - testnet
       - generate-genesis
@@ -108,7 +108,7 @@ services:
   # The account used in go-ethereum is set as the suggested fee recipient for transactions
   # proposed via the validators attached to the beacon node.
   prysm_beacon_chain:
-    image: "gcr.io/prysmaticlabs/prysm/beacon-chain:stable"
+    image: "gcr.io/prysmaticlabs/prysm/beacon-chain:v6.1.1"
     command:
       - --datadir=/consensus/beacondata
       - --rpc-port=5000
@@ -382,7 +382,10 @@ services:
         NITRO_CONTRACTS_BRANCH: ${NITRO_CONTRACTS_BRANCH:-}
     volumes:
       - "config:/config"
-      - /var/run/docker.sock:/var/run/docker.sock
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "contracts:/contracts"
+      - "contracts-local:/contracts-local"
+      - "referenceda-provider-data:/referenceda-provider"
 
   datool:
     image: nitro-node-dev-testnode
@@ -392,7 +395,7 @@ services:
       - "das-committee-a-data:/das-committee-a"
       - "das-committee-b-data:/das-committee-b"
       - "das-mirror-data:/das-mirror"
-    command:
+      - "referenceda-provider-data:/referenceda-provider"
 
   das-committee-a:
     pid: host # allow debugging
@@ -431,6 +434,20 @@ services:
       - "das-mirror-data:/das"
     command:
       - --conf.file=/config/l2_das_mirror.json
+
+  referenceda-provider:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/daprovider
+    ports:
+      - "127.0.0.1:9880:9880"
+    volumes:
+      - "config:/config"
+      - "referenceda-provider-data:/data"
+      - "contracts:/contracts"
+      - "contracts-local:/contracts-local"
+    command:
+      - --conf.file=/config/referenceda_provider.json
 
   timeboost-auctioneer:
     pid: host # allow debugging
@@ -482,4 +499,7 @@ volumes:
   das-committee-a-data:
   das-committee-b-data:
   das-mirror-data:
+  referenceda-provider-data:
   timeboost-auctioneer-data:
+  contracts:
+  contracts-local:
