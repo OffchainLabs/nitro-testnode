@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as consts from './consts'
 import { ethers } from "ethers";
-import { namedAccount, namedAddress } from './accounts'
+import { namedAddress } from './accounts'
 
 const path = require("path");
 
@@ -201,7 +201,9 @@ function writeConfigs(argv: any) {
         "node": {
             "bold": {
                 "rpc-block-number": "latest",
-                "assertion-posting-interval": "10s"
+                "assertion-posting-interval": "10s",
+                "assertion-confirming-interval": "10s",
+                "parent-chain-block-time": 1,
             },
             "staker": {
                 "dangerous": {
@@ -292,12 +294,25 @@ function writeConfigs(argv: any) {
 
     baseConfig.node["data-availability"]["sequencer-inbox-address"] = ethers.utils.hexlify(getChainInfo()[0]["rollup"]["sequencer-inbox"]);
 
+    if (argv.referenceDA) {
+        (baseConfig as any).node["da"] = {
+            "mode": "external",
+            "external-provider": {
+                "enable": true,
+                "with-writer": false,
+                "rpc": {
+                    "url": "http://referenceda-provider:9880"
+                }
+            }
+        }
+    }
+
     const baseConfJSON = JSON.stringify(baseConfig)
 
     if (argv.simple) {
         let simpleConfig = JSON.parse(baseConfJSON)
         simpleConfig.node.staker.enable = true
-        simpleConfig.node.staker["use-smart-contract-wallet"] = false // TODO: set to true when fixed
+        simpleConfig.node.staker["use-smart-contract-wallet"] = true
         simpleConfig.node.staker.dangerous["without-block-validator"] = true
         simpleConfig.node.sequencer = true
         simpleConfig.node.dangerous["no-sequencer-coordinator"] = true
@@ -312,7 +327,7 @@ function writeConfigs(argv: any) {
     } else {
         let validatorConfig = JSON.parse(baseConfJSON)
         validatorConfig.node.staker.enable = true
-        validatorConfig.node.staker["use-smart-contract-wallet"] = false // TODO: set to true when fixed
+        validatorConfig.node.staker["use-smart-contract-wallet"] = true
         let validconfJSON = JSON.stringify(validatorConfig)
         fs.writeFileSync(path.join(consts.configpath, "validator_config.json"), validconfJSON)
 
@@ -339,6 +354,9 @@ function writeConfigs(argv: any) {
         if (argv.anytrust) {
             posterConfig.node["data-availability"]["rpc-aggregator"].enable = true
         }
+        if (argv.referenceDA) {
+            posterConfig.node["da"]["external-provider"]["with-writer"] = true
+        }
         fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
     }
 
@@ -351,7 +369,7 @@ function writeConfigs(argv: any) {
     const l3ChainInfoFile = path.join(consts.configpath, "l3_chain_info.json")
     l3Config.chain["info-files"] = [l3ChainInfoFile]
     l3Config.node.staker.enable = true
-    l3Config.node.staker["use-smart-contract-wallet"] = false // TODO: set to true when fixed
+    l3Config.node.staker["use-smart-contract-wallet"] = true
     l3Config.node.sequencer = true
     l3Config.execution["sequencer"].enable = true
     l3Config.node["dangerous"]["no-sequencer-coordinator"] = true
@@ -519,6 +537,26 @@ function writeL2DASKeysetConfig(argv: any) {
     fs.writeFileSync(path.join(consts.configpath, "l2_das_keyset.json"), l2DASKeysetConfigJSON)
 }
 
+function writeL2ReferenceDAConfig(argv: any) {
+    const l2ReferenceDAConfig = {
+        "mode": "referenceda",
+        "referenceda": {
+            "enable": true,
+            "signing-key": {
+                "key-file": "/data/keys/ecdsa"
+            },
+            "validator-contract": argv.validatorAddress,
+            "parent-chain-node-url": argv.l1url,
+        },
+        "provider-server": {
+            "addr": "0.0.0.0",
+            "enable-da-writer": true,
+        },
+    }
+    const l2ReferenceDAConfigJSON = JSON.stringify(l2ReferenceDAConfig)
+    fs.writeFileSync(path.join(consts.configpath, "referenceda_provider.json"), l2ReferenceDAConfigJSON)
+}
+
 function dasBackendsJsonConfig(argv: any) {
     const backends = {
         "enable": false,
@@ -614,6 +652,11 @@ export const writeConfigCommand = {
             describe: "DAS committee member B BLS pub key",
             default: ""
         },
+        referenceDA: {
+            boolean: true,
+            describe: "run nodes in reference DA mode",
+            default: false
+        },
         timeboost: {
             boolean: true,
             describe: "run sequencer in timeboost mode",
@@ -649,7 +692,7 @@ export const writeL2ChainConfigCommand = {
             boolean: true,
             describe: "enable anytrust in chainconfig",
             default: false
-        },
+        }
     },
     handler: (argv: any) => {
         writeL2ChainConfig(argv)
@@ -701,3 +744,17 @@ export const writeL2DASKeysetConfigCommand = {
     }
 }
 
+export const writeL2ReferenceDAConfigCommand = {
+    command: "write-l2-referenceda-config",
+    describe: "writes reference DA config file",
+    builder: {
+        validatorAddress: {
+            string: true,
+            describe: "L2 validator contract address",
+            demandOption: true
+        },
+    },
+    handler: (argv: any) => {
+        writeL2ReferenceDAConfig(argv)
+    }
+}
