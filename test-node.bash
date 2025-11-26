@@ -62,6 +62,7 @@ simple=true
 l2anytrust=false
 l2referenceda=false
 l2timeboost=false
+num_validators=64
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -275,6 +276,15 @@ while [[ $# -gt 0 ]]; do
             l2timeboost=true
             shift
             ;;
+        --num-validators)
+            num_validators=$2
+            if ! [[ $num_validators =~ ^[0-9]+$ ]] || [ $num_validators -lt 1 ] || [ $num_validators -gt 1000 ]; then
+                echo "Error: num-validators must be a positive integer between 1 and 1000, got: $num_validators"
+                exit 1
+            fi
+            shift
+            shift
+            ;;
         --redundantsequencers)
             simple=false
             redundantsequencers=$2
@@ -320,6 +330,7 @@ while [[ $# -gt 0 ]]; do
             echo --l2-anytrust     run the L2 as an AnyTrust chain
             echo --l2-referenceda  run the L2 with reference external data availability provider
             echo --l2-timeboost    run the L2 with Timeboost enabled, including auctioneer and bid validator
+            echo --num-validators  number of validators for proof-of-stake consensus [1-1000] \(default: 64\)
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
@@ -343,6 +354,10 @@ while [[ $# -gt 0 ]]; do
             exit 0
     esac
 done
+
+# Export NUM_VALIDATORS for docker-compose
+export NUM_VALIDATORS=$num_validators
+echo "Using NUM_VALIDATORS: $NUM_VALIDATORS"
 
 NODES="sequencer"
 INITIAL_SEQ_NODES="sequencer"
