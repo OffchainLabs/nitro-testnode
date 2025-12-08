@@ -200,7 +200,6 @@ function writeConfigs(argv: any) {
         "node": {
             "bold": {
                 "rpc-block-number": "latest",
-                "strategy": "makeNodes",
                 "assertion-posting-interval": "10s"
             },
             "staker": {
@@ -216,7 +215,6 @@ function writeConfigs(argv: any) {
                 "enable": false,
                 "staker-interval": "10s",
                 "make-assertion-interval": "10s",
-                "strategy": "MakeNodes",
             },
             "sequencer": false,
             "dangerous": {
