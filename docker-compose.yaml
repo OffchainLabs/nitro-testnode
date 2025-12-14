@@ -437,17 +437,38 @@ services:
 
   referenceda-provider:
     pid: host # allow debugging
-    image: nitro-node-dev-testnode
-    entrypoint: /usr/local/bin/daprovider
-    ports:
-      - "127.0.0.1:9880:9880"
-    volumes:
-      - "config:/config"
-      - "referenceda-provider-data:/data"
-      - "contracts:/contracts"
-      - "contracts-local:/contracts-local"
-    command:
-      - --conf.file=/config/referenceda_provider.json
+    image: ghcr.io/layr-labs/eigenda-proxy:dev
+    environment:
+      EIGENDA_PROXY_MEMSTORE_ENABLED: true
+      EIGENDA_PROXY_ARB_DA_PORT: 9880
+      EIGENDA_PROXY_APIS_TO_ENABLE: arb
+      EIGENDA_PROXY_STORAGE_BACKENDS_TO_ENABLE: V2
+      EIGENDA_PROXY_STORAGE_DISPERSAL_BACKEND: V2
+      EIGENDA_PROXY_STORAGE_CACHE_TARGETS: ""
+      EIGENDA_PROXY_EIGENDA_V2_SIGNER_PRIVATE_KEY_HEX: "61ed8441f9781743271def8f1cc1639815d1fc5eee92aac44962a8c8f5268f51"
+      EIGENDA_PROXY_EIGENDA_V2_ETH_RPC: https://ethereum-sepolia.rpc.subquery.network/public
+      EIGENDA_PROXY_EIGENDA_V2_NETWORK: sepolia_testnet
+      EIGENDA_PROXY_EIGENDA_V2_MAX_BLOB_LENGTH: 1MiB
+      EIGENDA_PROXY_EIGENDA_V2_CERT_VERIFIER_ROUTER_OR_IMMUTABLE_VERIFIER_ADDR: 0x17ec4112c4BbD540E2c1fE0A49D264a280176F0D
+      EIGENDA_PROXY_EIGENDA_V2_RBN_RECENCY_WINDOW_SIZE: 0
+      EIGENDA_PROXY_EIGENDA_SIGNER_PRIVATE_KEY_HEX: "0000000000000000000100000000000000000000000000000000000000000000"
+      EIGENDA_PROXY_EIGENDA_ETH_RPC: https://ethereum-sepolia.rpc.subquery.network/public
+      EIGENDA_PROXY_EIGENDA_DISPERSER_RPC: disperser-testnet-sepolia.eigenda.xyz:443
+      EIGENDA_PROXY_EIGENDA_SERVICE_MANAGER_ADDR: 0x3a5acf46ba6890B8536420F4900AC9BC45Df4764
+      EIGENDA_PROXY_EIGENDA_CUSTOM_QUORUM_IDS: 
+      EIGENDA_PROXY_EIGENDA_CONFIRMATION_DEPTH: 6
+      EIGENDA_PROXY_EIGENDA_MAX_BLOB_LENGTH: 1MiB
+
+    # entrypoint: /usr/local/bin/daprovider
+    # ports:
+    #   - "127.0.0.1:9880:9880"
+    # volumes:
+    #   - "config:/config"
+    #   - "referenceda-provider-data:/data"
+    #   - "contracts:/contracts"
+    #   - "contracts-local:/contracts-local"
+    # command:
+    #   - --conf.file=/config/referenceda_provider.json
 
   timeboost-auctioneer:
     pid: host # allow debugging

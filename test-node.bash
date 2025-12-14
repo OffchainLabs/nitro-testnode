@@ -527,18 +527,20 @@ if $force_init; then
 
     if $l2referenceda; then
         docker compose run --rm --entrypoint sh referenceda-provider -c "true" # Noop to mount shared volumes with contracts for manual build and deployment
+        echo sleeping to give eigenda x customda server time startup
+        sleep 15s
 
-        echo "== Generating Reference DA keys"
-        docker compose run --rm --user root --entrypoint sh datool -c "mkdir /referenceda-provider/keys && chown -R 1000:1000 /referenceda-provider*"
-        docker compose run --rm datool keygen --dir /referenceda-provider/keys --ecdsa
+        # echo "== Generating Reference DA keys"
+        # docker compose run --rm --user root --entrypoint sh datool -c "mkdir /referenceda-provider/keys && chown -R 1000:1000 /referenceda-provider*"
+        # docker compose run --rm datool keygen --dir /referenceda-provider/keys --ecdsa
 
-        referenceDASignerAddress=`docker compose run --rm --entrypoint sh rollupcreator -c "cat /referenceda-provider/keys/ecdsa.pub | sed 's/^04/0x/' | tr -d '\n' | cast keccak | tail -c 41 | cast to-check-sum-address"`
+        # referenceDASignerAddress=`docker compose run --rm --entrypoint sh rollupcreator -c "cat /referenceda-provider/keys/ecdsa.pub | sed 's/^04/0x/' | tr -d '\n' | cast keccak | tail -c 41 | cast to-check-sum-address"`
 
-        echo "== Deploying Reference DA Proof Validator contract on L2"
-        l2referenceDAValidatorAddress=`docker compose run --rm --entrypoint sh rollupcreator -c "cd /contracts-local && forge create src/osp/ReferenceDAProofValidator.sol:ReferenceDAProofValidator --rpc-url http://geth:8545 --private-key $l2ownerKey --broadcast --constructor-args [$referenceDASignerAddress]" | awk '/Deployed to:/ {print $NF}'`
+        # echo "== Deploying Reference DA Proof Validator contract on L2"
+        # l2referenceDAValidatorAddress=`docker compose run --rm --entrypoint sh rollupcreator -c "cd /contracts-local && forge create src/osp/ReferenceDAProofValidator.sol:ReferenceDAProofValidator --rpc-url http://geth:8545 --private-key $l2ownerKey --broadcast --constructor-args [$referenceDASignerAddress]" | awk '/Deployed to:/ {print $NF}'`
 
-        echo "== Generating Reference DA Config"
-        run_script write-l2-referenceda-config --validator-address $l2referenceDAValidatorAddress
+        # echo "== Generating Reference DA Config"
+        # run_script write-l2-referenceda-config --validator-address $l2referenceDAValidatorAddress
     fi
 
 fi # $force_init
