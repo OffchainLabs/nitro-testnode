@@ -8,7 +8,7 @@ BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 # nitro-contract workaround for testnode
 # 1. authorizing validator signer key since validator wallet is buggy
 #    - gas estimation sent from 0x0000 lead to balance and permission error
-DEFAULT_NITRO_CONTRACTS_VERSION="v3.1.0"
+DEFAULT_NITRO_CONTRACTS_VERSION="v3.2.0-beta.0"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.5"
 
 # Set default versions if not overriden by provided env vars
@@ -469,7 +469,7 @@ if $force_init; then
     docker compose run --rm --entrypoint sh geth -c "chown -R 1000:1000 /config"
 
     echo == Writing geth configs
-    run_script write-geth-genesis-config
+    run_script write-geth-genesis-config --usePredeploys
 
     if $consensusclient; then
       echo == Writing prysm configs
