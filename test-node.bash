@@ -62,7 +62,7 @@ simple=true
 l2anytrust=false
 l2referenceda=false
 l2timeboost=false
-usePredeploys=false
+usePredeploys=true
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -276,8 +276,8 @@ while [[ $# -gt 0 ]]; do
             l2timeboost=true
             shift
             ;;
-        --use-predeploys)
-            usePredeploys=true
+        --no-predeploys)
+            usePredeploys=false
             shift
             ;;
         --redundantsequencers)
@@ -325,7 +325,7 @@ while [[ $# -gt 0 ]]; do
             echo --l2-anytrust     run the L2 as an AnyTrust chain
             echo --l2-referenceda  run the L2 with reference external data availability provider
             echo --l2-timeboost    run the L2 with Timeboost enabled, including auctioneer and bid validator
-            echo --use-predeploys  predeploy contracts present in /scripts/resources/predeploys.json
+            echo --no-predeploys   do not use predeploy contracts present in /scripts/resources/predeploys.json
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
