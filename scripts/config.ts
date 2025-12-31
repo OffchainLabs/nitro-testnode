@@ -166,8 +166,9 @@ function writeGethGenesisConfig(argv: any) {
     
     // Add predeploys
     if (argv.usePredeploys) {
-        const predeploys = JSON.parse(fs.readFileSync(path.join(consts.resourcespath, "predeploys.json")).toString())
-        gethConfig["alloc"] = { ...gethConfig["alloc"], ...predeploys }
+        const l2RollupCreatorPredeploys = JSON.parse(fs.readFileSync(path.join(consts.resourcespath, "l2-rollupcreator-predeploys.json")).toString())
+        const l2TokenBridgeCreatorPredeploys = JSON.parse(fs.readFileSync(path.join(consts.resourcespath, "l2-tokenbridgecreator-predeploys.json")).toString())
+        gethConfig["alloc"] = { ...gethConfig["alloc"], ...l2RollupCreatorPredeploys, ...l2TokenBridgeCreatorPredeploys }
     }
 
     fs.writeFileSync(path.join(consts.configpath, "geth_genesis.json"), JSON.stringify(gethConfig, null, 2))

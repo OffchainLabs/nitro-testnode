@@ -9,7 +9,7 @@ BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 # 1. authorizing validator signer key since validator wallet is buggy
 #    - gas estimation sent from 0x0000 lead to balance and permission error
 DEFAULT_NITRO_CONTRACTS_VERSION="v3.2.0-beta.0"
-DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.5"
+DEFAULT_TOKEN_BRIDGE_VERSION="e222d4cdaeefc87773e39a5fce980667a80b886b"
 
 # Set default versions if not overriden by provided env vars
 : ${NITRO_CONTRACTS_BRANCH:=$DEFAULT_NITRO_CONTRACTS_VERSION}
