@@ -126,6 +126,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --dev-contracts)
             dev_contracts=true
+            shift
             ;;
         --ci)
             ci=true
