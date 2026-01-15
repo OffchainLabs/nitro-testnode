@@ -1,5 +1,5 @@
 # Stage 1: Base build environment
-FROM node:20-bookworm-slim AS base
+FROM node:20-trixie-slim AS base
 WORKDIR /workspace
 COPY ./package.json ./yarn.lock ./
 RUN yarn
