@@ -8,8 +8,8 @@ BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 # nitro-contract workaround for testnode
 # 1. authorizing validator signer key since validator wallet is buggy
 #    - gas estimation sent from 0x0000 lead to balance and permission error
-DEFAULT_NITRO_CONTRACTS_VERSION="v3.1.0"
-DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.5"
+DEFAULT_NITRO_CONTRACTS_VERSION="v3.2.0-beta.0"
+DEFAULT_TOKEN_BRIDGE_VERSION="e222d4cdaeefc87773e39a5fce980667a80b886b"
 
 # Set default versions if not overriden by provided env vars
 : ${NITRO_CONTRACTS_BRANCH:=$DEFAULT_NITRO_CONTRACTS_VERSION}
@@ -62,6 +62,7 @@ simple=true
 l2anytrust=false
 l2referenceda=false
 l2timeboost=false
+usePredeploys=true
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -275,6 +276,10 @@ while [[ $# -gt 0 ]]; do
             l2timeboost=true
             shift
             ;;
+        --no-predeploys)
+            usePredeploys=false
+            shift
+            ;;
         --redundantsequencers)
             simple=false
             redundantsequencers=$2
@@ -320,6 +325,7 @@ while [[ $# -gt 0 ]]; do
             echo --l2-anytrust     run the L2 as an AnyTrust chain
             echo --l2-referenceda  run the L2 with reference external data availability provider
             echo --l2-timeboost    run the L2 with Timeboost enabled, including auctioneer and bid validator
+            echo --no-predeploys   do not use predeploy contracts present in /scripts/resources/predeploys.json
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
@@ -469,7 +475,11 @@ if $force_init; then
     docker compose run --rm --entrypoint sh geth -c "chown -R 1000:1000 /config"
 
     echo == Writing geth configs
-    run_script write-geth-genesis-config
+    if $usePredeploys; then
+        run_script write-geth-genesis-config --usePredeploys
+    else
+        run_script write-geth-genesis-config
+    fi
 
     if $consensusclient; then
       echo == Writing prysm configs
