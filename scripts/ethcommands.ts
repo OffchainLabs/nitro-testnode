@@ -808,3 +808,23 @@ export const waitForSyncCommand = {
     } while (syncStatus !== false)
   },
 };
+
+export const grantFiltererRoleCommand = {
+  command: "grant-filterer-role",
+  describe: "grants TransactionFilterer role to the filterer account",
+  handler: async (argv: any) => {
+    argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
+
+    const arbOwnerIface = new ethers.utils.Interface([
+      "function addTransactionFilterer(address filterer) external"
+    ]);
+
+    argv.data = arbOwnerIface.encodeFunctionData("addTransactionFilterer", [namedAddress("filterer")]);
+    argv.from = "l2owner";
+    argv.to = "address_" + ARB_OWNER;
+    argv.ethamount = "0";
+
+    await runStress(argv, sendTransaction);
+    argv.provider.destroy();
+  }
+};

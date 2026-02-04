@@ -480,6 +480,37 @@ services:
     depends_on:
       - redis
 
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - "minio-data:/data"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  transaction-filterer:
+    pid: host
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/transaction-filterer
+    ports:
+      - "127.0.0.1:8549:8547"
+    volumes:
+      - "config:/config"
+      - "l1keystore:/home/user/l1keystore"
+    command:
+      - --conf.file=/config/transaction_filterer_config.json
+    depends_on:
+      - sequencer
+
 volumes:
   l1data:
   consensus:
@@ -503,3 +534,4 @@ volumes:
   timeboost-auctioneer-data:
   contracts:
   contracts-local:
+  minio-data:

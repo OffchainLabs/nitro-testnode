@@ -6,6 +6,7 @@
   "author": "Offchain Labs, Inc.",
   "license": "Apache-2.0",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.982.0",
     "@arbitrum/nitro-contracts": "^3.1.1",
     "@arbitrum/token-bridge-contracts": "1.2.0",
     "@node-redis/client": "^1.0.4",
