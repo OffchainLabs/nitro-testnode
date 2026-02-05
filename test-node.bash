@@ -523,13 +523,16 @@ if $force_init; then
 
     l2ownerAddress=`run_script print-address --account l2owner | tail -n 1 | tr -d '\r\n'`
 
+    l2ChainConfigFlags=""
     if $l2anytrust; then
-        echo "== Writing l2 chain config (anytrust enabled)"
-        run_script --l2owner $l2ownerAddress write-l2-chain-config --anytrust
-    else
-        echo "== Writing l2 chain config"
-        run_script --l2owner $l2ownerAddress write-l2-chain-config
+        l2ChainConfigFlags="$l2ChainConfigFlags --anytrust"
     fi
+    if $l2txfiltering; then
+        l2ChainConfigFlags="$l2ChainConfigFlags --txfiltering"
+    fi
+
+    echo "== Writing l2 chain config"
+    run_script --l2owner $l2ownerAddress write-l2-chain-config $l2ChainConfigFlags
 
     sequenceraddress=`run_script print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
     l2ownerKey=`run_script print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`

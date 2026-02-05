@@ -473,7 +473,7 @@ function writeL2ChainConfig(argv: any) {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
             "DataAvailabilityCommittee": argv.anytrust,
-            "InitialArbOSVersion": 60,
+            "InitialArbOSVersion": argv.txfiltering ? 60 : 40,
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
@@ -506,7 +506,7 @@ function writeL3ChainConfig(argv: any) {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
             "DataAvailabilityCommittee": false,
-            "InitialArbOSVersion": 60,
+            "InitialArbOSVersion": 40,
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
@@ -747,6 +747,11 @@ export const writeL2ChainConfigCommand = {
         anytrust: {
             boolean: true,
             describe: "enable anytrust in chainconfig",
+            default: false
+        },
+        txfiltering: {
+            boolean: true,
+            describe: "enable transaction filtering (requires ArbOS version 60)",
             default: false
         }
     },
