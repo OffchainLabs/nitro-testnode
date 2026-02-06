@@ -199,6 +199,27 @@ function getChainInfo(): ChainInfo {
     return chainInfo;
 }
 
+function applyTxFilteringConfig(config: any) {
+    config.execution["address-filter"] = {
+        "enable": true,
+        "s3": {
+            "access-key": "minioadmin",
+            "secret-key": "minioadmin",
+            "region": "us-east-1",
+            "endpoint": "http://minio:9000",
+            "bucket": "tx-filtering",
+            "object-key": "address-hashes.json"
+        },
+        "poll-interval": "30s"
+    };
+    config.execution["transaction-filterer-rpc-client"] = {
+        "url": "http://transaction-filterer:8547"
+    };
+    config["init"] = {
+        "transaction-filtering-enabled": true
+    };
+}
+
 function writeConfigs(argv: any) {
     const valJwtSecret = path.join(consts.configpath, "val_jwt.hex")
     const chainInfoFile = path.join(consts.configpath, "l2_chain_info.json")
@@ -331,24 +352,7 @@ function writeConfigs(argv: any) {
             simpleConfig.node["data-availability"]["rpc-aggregator"].enable = true
         }
         if (argv.txfiltering) {
-            simpleConfig.execution["address-filter"] = {
-                "enable": true,
-                "s3": {
-                    "access-key": "minioadmin",
-                    "secret-key": "minioadmin",
-                    "region": "us-east-1",
-                    "endpoint": "http://minio:9000",
-                    "bucket": "tx-filtering",
-                    "object-key": "address-hashes.json"
-                },
-                "poll-interval": "30s"
-            };
-            simpleConfig.execution["transaction-filterer-rpc-client"] = {
-                "url": "http://transaction-filterer:8547"
-            };
-            simpleConfig["init"] = {
-                "transaction-filtering-enabled": true
-            };
+            applyTxFilteringConfig(simpleConfig);
         }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(simpleConfig))
     } else {
@@ -374,24 +378,7 @@ function writeConfigs(argv: any) {
             };
         }
         if (argv.txfiltering) {
-            sequencerConfig.execution["address-filter"] = {
-                "enable": true,
-                "s3": {
-                    "access-key": "minioadmin",
-                    "secret-key": "minioadmin",
-                    "region": "us-east-1",
-                    "endpoint": "http://minio:9000",
-                    "bucket": "tx-filtering",
-                    "object-key": "address-hashes.json"
-                },
-                "poll-interval": "30s"
-            };
-            sequencerConfig.execution["transaction-filterer-rpc-client"] = {
-                "url": "http://transaction-filterer:8547"
-            };
-            sequencerConfig["init"] = {
-                "transaction-filtering-enabled": true
-            };
+            applyTxFilteringConfig(sequencerConfig);
         }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
 
