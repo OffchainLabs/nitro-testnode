@@ -62,6 +62,7 @@ simple=true
 l2anytrust=false
 l2referenceda=false
 l2timeboost=false
+l2txfiltering=false
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -275,6 +276,10 @@ while [[ $# -gt 0 ]]; do
             l2timeboost=true
             shift
             ;;
+        --l2-tx-filtering)
+            l2txfiltering=true
+            shift
+            ;;
         --redundantsequencers)
             simple=false
             redundantsequencers=$2
@@ -320,6 +325,7 @@ while [[ $# -gt 0 ]]; do
             echo --l2-anytrust     run the L2 as an AnyTrust chain
             echo --l2-referenceda  run the L2 with reference external data availability provider
             echo --l2-timeboost    run the L2 with Timeboost enabled, including auctioneer and bid validator
+            echo --l2-tx-filtering  run the L2 with transaction filtering enabled
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
@@ -390,6 +396,10 @@ fi
 
 if $l2timeboost; then
     NODES="$NODES timeboost-auctioneer timeboost-bid-validator"
+fi
+
+if $l2txfiltering; then
+    NODES="$NODES minio transaction-filterer"
 fi
 
 if $dev_nitro && $build_dev_nitro; then
@@ -494,6 +504,14 @@ if $force_init; then
     echo == Waiting for geth to sync
     run_script wait-for-sync --url http://geth:8545
 
+    if $l2txfiltering; then
+        echo == Starting MinIO
+        docker compose up --wait minio
+
+        echo == Initializing MinIO bucket and address list
+        run_script init-tx-filtering-minio
+    fi
+
     echo == Funding validator, sequencer and l2owner
     run_script send-l1 --ethamount 1000 --to validator --wait
     run_script send-l1 --ethamount 1000 --to sequencer --wait
@@ -505,13 +523,16 @@ if $force_init; then
 
     l2ownerAddress=`run_script print-address --account l2owner | tail -n 1 | tr -d '\r\n'`
 
+    l2ChainConfigFlags=""
     if $l2anytrust; then
-        echo "== Writing l2 chain config (anytrust enabled)"
-        run_script --l2owner $l2ownerAddress write-l2-chain-config --anytrust
-    else
-        echo "== Writing l2 chain config"
-        run_script --l2owner $l2ownerAddress write-l2-chain-config
+        l2ChainConfigFlags="$l2ChainConfigFlags --anytrust"
     fi
+    if $l2txfiltering; then
+        l2ChainConfigFlags="$l2ChainConfigFlags --txfiltering"
+    fi
+
+    echo "== Writing l2 chain config"
+    run_script --l2owner $l2ownerAddress write-l2-chain-config $l2ChainConfigFlags
 
     sequenceraddress=`run_script print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
     l2ownerKey=`run_script print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
@@ -546,6 +567,7 @@ fi # $force_init
 anytrustNodeConfigLine=""
 referenceDaNodeConfigLine=""
 timeboostNodeConfigLine=""
+txFilteringNodeConfigLine=""
 
 # Remaining init may require AnyTrust committee/mirrors to have been started
 if $l2anytrust; then
@@ -586,12 +608,15 @@ if $force_init; then
     if $l2referenceda; then
         referenceDaNodeConfigLine="--referenceDA"
     fi
+    if $l2txfiltering; then
+        txFilteringNodeConfigLine="--txfiltering"
+    fi
 
     echo "== Writing configs"
     if $simple; then
-        run_script write-config --simple $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine
+        run_script write-config --simple $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine
     else
-        run_script write-config $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine
+        run_script write-config $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine
 
         echo == Initializing redis
         docker compose up --wait redis
@@ -623,6 +648,17 @@ if $force_init; then
 
         docker compose run --rm --entrypoint sh scripts -c "sed -i 's/\(\"execution\":{\"sequencer\":{\"enable\":true,\"timeboost\":{\"enable\":\)false/\1true,\"auction-contract-address\":\"$auctionContractAddress\",\"auctioneer-address\":\"$auctioneerAddress\"/' /config/sequencer_config.json" --wait
         docker compose restart $INITIAL_SEQ_NODES
+    fi
+
+    if $l2txfiltering; then
+        echo == Funding transaction filterer account
+        run_script send-l2 --ethamount 100 --to filterer --wait
+
+        echo == Granting TransactionFilterer role
+        run_script grant-filterer-role
+
+        echo == Writing transaction-filterer service config
+        run_script write-tx-filterer-config
     fi
 
     if $tokenbridge; then

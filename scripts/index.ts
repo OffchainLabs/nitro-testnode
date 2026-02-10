@@ -12,7 +12,12 @@ import {
   writeL2DASMirrorConfigCommand,
   writeL2DASKeysetConfigCommand,
   writeL2ReferenceDAConfigCommand,
-  writeTimeboostConfigsCommand
+  writeTimeboostConfigsCommand,
+  writeTransactionFiltererConfigCommand,
+  initTxFilteringMinioCommand,
+  hashAddressCommand,
+  addFilteredAddressCommand,
+  removeFilteredAddressCommand,
 } from "./config";
 import {
   printAddressCommand,
@@ -37,6 +42,7 @@ import {
   waitForSyncCommand,
   transferL3ChainOwnershipCommand,
   createFeeTokenPricerCommand,
+  grantFiltererRoleCommand,
 } from "./ethcommands";
 
 async function main() {
@@ -77,6 +83,12 @@ async function main() {
     .command(writePrysmCommand)
     .command(writeAccountsCommand)
     .command(writeTimeboostConfigsCommand)
+    .command(writeTransactionFiltererConfigCommand)
+    .command(initTxFilteringMinioCommand)
+    .command(hashAddressCommand)
+    .command(addFilteredAddressCommand)
+    .command(removeFilteredAddressCommand)
+    .command(grantFiltererRoleCommand)
     .command(printAddressCommand)
     .command(printPrivateKeyCommand)
     .command(redisReadCommand)
