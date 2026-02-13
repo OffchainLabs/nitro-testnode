@@ -50,6 +50,8 @@ blockscout=false
 tokenbridge=false
 l3node=false
 consensusclient=false
+run_consensus_and_execution_in_different_processes=false
+follower_node=false
 redundantsequencers=0
 l3_custom_fee_token=false
 l3_custom_fee_token_pricer=false
@@ -172,6 +174,14 @@ while [[ $# -gt 0 ]]; do
         --force-build-utils)
             force_build_utils=true
             build_utils=true
+            shift
+            ;;
+        --run-consensus-and-execution-in-different-processes)
+            run_consensus_and_execution_in_different_processes=true
+            shift
+            ;;
+        --follower-node)
+            follower_node=true
             shift
             ;;
         --validate)
@@ -321,6 +331,7 @@ while [[ $# -gt 0 ]]; do
             echo --l2-referenceda  run the L2 with reference external data availability provider
             echo --l2-timeboost    run the L2 with Timeboost enabled, including auctioneer and bid validator
             echo --batchposters    batch posters [0-3]
+            echo --follower-node   run a follower node 
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
             echo --blockscout      build or launch blockscout
@@ -337,6 +348,7 @@ while [[ $# -gt 0 ]]; do
             echo --no-build-dev-blockscout  don\'t rebuild dev blockscout docker image
             echo --build-utils         rebuild scripts, rollupcreator, token bridge docker images
             echo --no-build-utils      don\'t rebuild scripts, rollupcreator, token bridge docker images
+            echo --run-consensus-and-execution-in-different-processes  run consensus and execution node in different processed communicating over rpc
             echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_BRANCH or TOKEN_BRIDGE_BRANCH changes
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
@@ -344,8 +356,43 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# TODO: We can't run a full execution client and a consensus in different processes. Needs https://github.com/OffchainLabs/nitro/pull/4264
+# NODES=""
+# INITIAL_SEQ_NODES=""
+
+# # TODO: what to do in case when l3node is enabled or l2timeboost is enabled? sequencer seems to be hardcoded there.
+# if $run_consensus_and_execution_in_different_processes && $simple; then
+#     echo == Setting up node to run in split mode using RPC
+#     NODES="$NODES sequencer consensus-follower-node execution-follower-node"
+#     INITIAL_SEQ_NODES="$INITIAL_SEQ_NODES sequencer consensus-follower-node execution-follower-node"
+#     if [ $redundantsequencers -gt 0 ]; then
+#         echo !!! Redundant sequencers not allowed when running in split mode !!!
+#     fi
+# else
+#     NODES="$NODES sequencer"
+#     INITIAL_SEQ_NODES="$INITIAL_SEQ_NODES sequencer"
+#     if [ $redundantsequencers -gt 0 ]; then
+#         NODES="$NODES sequencer_b"
+#         INITIAL_SEQ_NODES="$INITIAL_SEQ_NODES sequencer_b"
+#     fi
+#     if [ $redundantsequencers -gt 1 ]; then
+#         NODES="$NODES sequencer_c"
+#     fi
+#     if [ $redundantsequencers -gt 2 ]; then
+#         NODES="$NODES sequencer_d"
+#     fi
+# fi
+
 NODES="sequencer"
 INITIAL_SEQ_NODES="sequencer"
+
+if $run_consensus_and_execution_in_different_processes && $simple; then
+    NODES="$NODES consensus-follower-node execution-follower-node"
+fi
+
+if $follower_node && $simple; then
+    NODES="$NODES regular-follower-node"
+fi
 
 if ! $simple; then
     NODES="$NODES redis"
@@ -598,10 +645,13 @@ if $force_init; then
         run_script redis-init --redundancy $redundantsequencers
     fi
 
-    echo == Funding l2 funnel and dev key
+    echo == Spinning up sequencer nodes
     docker compose up --wait $INITIAL_SEQ_NODES
+    echo == Sleeping for 45s allow for parent chain to recieve the contract creation tx and process it
     sleep 45 # in case we need to create a smart contract wallet, allow for parent chain to recieve the contract creation tx and process it
+    echo == Funding l2 funnel and dev key
     run_script bridge-funds --ethamount 100000 --wait
+    echo == Funding l2owner
     run_script send-l2 --ethamount 100 --to l2owner --wait
     rollupAddress=`docker compose run --rm --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
 

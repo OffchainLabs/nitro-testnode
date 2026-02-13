@@ -303,6 +303,11 @@ function writeConfigs(argv: any) {
 
     const baseConfJSON = JSON.stringify(baseConfig)
 
+    // setup consensus config
+    let consensusConfig = JSON.parse(baseConfJSON)
+    consensusConfig.persistent.chain = "consensus-local"
+    fs.writeFileSync(path.join(consts.configpath, "consensus_config.json"), JSON.stringify(consensusConfig))
+
     if (argv.simple) {
         let simpleConfig = JSON.parse(baseConfJSON)
         simpleConfig.node.staker.enable = true
