@@ -268,9 +268,6 @@ function writeConfigs(argv: any) {
                     "enable": true,
                     "urls": ["http://das-mirror:9877"],
                 },
-                // TODO Fix das config to not need this redundant config
-                "parent-chain-node-url": argv.l1url,
-                "sequencer-inbox-address": "not_set"
             }
         },
         "execution": {
@@ -292,11 +289,8 @@ function writeConfigs(argv: any) {
         },
     }
 
-    baseConfig.node["data-availability"]["sequencer-inbox-address"] = ethers.utils.hexlify(getChainInfo()[0]["rollup"]["sequencer-inbox"]);
-
     if (argv.referenceDA) {
         (baseConfig as any).node["da"] = {
-            "mode": "external",
             "external-provider": {
                 "enable": true,
                 "with-writer": false,
@@ -308,6 +302,11 @@ function writeConfigs(argv: any) {
     }
 
     const baseConfJSON = JSON.stringify(baseConfig)
+
+    // setup consensus config
+    let consensusConfig = JSON.parse(baseConfJSON)
+    consensusConfig.persistent.chain = "consensus-local"
+    fs.writeFileSync(path.join(consts.configpath, "consensus_config.json"), JSON.stringify(consensusConfig))
 
     if (argv.simple) {
         let simpleConfig = JSON.parse(baseConfJSON)
@@ -480,8 +479,10 @@ function writeL2DASCommitteeConfig(argv: any) {
                 "enable": true,
                 "enable-expiry": true
             },
-            "sequencer-inbox-address": sequencerInboxAddr,
-            "parent-chain-node-url": argv.l1url
+        },
+        "parent-chain": {
+            "node-url": argv.l1url,
+            "sequencer-inbox-address": sequencerInboxAddr
         },
         "enable-rest": true,
         "enable-rpc": true,
@@ -504,8 +505,6 @@ function writeL2DASMirrorConfig(argv: any, sequencerInboxAddr: string) {
                 "enable": true,
                 "enable-expiry": false
             },
-            "sequencer-inbox-address": sequencerInboxAddr,
-            "parent-chain-node-url": argv.l1url,
             "rest-aggregator": {
                 "enable": true,
                 "sync-to-storage": {
@@ -516,6 +515,10 @@ function writeL2DASMirrorConfig(argv: any, sequencerInboxAddr: string) {
                 },
                 "urls": ["http://das-committee-a:9877", "http://das-committee-b:9877"],
             }
+        },
+        "parent-chain": {
+            "node-url": argv.l1url,
+            "sequencer-inbox-address": sequencerInboxAddr
         },
         "enable-rest": true,
         "enable-rpc": false,

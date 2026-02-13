@@ -154,6 +154,99 @@ services:
       - "consensus:/consensus"
       - "config:/config"
 
+  execution-follower-node:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/nitro
+    ports:
+      - "127.0.0.1:7247:8547"
+      - "127.0.0.1:7248:8548"
+      - "127.0.0.1:9682:9682"
+    volumes:
+      - "seqdata:/home/user/.arbitrum/local/nitro"
+      - "l1keystore:/home/user/l1keystore"
+      - "config:/config"
+      - "tokenbridge-data:/tokenbridge-data"
+    command:
+      - --conf.file=/config/consensus_config.json
+      - --node.feed.output.enable
+      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
+      - --node.seq-coordinator.my-url=http://sequencer:8547
+      - --graphql.enable
+      - --graphql.vhosts=*
+      - --graphql.corsdomain=*
+      - --ws.addr=0.0.0.0
+      - --ws.port=9682
+      - --ws.api=net,web3,eth,txpool,debug,nitroexecution
+      - --execution.rpc-server.enable
+      - --execution.rpc-server.public
+      - --execution.rpc-server.authenticated=false
+      - --execution.consensus-rpc-client.url=ws://consensus-follower-node:8552
+      - --execution.consensus-rpc-client.jwtsecret=/config/jwt.hex
+      - --execution.consensus-rpc-client.retries=3
+      - --execution.consensus-rpc-client.connection-wait=15s
+      - --execution.consensus-rpc-client.retry-delay=1s
+    depends_on:
+      - geth
+
+  consensus-follower-node:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/nitro
+    ports:
+      - "127.0.0.1:7147:8547"
+      - "127.0.0.1:7148:8548"
+      - "127.0.0.1:8552:8552"
+    volumes:
+      - "seqdata:/home/user/.arbitrum/local/nitro"
+      - "l1keystore:/home/user/l1keystore"
+      - "config:/config"
+      - "tokenbridge-data:/tokenbridge-data"
+    command:
+      - --conf.file=/config/consensus_config.json
+      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
+      - --node.seq-coordinator.my-url=http://sequencer:8547
+      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
+      - --graphql.enable
+      - --graphql.vhosts=*
+      - --graphql.corsdomain=*
+      - --ws.addr=0.0.0.0
+      - --ws.port=8552
+      - --ws.api=net,web3,eth,txpool,debug,nitroconsensus
+      - --node.rpc-server.enable
+      - --node.rpc-server.public
+      - --node.rpc-server.authenticated=false
+      - --node.execution-rpc-client.url=ws://execution-follower-node:9682
+      - --node.execution-rpc-client.jwtsecret=/config/jwt.hex
+      - --node.execution-rpc-client.retries=3
+      - --node.execution-rpc-client.connection-wait=15s
+      - --node.execution-rpc-client.retry-delay=1s
+    depends_on:
+      - geth
+
+  regular-follower-node:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/nitro
+    ports:
+      - "127.0.0.1:7447:8547"
+      - "127.0.0.1:7548:8548"
+    volumes:
+      - "seqdata:/home/user/.arbitrum/local/nitro"
+      - "l1keystore:/home/user/l1keystore"
+      - "config:/config"
+      - "tokenbridge-data:/tokenbridge-data"
+    command:
+      - --conf.file=/config/consensus_config.json
+      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
+      - --node.seq-coordinator.my-url=http://sequencer:8547
+      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
+      - --graphql.enable
+      - --graphql.vhosts=*
+      - --graphql.corsdomain=*
+    depends_on:
+      - geth
+
   sequencer:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
