@@ -200,24 +200,44 @@ function getChainInfo(): ChainInfo {
 }
 
 function applyTxFilteringConfig(config: any) {
-    config.execution["address-filter"] = {
-        "enable": true,
-        "s3": {
-            "access-key": "minioadmin",
-            "secret-key": "minioadmin",
-            "region": "us-east-1",
-            "endpoint": "http://minio:9000",
-            "bucket": "tx-filtering",
-            "object-key": "address-hashes.json"
+    config.execution.sequencer["transaction-filtering"] = {
+        "address-filter": {
+            "enable": true,
+            "s3": {
+                "access-key": "minioadmin",
+                "secret-key": "minioadmin",
+                "region": "us-east-1",
+                "endpoint": "http://minio:9000",
+                "bucket": "tx-filtering",
+                "object-key": "address-hashes.json"
+            },
+            "poll-interval": "30s"
         },
-        "poll-interval": "30s"
+        "transaction-filterer-rpc-client": {
+            "url": "http://transaction-filterer:8547"
+        }
     };
-    config.execution["transaction-filterer-rpc-client"] = {
-        "url": "http://transaction-filterer:8547"
+}
+
+function generateL2GenesisJson() {
+    const chainConfigPath = path.join(consts.configpath, "l2_chain_config.json");
+    const chainConfigStr = fs.readFileSync(chainConfigPath).toString();
+
+    const genesis = {
+        "serializedChainConfig": chainConfigStr,
+        "arbOSInit": {
+            "transactionFilteringEnabled": true,
+            "nativeTokenSupplyManagementEnabled": false
+        },
+        "gasLimit": "0x0",
+        "difficulty": "0x0",
+        "alloc": {}
     };
-    config["init"] = {
-        "transaction-filtering-enabled": true
-    };
+
+    fs.writeFileSync(
+        path.join(consts.configpath, "l2_genesis.json"),
+        JSON.stringify(genesis)
+    );
 }
 
 function writeConfigs(argv: any) {
@@ -335,6 +355,13 @@ function writeConfigs(argv: any) {
         }
     }
 
+    if (argv.txfiltering) {
+        generateL2GenesisJson();
+        (baseConfig as any)["init"] = {
+            "genesis-json-file": "/config/l2_genesis.json"
+        };
+    }
+
     const baseConfJSON = JSON.stringify(baseConfig)
 
     if (argv.simple) {
@@ -395,6 +422,7 @@ function writeConfigs(argv: any) {
     }
 
     let l3Config = JSON.parse(baseConfJSON)
+    delete l3Config["init"]
     l3Config["parent-chain"].connection.url = argv.l2url
     // use the same account for l2 and l3 staker
     // l3Config.node.staker["parent-chain-wallet"].account = namedAddress("l3owner")
