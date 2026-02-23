@@ -218,6 +218,9 @@ function writeConfigs(argv: any) {
                 "make-assertion-interval": "10s",
                 "strategy": "MakeNodes",
             },
+            "message-extraction": {
+                "enable": true,
+            },
             "sequencer": false,
             "dangerous": {
                 "no-sequencer-coordinator": false,
