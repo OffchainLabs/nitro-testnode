@@ -199,6 +199,17 @@ function getChainInfo(): ChainInfo {
     return chainInfo;
 }
 
+function createDataAvailabilityConfig(argv: any, anytrust: boolean) {
+    return {
+        "enable": anytrust,
+        "rpc-aggregator": dasBackendsJsonConfig(argv),
+        "rest-aggregator": {
+            "enable": true,
+            "urls": ["http://das-mirror:9877"],
+        },
+    }
+}
+
 function applyTxFilteringConfig(config: any) {
     config.execution.sequencer["transaction-filtering"] = {
         "address-filter": {
@@ -317,14 +328,7 @@ function writeConfigs(argv: any) {
                     "jwtsecret": valJwtSecret,
                 }
             },
-            "data-availability": {
-                "enable": argv.anytrust,
-                "rpc-aggregator": dasBackendsJsonConfig(argv),
-                "rest-aggregator": {
-                    "enable": true,
-                    "urls": ["http://das-mirror:9877"],
-                },
-            }
+            "data-availability": createDataAvailabilityConfig(argv, argv.anytrust)
         },
         "execution": {
             "sequencer": {
@@ -429,6 +433,7 @@ function writeConfigs(argv: any) {
     // use the same account for l2 and l3 staker
     // l3Config.node.staker["parent-chain-wallet"].account = namedAddress("l3owner")
     l3Config.node["batch-poster"]["parent-chain-wallet"].account = namedAddress("l3sequencer")
+    l3Config.node["data-availability"] = createDataAvailabilityConfig(argv, false)
     l3Config.chain.id = 333333
     const l3ChainInfoFile = path.join(consts.configpath, "l3_chain_info.json")
     l3Config.chain["info-files"] = [l3ChainInfoFile]
