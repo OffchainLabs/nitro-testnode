@@ -345,6 +345,8 @@ services:
       - "127.0.0.1:8949:4141"
     volumes:
       - "config:/config"
+    environment:
+      - RUST_LOG=tower_http=debug,info
     command: --address 0.0.0.0:4141 --root-path /home/user/target/machines
     healthcheck:
       test: ["CMD", "curl", "-sf", "-X", "POST", "-H", "Content-Type: application/json", "-d", '{"jsonrpc":"2.0","id":1,"method":"validation_name","params":[]}', "http://localhost:4141"]
