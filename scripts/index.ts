@@ -52,7 +52,7 @@ async function main() {
       l1url: { string: true, default: "ws://geth:8546" },
       l2url: { string: true, default: "ws://sequencer:8548" },
       l3url: { string: true, default: "ws://l3node:3348" },
-      validationNodeUrl: { string: true, default: "ws://validation_node:8549" },
+      validationNodeUrl: { string: true, default: "http://validation_node:4141" },
       l2owner: { string: true, default: "0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E" },
       committeeMember: { string: true, default: "not_set" },
     })

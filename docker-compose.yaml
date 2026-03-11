@@ -333,12 +333,12 @@ services:
   validation_node:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
-    entrypoint: /usr/local/bin/nitro-val
+    entrypoint: /usr/local/bin/validator
     ports:
-      - "127.0.0.1:8949:8549"
+      - "127.0.0.1:8949:4141"
     volumes:
       - "config:/config"
-    command: --conf.file /config/validation_node_config.json
+    command: --address 0.0.0.0:4141 --root-path /home/user/target/machines
 
   scripts:
     build: scripts/
