@@ -427,6 +427,10 @@ function writeConfigs(argv: any) {
         fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
     }
 
+    let consensusConfig = JSON.parse(baseConfJSON)
+    consensusConfig.persistent.chain = "consensus-local"
+    fs.writeFileSync(path.join(consts.configpath, "consensus_config.json"), JSON.stringify(consensusConfig))
+
     let l3Config = JSON.parse(baseConfJSON)
     delete l3Config["init"]
     l3Config["parent-chain"].connection.url = argv.l2url

@@ -163,7 +163,7 @@ services:
       - "127.0.0.1:7248:8548"
       - "127.0.0.1:9682:9682"
     volumes:
-      - "seqdata:/home/user/.arbitrum/local/nitro"
+      - "exec-follower-data:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
       - "tokenbridge-data:/tokenbridge-data"
@@ -198,13 +198,12 @@ services:
       - "127.0.0.1:7148:8548"
       - "127.0.0.1:8552:8552"
     volumes:
-      - "seqdata:/home/user/.arbitrum/local/nitro"
+      - "consensus-follower-data:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
       - "tokenbridge-data:/tokenbridge-data"
     command:
       - --conf.file=/config/consensus_config.json
-      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
       - --node.seq-coordinator.my-url=http://sequencer:8547
       - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
       - --graphql.enable
@@ -232,13 +231,12 @@ services:
       - "127.0.0.1:7447:8547"
       - "127.0.0.1:7548:8548"
     volumes:
-      - "seqdata:/home/user/.arbitrum/local/nitro"
+      - "regular-follower-data:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
       - "tokenbridge-data:/tokenbridge-data"
     command:
       - --conf.file=/config/consensus_config.json
-      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
       - --node.seq-coordinator.my-url=http://sequencer:8547
       - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
       - --graphql.enable
@@ -612,6 +610,9 @@ volumes:
   seqdata_b:
   seqdata_c:
   seqdata_d:
+  exec-follower-data:
+  consensus-follower-data:
+  regular-follower-data:
   unsafestaker-data:
   validator-data:
   poster-data:

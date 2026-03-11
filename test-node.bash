@@ -337,7 +337,6 @@ while [[ $# -gt 0 ]]; do
             echo --l2-timeboost    run the L2 with Timeboost enabled, including auctioneer and bid validator
             echo --l2-tx-filtering  run the L2 with transaction filtering enabled
             echo --batchposters    batch posters [0-3]
-            echo --follower-node   run a follower node 
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
             echo --blockscout      build or launch blockscout
@@ -354,6 +353,7 @@ while [[ $# -gt 0 ]]; do
             echo --no-build-dev-blockscout  don\'t rebuild dev blockscout docker image
             echo --build-utils         rebuild scripts, rollupcreator, token bridge docker images
             echo --no-build-utils      don\'t rebuild scripts, rollupcreator, token bridge docker images
+            echo --follower-node       run a follower node 
             echo --run-consensus-and-execution-in-different-processes  run consensus and execution node in different processed communicating over rpc
             echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_BRANCH or TOKEN_BRIDGE_BRANCH changes
             echo
