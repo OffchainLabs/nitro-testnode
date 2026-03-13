@@ -428,8 +428,10 @@ function writeConfigs(argv: any) {
     }
 
     let consensusConfig = JSON.parse(baseConfJSON)
-    consensusConfig.persistent.chain = "consensus-local"
-    fs.writeFileSync(path.join(consts.configpath, "consensus_config.json"), JSON.stringify(consensusConfig))
+    // Use a different persistent.chain name than the sequencer ("local") to avoid
+    // storage lock conflicts between services sharing the same volume.
+    consensusConfig.persistent.chain = "base-node-local"
+    fs.writeFileSync(path.join(consts.configpath, "base_node_config.json"), JSON.stringify(consensusConfig))
 
     let l3Config = JSON.parse(baseConfJSON)
     delete l3Config["init"]

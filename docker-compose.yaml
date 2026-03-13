@@ -167,7 +167,7 @@ services:
       - "config:/config"
       - "tokenbridge-data:/tokenbridge-data"
     command:
-      - --conf.file=/config/consensus_config.json
+      - --conf.file=/config/base_node_config.json
       - --node.feed.output.enable
       - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
       - --node.seq-coordinator.my-url=http://sequencer:8547
@@ -201,7 +201,7 @@ services:
       - "config:/config"
       - "tokenbridge-data:/tokenbridge-data"
     command:
-      - --conf.file=/config/consensus_config.json
+      - --conf.file=/config/base_node_config.json
       - --node.seq-coordinator.my-url=http://sequencer:8547
       - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
       - --graphql.enable
@@ -234,7 +234,7 @@ services:
       - "config:/config"
       - "tokenbridge-data:/tokenbridge-data"
     command:
-      - --conf.file=/config/consensus_config.json
+      - --conf.file=/config/base_node_config.json
       - --node.seq-coordinator.my-url=http://sequencer:8547
       - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
       - --graphql.enable

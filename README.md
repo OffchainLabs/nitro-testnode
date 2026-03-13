@@ -1,6 +1,6 @@
 # Nitro Testnode
 
-Nitro-testnode brings up a full environment for local nitro testing (with Stylus support) including a dev-mode geth L1, and multiple instances with different roles.
+Nitro-testnode brings up a full environment for local Nitro testing (with Stylus support) including a dev-mode Geth L1, and multiple node instances with different roles.
 
 ### Requirements
 
@@ -44,9 +44,40 @@ Initialize the node in dev-mode (this will build the docker images from source)
 ```
 To see more options, use `--help`.
 
+## Node topology flags
+
+By default, the testnode runs a single **sequencer** node that handles both consensus and execution in one process.
+
+### `--follower-node`
+
+Adds a **regular follower node** (`regular-follower-node`) that runs consensus and execution together in a single process, following the sequencer. Useful for testing read-only RPC nodes.
+
+```bash
+./test-node.bash --init --dev --follower-node
+```
+
+| Service | Ports |
+|---------|-------|
+| `regular-follower-node` | HTTP `8547` -> `7447`, WS `8548` -> `7548` |
+
+### `--run-consensus-and-execution-in-different-processes`
+
+Adds a **split-process follower** where consensus and execution run as separate containers communicating over authenticated RPC.
+
+```bash
+./test-node.bash --init --dev --run-consensus-and-execution-in-different-processes
+```
+
+| Service | Role | Ports |
+|---------|------|-------|
+| `consensus-follower-node` | Consensus (inbox, feed, validation) | HTTP `8547` -> `7147`, WS `8552` -> `8552` |
+| `execution-follower-node` | Execution (EVM, RPC, GraphQL) | HTTP `8547` -> `7247`, WS `9682` -> `9682` |
+
+Both flags can be combined to run all three follower configurations simultaneously.
+
 ## Further information
 
-### Branch Selection Guide (for devs working *on* nitro-testnode)
+### Branch selection guide (for devs working *on* nitro-testnode)
 
 This repository maintains two main branches with distinct purposes.
 
@@ -86,15 +117,15 @@ Target branch for changes supporting unreleased Nitro features.
 
 ### Working with docker containers
 
-**sequencer** is the main docker to be used to access the nitro testchain. It's http and websocket interfaces are exposed at localhost ports 8547 and 8548 ports, respectively.
+**sequencer** is the main docker container used to access the Nitro testchain. Its HTTP and WebSocket interfaces are exposed at localhost ports 8547 and 8548, respectively.
 
-Stopping, restarting nodes can be done with docker-compose.
+Stopping and restarting nodes can be done with docker-compose.
 
 ### Helper scripts
 
 Some helper scripts are provided for simple testing of basic actions.
 
-To fund the address 0x1111222233334444555566667777888899990000 on l2, use:
+To fund the address 0x1111222233334444555566667777888899990000 on L2, use:
 
 ```bash
 ./test-node.bash script send-l2 --to address_0x1111222233334444555566667777888899990000
@@ -111,6 +142,41 @@ For help and further scripts, see:
 ./test-node.bash script --help
 ```
 
+## Options reference
+
+| Flag | Description |
+|------|-------------|
+| `--init` | Initialize the testnode (removes previous data, prompts for confirmation) |
+| `--init-force` | Initialize without confirmation prompt |
+| `--dev` | Build from local source in dev-mode (implies `--no-simple`) |
+| `--build` | Rebuild all docker images |
+| `--no-build` | Skip all docker image rebuilds |
+| `--simple` | Single node as sequencer/batch-poster/staker (default without `--dev`) |
+| `--no-simple` | Full configuration with separate sequencer/batch-poster/validator/relayer |
+| `--follower-node` | Run a follower node (single process, consensus + execution combined) |
+| `--run-consensus-and-execution-in-different-processes` | Run split consensus and execution follower nodes communicating over RPC |
+| `--validate` | Enable validation (implies `--no-simple`) |
+| `--batchposters` | Number of batch posters [0-3] (implies `--no-simple`) |
+| `--redundantsequencers` | Number of redundant sequencers [0-3] (implies `--no-simple`) |
+| `--l3node` | Enable an L3 node |
+| `--l3-fee-token` | Use a custom fee token on L3 (requires `--l3node`) |
+| `--l3-fee-token-decimals` | Set fee token decimals [0-36] (requires `--l3-fee-token`) |
+| `--l3-fee-token-pricer` | Enable fee token pricer (requires `--l3-fee-token`) |
+| `--l3-token-bridge` | Deploy L2-L3 token bridge (requires `--l3node`) |
+| `--l2-anytrust` | Enable AnyTrust DA on L2 |
+| `--l2-referenceda` | Enable reference DA on L2 |
+| `--l2-timeboost` | Enable TimeBOOST express lane auctions on L2 |
+| `--l2-tx-filtering` | Enable transaction filtering on L2 |
+| `--tokenbridge` | Deploy L1-L2 token bridge |
+| `--no-tokenbridge` | Skip token bridge deployment |
+| `--blockscout` | Build or launch Blockscout explorer |
+| `--pos` | Use proof-of-stake consensus client on L1 |
+| `--detach` | Detach from nodes after running them |
+| `--nowait` | Don't wait for nodes to be ready (requires `--detach`) |
+| `--no-run` | Don't launch nodes (useful with `--build` or `--init`) |
+| `--no-l2-traffic` | Disable L2 spam transaction traffic |
+| `--no-l3-traffic` | Disable L3 spam transaction traffic |
+
 ## Named accounts
 
 ```bash
@@ -121,7 +187,7 @@ sequencer:                  0xe2148eE53c0755215Df69b2616E552154EdC584f
 validator:                  0x6A568afe0f82d34759347bb36F14A6bB171d2CBe
 l2owner:                    0x5E1497dD1f08C87b2d8FE23e9AAB6c1De833D927
 l3owner:                    0x863c904166E801527125D8672442D736194A3362
-l3sequencer:                0x3E6134aAD4C4d422FF2A4391Dc315c4DDf98D1a5
+l3sequencer:                0x3E6134aAD4C4d422FF2A4391Dc315c4DDf98F1a5
 user_l1user:                0x058E6C774025ade66153C65672219191c72c7095
 user_token_bridge_deployer: 0x3EaCb30f025630857aDffac9B2366F953eFE4F98
 user_fee_token_deployer:    0x2AC5278D230f88B481bBE4A94751d7188ef48Ca2
@@ -138,5 +204,3 @@ To run the metrics stack (Prometheus + Grafana) read the instructions in the [me
 Discord - [Arbitrum](https://discord.com/invite/5KE54JwyTs)
 
 Twitter: [Arbitrum](https://twitter.com/arbitrum)
-
-
