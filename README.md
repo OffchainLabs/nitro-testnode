@@ -100,7 +100,7 @@ To fund the address 0x1111222233334444555566667777888899990000 on l2, use:
 ./test-node.bash script send-l2 --to address_0x1111222233334444555566667777888899990000
 ```
 
-To get private key of an account you can:
+To get the private key of an account, run:
 ```bash
 ./test-node.bash script print-private-key --account funnel
 ```

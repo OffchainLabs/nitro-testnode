@@ -160,7 +160,6 @@ services:
     entrypoint: /usr/local/bin/nitro
     ports:
       - "127.0.0.1:7247:8547"
-      - "127.0.0.1:7248:8548"
       - "127.0.0.1:9682:9682"
     volumes:
       - "exec-follower-data:/home/user/.arbitrum/local/nitro"
@@ -195,7 +194,6 @@ services:
     entrypoint: /usr/local/bin/nitro
     ports:
       - "127.0.0.1:7147:8547"
-      - "127.0.0.1:7148:8548"
       - "127.0.0.1:8552:8552"
     volumes:
       - "consensus-follower-data:/home/user/.arbitrum/local/nitro"

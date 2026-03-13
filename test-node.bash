@@ -354,7 +354,7 @@ while [[ $# -gt 0 ]]; do
             echo --build-utils         rebuild scripts, rollupcreator, token bridge docker images
             echo --no-build-utils      don\'t rebuild scripts, rollupcreator, token bridge docker images
             echo --follower-node       run a follower node 
-            echo --run-consensus-and-execution-in-different-processes  run consensus and execution node in different processed communicating over rpc
+            echo --run-consensus-and-execution-in-different-processes  run consensus and execution nodes in different processes communicating over RPC
             echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_BRANCH or TOKEN_BRIDGE_BRANCH changes
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
@@ -365,11 +365,11 @@ done
 NODES="sequencer"
 INITIAL_SEQ_NODES="sequencer"
 
-if $run_consensus_and_execution_in_different_processes && $simple; then
+if $run_consensus_and_execution_in_different_processes; then
     NODES="$NODES consensus-follower-node execution-follower-node"
 fi
 
-if $follower_node && $simple; then
+if $follower_node; then
     NODES="$NODES regular-follower-node"
 fi
 
@@ -646,7 +646,7 @@ if $force_init; then
     echo == Spinning up sequencer nodes
     docker compose up --wait $INITIAL_SEQ_NODES
     echo == Sleeping for 45s allow for parent chain to recieve the contract creation tx and process it
-    sleep 45 # in case we need to create a smart contract wallet, allow for parent chain to recieve the contract creation tx and process it
+    sleep 45
     echo == Funding l2 funnel and dev key
     run_script bridge-funds --ethamount 100000 --wait
     echo == Funding l2owner
