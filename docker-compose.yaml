@@ -338,7 +338,7 @@ services:
       - "127.0.0.1:8949:8549"
     volumes:
       - "config:/config"
-    command: --conf.file /config/validation_node_config.json
+    command: --conf.file /config/validation_node_config.json --validation.use-jit=false
 
   scripts:
     build: scripts/
