@@ -62,7 +62,7 @@ Adds a **regular follower node** (`regular-follower-node`) that runs consensus a
 
 ### `--run-consensus-and-execution-in-different-processes`
 
-Adds a **split-process follower** where consensus and execution run as separate containers communicating over authenticated RPC.
+Adds a **split-process follower** where consensus and execution run as separate containers communicating over RPC.
 
 ```bash
 ./test-node.bash --init --dev --run-consensus-and-execution-in-different-processes
@@ -70,8 +70,8 @@ Adds a **split-process follower** where consensus and execution run as separate 
 
 | Service | Role | Ports |
 |---------|------|-------|
-| `consensus-follower-node` | Consensus (inbox, feed, validation) | HTTP `8547` -> `7147`, WS `8552` -> `8552` |
-| `execution-follower-node` | Execution (EVM, RPC, GraphQL) | HTTP `8547` -> `7247`, WS `9682` -> `9682` |
+| `consensus-only-follower-node` | Consensus (inbox, feed, validation) | HTTP `8547` -> `7147`, WS `8552` -> `8552` |
+| `execution-only-follower-node` | Execution (EVM, RPC, GraphQL) | HTTP `8547` -> `7247`, WS `9682` -> `9682` |
 
 Both flags can be combined to run all three follower configurations simultaneously.
 

@@ -154,7 +154,7 @@ services:
       - "consensus:/consensus"
       - "config:/config"
 
-  execution-follower-node:
+  execution-only-follower-node:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/nitro
@@ -168,9 +168,6 @@ services:
       - "tokenbridge-data:/tokenbridge-data"
     command:
       - --conf.file=/config/base_node_config.json
-      - --node.feed.output.enable
-      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
-      - --node.seq-coordinator.my-url=http://sequencer:8547
       - --graphql.enable
       - --graphql.vhosts=*
       - --graphql.corsdomain=*
@@ -180,7 +177,7 @@ services:
       - --execution.rpc-server.enable
       - --execution.rpc-server.public
       - --execution.rpc-server.authenticated=false
-      - --execution.consensus-rpc-client.url=ws://consensus-follower-node:8552
+      - --execution.consensus-rpc-client.url=ws://consensus-only-follower-node:8552
       - --execution.consensus-rpc-client.jwtsecret=/config/jwt.hex
       - --execution.consensus-rpc-client.retries=3
       - --execution.consensus-rpc-client.connection-wait=15s
@@ -188,7 +185,7 @@ services:
     depends_on:
       - geth
 
-  consensus-follower-node:
+  consensus-only-follower-node:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/nitro
@@ -199,10 +196,8 @@ services:
       - "consensus-follower-data:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
-      - "tokenbridge-data:/tokenbridge-data"
     command:
       - --conf.file=/config/base_node_config.json
-      - --node.seq-coordinator.my-url=http://sequencer:8547
       - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
       - --graphql.enable
       - --graphql.vhosts=*
@@ -213,7 +208,7 @@ services:
       - --node.rpc-server.enable
       - --node.rpc-server.public
       - --node.rpc-server.authenticated=false
-      - --node.execution-rpc-client.url=ws://execution-follower-node:9682
+      - --node.execution-rpc-client.url=ws://execution-only-follower-node:9682
       - --node.execution-rpc-client.jwtsecret=/config/jwt.hex
       - --node.execution-rpc-client.retries=3
       - --node.execution-rpc-client.connection-wait=15s
@@ -232,10 +227,8 @@ services:
       - "regular-follower-data:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
-      - "tokenbridge-data:/tokenbridge-data"
     command:
       - --conf.file=/config/base_node_config.json
-      - --node.seq-coordinator.my-url=http://sequencer:8547
       - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
       - --graphql.enable
       - --graphql.vhosts=*

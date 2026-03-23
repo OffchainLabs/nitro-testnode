@@ -354,7 +354,7 @@ while [[ $# -gt 0 ]]; do
             echo --build-utils         rebuild scripts, rollupcreator, token bridge docker images
             echo --no-build-utils      don\'t rebuild scripts, rollupcreator, token bridge docker images
             echo --follower-node       run a follower node 
-            echo --run-consensus-and-execution-in-different-processes  run consensus and execution nodes in different processes communicating over RPC
+            echo --run-consensus-and-execution-in-different-processes  run a Nitro node with consensus and execution in different processes communicating over RPC
             echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_BRANCH or TOKEN_BRIDGE_BRANCH changes
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
@@ -366,7 +366,7 @@ NODES="sequencer"
 INITIAL_SEQ_NODES="sequencer"
 
 if $run_consensus_and_execution_in_different_processes; then
-    NODES="$NODES consensus-follower-node execution-follower-node"
+    NODES="$NODES consensus-only-follower-node execution-only-follower-node"
 fi
 
 if $follower_node; then
