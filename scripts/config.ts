@@ -873,7 +873,7 @@ export const initTxFilteringMinioCommand = {
     command: "init-tx-filtering-minio",
     describe: "initializes MinIO bucket and empty address hash list",
     handler: async () => {
-        const salt = crypto.randomBytes(32).toString('hex');
+        const salt = crypto.randomUUID();
         const initialAddressList = {
             "salt": salt,
             "hashing_scheme": "Sha256",
@@ -902,9 +902,9 @@ export const initTxFilteringMinioCommand = {
 }
 
 function computeAddressHash(address: string, salt: string): string {
-    const normalizedAddress = address.toLowerCase();
-    const data = salt + normalizedAddress.replace('0x', '');
-    const hash = crypto.createHash('sha256').update(Buffer.from(data, 'hex')).digest('hex');
+    const normalizedAddress = address.toLowerCase().replace('0x', '');
+    const hashInput = salt + '::0x' + normalizedAddress;
+    const hash = crypto.createHash('sha256').update(hashInput).digest('hex');
     return hash;
 }
 
