@@ -461,15 +461,15 @@ fi
 
 if $force_init; then
     echo == Removing old data..
-    docker compose down
+    docker compose down --remove-orphans --timeout 10 2>/dev/null || true
     leftoverContainers=`docker container ls -a --filter label=com.docker.compose.project=nitro-testnode -q | xargs echo`
     if [ `echo $leftoverContainers | wc -w` -gt 0 ]; then
-        docker rm $leftoverContainers
+        docker rm -f $leftoverContainers
     fi
     docker volume prune -f --filter label=com.docker.compose.project=nitro-testnode
     leftoverVolumes=`docker volume ls --filter label=com.docker.compose.project=nitro-testnode -q | xargs echo`
     if [ `echo $leftoverVolumes | wc -w` -gt 0 ]; then
-        docker volume rm $leftoverVolumes
+        docker volume rm -f $leftoverVolumes
     fi
 
     echo == Generating l1 keys
