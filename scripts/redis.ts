@@ -16,7 +16,11 @@ async function getAndPrint(
 async function readRedis(redisUrl: string, key: string) {
   const redis = createClient({ url: redisUrl });
   await redis.connect();
-  await getAndPrint(redis, key);
+  try {
+    await getAndPrint(redis, key);
+  } finally {
+    await redis.quit();
+  }
 }
 
 export const redisReadCommand = {
@@ -54,10 +58,12 @@ async function writeRedisPriorities(redisUrl: string, priorities: number) {
     priostring = priostring + this_prio;
   }
   await redis.connect();
-
-  await redis.set("coordinator.priorities", priostring);
-
-  await getAndPrint(redis, "coordinator.priorities");
+  try {
+    await redis.set("coordinator.priorities", priostring);
+    await getAndPrint(redis, "coordinator.priorities");
+  } finally {
+    await redis.quit();
+  }
 }
 
 export const redisInitCommand = {

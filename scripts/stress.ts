@@ -8,24 +8,24 @@ export const stressOptions = {
 }
 
 
-async function runThread(argv: any, threadIndex: number, commandHandler: (argv: any, thread: number) => Promise<void>) {
-    await commandHandler(argv, threadIndex)
-}
-
 export async function runStress(argv: any, commandHandler: (argv: any, thread: number) => Promise<void>) {
-    let promiseArray: Array<Promise<void>>
-    promiseArray = []
+    const promiseArray: Array<Promise<void>> = []
     for (let threadIndex = 0; threadIndex < argv.threads; threadIndex++) {
-        const threadPromise = runThread(argv, threadIndex + argv.threadId, commandHandler)
+        const threadPromise = commandHandler(argv, threadIndex + argv.threadId)
         if (argv.serial) {
             await threadPromise
         } else {
             promiseArray.push(threadPromise)
         }
     }
-    await Promise.all(promiseArray)
-        .catch(error => {
-            console.error(error)
-            process.exit(1)
-        })
+    const errors: any[] = []
+    await Promise.all(promiseArray.map(p => p.catch((err: any) => { errors.push(err) })))
+    if (errors.length > 0) {
+        for (const err of errors) {
+            console.error("Thread failure:", err)
+        }
+        const err = new Error(`${errors.length} thread(s) failed; first: ${errors[0].message}`);
+        (err as any).errors = errors;
+        throw err
+    }
 }

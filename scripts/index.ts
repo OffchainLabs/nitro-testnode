@@ -48,11 +48,11 @@ import {
 async function main() {
   await Yargs(hideBin(process.argv))
     .options({
-      redisUrl: { string: true, default: "redis://redis:6379" },
-      l1url: { string: true, default: "ws://geth:8546" },
-      l2url: { string: true, default: "ws://sequencer:8548" },
-      l3url: { string: true, default: "ws://l3node:3348" },
-      validationNodeUrl: { string: true, default: "ws://validation_node:8549" },
+      redisUrl: { string: true, default: process.env.REDIS_URL || "redis://redis:6379" },
+      l1url: { string: true, default: process.env.L1_URL || "ws://geth:8546" },
+      l2url: { string: true, default: process.env.L2_URL || "ws://sequencer:8548" },
+      l3url: { string: true, default: process.env.L3_URL || "ws://l3node:3348" },
+      validationNodeUrl: { string: true, default: process.env.VALIDATION_NODE_URL || "ws://validation_node:8549" },
       l2owner: { string: true, default: "0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E" },
       committeeMember: { string: true, default: "not_set" },
     })
