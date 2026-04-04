@@ -1,4 +1,4 @@
-FROM node:20-bookworm-slim
+FROM node:20-trixie-slim
 RUN apt-get update && \
     apt-get install -y git docker.io python3 make gcc g++ curl jq
 ARG NITRO_CONTRACTS_BRANCH=main
