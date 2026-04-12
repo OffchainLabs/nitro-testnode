@@ -7,15 +7,36 @@ import { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand } fr
 
 const path = require("path");
 
-const S3_CONFIG = {
-    endpoint: "http://minio:9000",
-    region: "us-east-1",
-    credentials: {
-        accessKeyId: "minioadmin",
-        secretAccessKey: "minioadmin",
-    },
-    forcePathStyle: true,
-};
+function validateS3Credentials() {
+    const hasKey = !!process.env.AWS_ACCESS_KEY_ID;
+    const hasSecret = !!process.env.AWS_SECRET_ACCESS_KEY;
+    const hasEndpoint = !!process.env.S3_ENDPOINT;
+    if (hasKey !== hasSecret) {
+        throw new Error(
+            "Partial S3 credentials: only one of AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY is set. " +
+            "Provide both for custom S3 credentials, or neither to use the default minio instance."
+        );
+    }
+    if (hasEndpoint && !hasKey) {
+        throw new Error(
+            "Custom S3_ENDPOINT is set but no AWS credentials provided. " +
+            "Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, or unset S3_ENDPOINT to use the default minio instance."
+        );
+    }
+}
+
+function getS3Config() {
+    validateS3Credentials();
+    return {
+        endpoint: process.env.S3_ENDPOINT || "http://minio:9000",
+        region: process.env.AWS_REGION || "us-east-1",
+        credentials: {
+            accessKeyId: process.env.AWS_ACCESS_KEY_ID || "minioadmin",
+            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "minioadmin",
+        },
+        forcePathStyle: true,
+    };
+}
 
 const S3_BUCKET = "tx-filtering";
 const S3_OBJECT_KEY = "address-hashes.json";
@@ -187,20 +208,29 @@ function writeGethGenesisConfig(argv: any) {
     fs.writeFileSync(path.join(consts.configpath, "val_jwt.hex"), val_jwt)
 }
 
-type ChainInfo = {
+type ChainInfoEntry = {
+    rollup: {
+        "sequencer-inbox": string;
+        [key: string]: any;
+    };
     [key: string]: any;
 };
+type ChainInfo = ChainInfoEntry[];
 
-// Define a function to return ChainInfo
 function getChainInfo(): ChainInfo {
     const filePath = path.join(consts.configpath, "l2_chain_info.json");
-    const fileContents = fs.readFileSync(filePath).toString();
-    const chainInfo: ChainInfo = JSON.parse(fileContents);
+    const chainInfo = consts.readJsonFile(filePath, "has the rollup been deployed with --init?");
+    if (!Array.isArray(chainInfo) || chainInfo.length === 0) {
+        throw new Error(`Invalid chain info: expected non-empty array in ${filePath}`);
+    }
+    if (!chainInfo[0].rollup || !chainInfo[0].rollup["sequencer-inbox"]) {
+        throw new Error(`Invalid chain info: missing rollup.sequencer-inbox in ${filePath}`);
+    }
     return chainInfo;
 }
 
 function createDataAvailabilityConfig(argv: any, anytrust: boolean) {
-    return {
+    const config: any = {
         "enable": anytrust,
         "rpc-aggregator": dasBackendsJsonConfig(argv),
         "rest-aggregator": {
@@ -208,19 +238,25 @@ function createDataAvailabilityConfig(argv: any, anytrust: boolean) {
             "urls": ["http://das-mirror:9877"],
         },
     }
+    if (anytrust) {
+        config["parent-chain-node-url"] = argv.l1url;
+        config["sequencer-inbox-address"] = ethers.utils.hexlify(getChainInfo()[0]["rollup"]["sequencer-inbox"]);
+    }
+    return config;
 }
 
 function applyTxFilteringConfig(config: any) {
+    const s3 = getS3Config();
     config.execution.sequencer["transaction-filtering"] = {
         "address-filter": {
             "enable": true,
             "s3": {
-                "access-key": "minioadmin",
-                "secret-key": "minioadmin",
-                "region": "us-east-1",
-                "endpoint": "http://minio:9000",
-                "bucket": "tx-filtering",
-                "object-key": "address-hashes.json"
+                "access-key": s3.credentials.accessKeyId,
+                "secret-key": s3.credentials.secretAccessKey,
+                "region": s3.region,
+                "endpoint": s3.endpoint,
+                "bucket": S3_BUCKET,
+                "object-key": S3_OBJECT_KEY,
             },
             "poll-interval": "30s"
         },
@@ -232,7 +268,7 @@ function applyTxFilteringConfig(config: any) {
 
 function generateL2GenesisJson() {
     const chainConfigPath = path.join(consts.configpath, "l2_chain_config.json");
-    const chainConfigStr = fs.readFileSync(chainConfigPath).toString();
+    const chainConfigStr = consts.readFileString(chainConfigPath, "has write-l2-chain-config been run?");
 
     const genesis = {
         "serializedChainConfig": chainConfigStr,
@@ -406,7 +442,7 @@ function writeConfigs(argv: any) {
         sequencerConfig.node["delayed-sequencer"].enable = true
         if (argv.timeboost) {
             sequencerConfig.execution.sequencer.timeboost = {
-                "enable": false, // Create it false initially, turn it on with sed in test-node.bash after contract setup.
+                "enable": false, // Created false initially; enabled after auction contract deployment in the init flow.
                 "redis-url": argv.redisUrl
             };
         }
@@ -449,7 +485,7 @@ function writeConfigs(argv: any) {
     l3Config.node["batch-poster"]["redis-url"] = ""
     fs.writeFileSync(path.join(consts.configpath, "l3node_config.json"), JSON.stringify(l3Config))
 
-    let validationNodeConfig = JSON.parse(JSON.stringify({
+    const validationNodeConfig = {
         "persistent": {
             "chain": "local"
         },
@@ -467,7 +503,7 @@ function writeConfigs(argv: any) {
             "jwtsecret": valJwtSecret,
             "addr": "0.0.0.0",
         },
-    }))
+    }
     fs.writeFileSync(path.join(consts.configpath, "validation_node_config.json"), JSON.stringify(validationNodeConfig))
 }
 
@@ -549,10 +585,8 @@ function writeL2DASCommitteeConfig(argv: any) {
                 "enable": true,
                 "enable-expiry": true
             },
-        },
-        "parent-chain": {
-            "node-url": argv.l1url,
-            "sequencer-inbox-address": sequencerInboxAddr
+            "parent-chain-node-url": argv.l1url,
+            "sequencer-inbox-address": sequencerInboxAddr,
         },
         "enable-rest": true,
         "enable-rpc": true,
@@ -584,11 +618,9 @@ function writeL2DASMirrorConfig(argv: any, sequencerInboxAddr: string) {
                     "sync-expired-data": true
                 },
                 "urls": ["http://das-committee-a:9877", "http://das-committee-b:9877"],
-            }
-        },
-        "parent-chain": {
-            "node-url": argv.l1url,
-            "sequencer-inbox-address": sequencerInboxAddr
+            },
+            "parent-chain-node-url": argv.l1url,
+            "sequencer-inbox-address": sequencerInboxAddr,
         },
         "enable-rest": true,
         "enable-rpc": false,
@@ -833,7 +865,7 @@ export const writeL2ReferenceDAConfigCommand = {
     builder: {
         validatorAddress: {
             string: true,
-            describe: "L2 validator contract address",
+            describe: "validator contract address (deployed on L1)",
             demandOption: true
         },
     },
@@ -874,26 +906,22 @@ export const initTxFilteringMinioCommand = {
     describe: "initializes MinIO bucket and empty address hash list",
     handler: async () => {
         const salt = crypto.randomBytes(32).toString('hex');
-        const initialAddressList = {
-            "salt": salt,
-            "hashing_scheme": "Sha256",
-            "address_hashes": []
-        };
-        fs.writeFileSync(path.join(consts.configpath, "initial_address_hashes.json"), JSON.stringify(initialAddressList, null, 2));
         fs.writeFileSync(path.join(consts.configpath, "tx_filtering_salt.hex"), salt);
+        writeAddressHashList(createAddressHashList(salt));
 
-        const s3Client = new S3Client(S3_CONFIG);
-
+        const s3Client = new S3Client(getS3Config());
         try {
             await s3Client.send(new HeadBucketCommand({ Bucket: S3_BUCKET }));
             console.log("Bucket already exists:", S3_BUCKET);
         } catch (err: any) {
-            if (err.name === "NotFound" || err.$metadata?.httpStatusCode === 404) {
+            if (err.name === "NotFound" || err.name === "NoSuchBucket" || err.$metadata?.httpStatusCode === 404) {
                 await s3Client.send(new CreateBucketCommand({ Bucket: S3_BUCKET }));
                 console.log("Created bucket:", S3_BUCKET);
             } else {
                 throw err;
             }
+        } finally {
+            s3Client.destroy();
         }
 
         await uploadFilteredAddressesToMinio();
@@ -902,27 +930,84 @@ export const initTxFilteringMinioCommand = {
 }
 
 function computeAddressHash(address: string, salt: string): string {
-    const normalizedAddress = address.toLowerCase();
-    const data = salt + normalizedAddress.replace('0x', '');
-    const hash = crypto.createHash('sha256').update(Buffer.from(data, 'hex')).digest('hex');
-    return hash;
+    const stripped = address.toLowerCase().replace('0x', '');
+    if (!/^[0-9a-f]{40}$/.test(stripped)) {
+        throw new Error(`Invalid Ethereum address: "${address}" (expected 40 hex chars after 0x prefix)`);
+    }
+    assertHexString(salt, 'computeAddressHash salt');
+    const data = salt + stripped;
+    return crypto.createHash('sha256').update(Buffer.from(data, 'hex')).digest('hex');
 }
 
 async function uploadFilteredAddressesToMinio() {
     console.log("Uploading address list to MinIO...");
-    const s3Client = new S3Client(S3_CONFIG);
+    const s3Client = new S3Client(getS3Config());
+    try {
+        const addressList = readAddressHashList();
+        await s3Client.send(new PutObjectCommand({
+            Bucket: S3_BUCKET,
+            Key: S3_OBJECT_KEY,
+            Body: JSON.stringify(addressList),
+            ContentType: "application/json",
+        }));
+        console.log("Upload complete.");
+    } finally {
+        s3Client.destroy();
+    }
+}
 
+function assertHexString(value: string, context: string): void {
+    if (!/^[0-9a-f]+$/.test(value)) {
+        throw new Error(`Invalid hex string in ${context}: got "${value.substring(0, 20)}${value.length > 20 ? '...' : ''}"`);
+    }
+}
+
+function readSalt(): string {
+    const saltPath = path.join(consts.configpath, "tx_filtering_salt.hex");
+    const salt = consts.readFileString(saltPath, "run init-tx-filtering-minio first").trim();
+    assertHexString(salt, saltPath);
+    return salt;
+}
+
+type AddressHashList = {
+    salt: string;
+    hashing_scheme: "Sha256";
+    address_hashes: Array<{ hash: string }>;
+};
+
+function createAddressHashList(salt: string): AddressHashList {
+    assertHexString(salt, 'createAddressHashList salt');
+    return { salt, hashing_scheme: "Sha256", address_hashes: [] };
+}
+
+function readAddressHashList(): AddressHashList {
     const addressListPath = path.join(consts.configpath, "initial_address_hashes.json");
-    const content = fs.readFileSync(addressListPath).toString();
+    const parsed = consts.readJsonFile(addressListPath, "run init-tx-filtering-minio first");
+    if (typeof parsed.salt !== 'string' || parsed.salt.length === 0) {
+        throw new Error(`Invalid format: missing or empty "salt" in ${addressListPath}`);
+    }
+    assertHexString(parsed.salt, addressListPath);
+    if (parsed.hashing_scheme !== 'Sha256') {
+        throw new Error(`Unsupported hashing_scheme "${parsed.hashing_scheme}" in ${addressListPath} (expected "Sha256")`);
+    }
+    if (!Array.isArray(parsed.address_hashes)) {
+        throw new Error(`Invalid format: expected "address_hashes" array in ${addressListPath}`);
+    }
+    for (let i = 0; i < parsed.address_hashes.length; i++) {
+        if (typeof parsed.address_hashes[i]?.hash !== 'string') {
+            throw new Error(`Invalid format: address_hashes[${i}] missing "hash" string in ${addressListPath}`);
+        }
+    }
+    return {
+        salt: parsed.salt,
+        hashing_scheme: parsed.hashing_scheme as "Sha256",
+        address_hashes: parsed.address_hashes,
+    };
+}
 
-    await s3Client.send(new PutObjectCommand({
-        Bucket: S3_BUCKET,
-        Key: S3_OBJECT_KEY,
-        Body: content,
-        ContentType: "application/json",
-    }));
-
-    console.log("Upload complete.");
+function writeAddressHashList(addressList: AddressHashList): void {
+    const addressListPath = path.join(consts.configpath, "initial_address_hashes.json");
+    fs.writeFileSync(addressListPath, JSON.stringify(addressList, null, 2));
 }
 
 export const hashAddressCommand = {
@@ -936,13 +1021,7 @@ export const hashAddressCommand = {
         },
     },
     handler: (argv: any) => {
-        const saltPath = path.join(consts.configpath, "tx_filtering_salt.hex");
-        if (!fs.existsSync(saltPath)) {
-            console.error("Salt file not found. Run init-tx-filtering-minio first.");
-            process.exit(1);
-        }
-        const salt = fs.readFileSync(saltPath).toString().trim();
-        const hash = computeAddressHash(argv.address, salt);
+        const hash = computeAddressHash(argv.address, readSalt());
         console.log(hash);
     }
 }
@@ -958,21 +1037,13 @@ export const addFilteredAddressCommand = {
         },
     },
     handler: async (argv: any) => {
-        const saltPath = path.join(consts.configpath, "tx_filtering_salt.hex");
-        if (!fs.existsSync(saltPath)) {
-            console.error("Salt file not found. Run init-tx-filtering-minio first.");
-            process.exit(1);
-        }
-        const salt = fs.readFileSync(saltPath).toString().trim();
-        const hash = computeAddressHash(argv.address, salt);
+        const hash = computeAddressHash(argv.address, readSalt());
+        const addressList = readAddressHashList();
 
-        const addressListPath = path.join(consts.configpath, "initial_address_hashes.json");
-        const addressList = JSON.parse(fs.readFileSync(addressListPath).toString());
-
-        const exists = addressList.address_hashes.some((entry: any) => entry.hash === hash);
+        const exists = addressList.address_hashes.some(entry => entry.hash === hash);
         if (!exists) {
-            addressList.address_hashes.push({ hash: hash });
-            fs.writeFileSync(addressListPath, JSON.stringify(addressList, null, 2));
+            addressList.address_hashes.push({ hash });
+            writeAddressHashList(addressList);
             console.log("Added address hash:", hash);
             await uploadFilteredAddressesToMinio();
         } else {
@@ -992,21 +1063,13 @@ export const removeFilteredAddressCommand = {
         },
     },
     handler: async (argv: any) => {
-        const saltPath = path.join(consts.configpath, "tx_filtering_salt.hex");
-        if (!fs.existsSync(saltPath)) {
-            console.error("Salt file not found. Run init-tx-filtering-minio first.");
-            process.exit(1);
-        }
-        const salt = fs.readFileSync(saltPath).toString().trim();
-        const hash = computeAddressHash(argv.address, salt);
+        const hash = computeAddressHash(argv.address, readSalt());
+        const addressList = readAddressHashList();
 
-        const addressListPath = path.join(consts.configpath, "initial_address_hashes.json");
-        const addressList = JSON.parse(fs.readFileSync(addressListPath).toString());
-
-        const index = addressList.address_hashes.findIndex((entry: any) => entry.hash === hash);
+        const index = addressList.address_hashes.findIndex(entry => entry.hash === hash);
         if (index > -1) {
             addressList.address_hashes.splice(index, 1);
-            fs.writeFileSync(addressListPath, JSON.stringify(addressList, null, 2));
+            writeAddressHashList(addressList);
             console.log("Removed address hash:", hash);
             await uploadFilteredAddressesToMinio();
         } else {

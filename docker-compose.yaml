@@ -1,8 +1,24 @@
+x-nitro-healthcheck: &nitro-healthcheck
+  test: ["CMD-SHELL", "curl -sf -X POST -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_syncing\",\"params\":[],\"id\":1}' http://localhost:8547 | grep -q '\"result\":false'"]
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 15s
+
+x-das-healthcheck: &das-healthcheck
+  test: ["CMD-SHELL", "curl -sfo /dev/null http://localhost:9877/health"]
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 10s
+
 services:
   blockscout:
     depends_on:
-      - postgres
-      - sequencer
+      postgres:
+        condition: service_healthy
+      sequencer:
+        condition: service_healthy
     image: blockscout-testnode
     restart: unless-stopped
     container_name: 'blockscout'
@@ -32,6 +48,11 @@ services:
     image: postgres:13.6
     restart: unless-stopped
     container_name: 'postgres'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     environment:
         POSTGRES_PASSWORD: ''
         POSTGRES_USER: 'postgres'
@@ -43,11 +64,25 @@ services:
 
   redis:
     image: redis:6.2.6
+    restart: on-failure:3
     ports:
       - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   geth:
     image: ethereum/client-go:v1.16.4
+    restart: unless-stopped
+    healthcheck:
+      # geth image ships wget (not curl)
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8545 --post-data='{\"jsonrpc\":\"2.0\",\"method\":\"eth_syncing\",\"params\":[],\"id\":1}' --header='Content-Type: application/json' | grep -q '\"result\":false'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     ports:
       - "127.0.0.1:8545:8545"
       - "127.0.0.1:8551:8551"
@@ -157,7 +192,9 @@ services:
   sequencer:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
+    restart: unless-stopped
     entrypoint: /usr/local/bin/nitro
+    healthcheck: *nitro-healthcheck
     ports:
       - "127.0.0.1:8547:8547"
       - "127.0.0.1:8548:8548"
@@ -177,12 +214,15 @@ services:
       - --graphql.vhosts=*
       - --graphql.corsdomain=*
     depends_on:
-      - geth
+      geth:
+        condition: service_healthy
 
   sequencer_b:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
+    restart: on-failure:3
     entrypoint: /usr/local/bin/nitro
+    healthcheck: *nitro-healthcheck
     ports:
       - "127.0.0.1:8647:8547"
       - "127.0.0.1:8648:8548"
@@ -194,13 +234,17 @@ services:
       - --node.seq-coordinator.my-url=http://sequencer_b:8547
       - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
     depends_on:
-      - geth
-      - redis
+      geth:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   sequencer_c:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
+    restart: on-failure:3
     entrypoint: /usr/local/bin/nitro
+    healthcheck: *nitro-healthcheck
     ports:
       - "127.0.0.1:8747:8547"
       - "127.0.0.1:8748:8548"
@@ -212,13 +256,17 @@ services:
       - --node.seq-coordinator.my-url=http://sequencer_c:8547
       - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
     depends_on:
-      - geth
-      - redis
+      geth:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   sequencer_d:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
+    restart: on-failure:3
     entrypoint: /usr/local/bin/nitro
+    healthcheck: *nitro-healthcheck
     ports:
       - "127.0.0.1:8847:8547"
       - "127.0.0.1:8848:8548"
@@ -230,13 +278,17 @@ services:
       - --node.seq-coordinator.my-url=http://sequencer_d:8547
       - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
     depends_on:
-      - geth
-      - redis
+      geth:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   staker-unsafe:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
+    restart: on-failure:3
     entrypoint: /usr/local/bin/nitro
+    healthcheck: *nitro-healthcheck
     ports:
       - "127.0.0.1:8047:8547"
       - "127.0.0.1:8048:8548"
@@ -246,14 +298,19 @@ services:
       - "config:/config"
     command: --conf.file /config/unsafe_staker_config.json
     depends_on:
-      - sequencer
-      - redis
-      - validation_node
+      sequencer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      validation_node:
+        condition: service_healthy
 
   poster:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
+    restart: on-failure:3
     entrypoint: /usr/local/bin/nitro
+    healthcheck: *nitro-healthcheck
     ports:
       - "127.0.0.1:8147:8547"
       - "127.0.0.1:8148:8548"
@@ -263,13 +320,17 @@ services:
       - "config:/config"
     command: --conf.file /config/poster_config.json
     depends_on:
-      - geth
-      - redis
+      geth:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   poster_b:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
+    restart: on-failure:3
     entrypoint: /usr/local/bin/nitro
+    healthcheck: *nitro-healthcheck
     ports:
       - "127.0.0.1:9147:8547"
       - "127.0.0.1:9148:8548"
@@ -279,13 +340,17 @@ services:
       - "config:/config"
     command: --conf.file /config/poster_config.json
     depends_on:
-      - geth
-      - redis
+      geth:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   poster_c:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
+    restart: on-failure:3
     entrypoint: /usr/local/bin/nitro
+    healthcheck: *nitro-healthcheck
     ports:
       - "127.0.0.1:9247:8547"
       - "127.0.0.1:9248:8548"
@@ -295,13 +360,17 @@ services:
       - "config:/config"
     command: --conf.file /config/poster_config.json
     depends_on:
-      - geth
-      - redis
+      geth:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   validator:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
+    restart: on-failure:3
     entrypoint: /usr/local/bin/nitro
+    healthcheck: *nitro-healthcheck
     ports:
       - "127.0.0.1:8247:8547"
       - "127.0.0.1:8248:8548"
@@ -311,29 +380,44 @@ services:
       - "config:/config"
     command: --conf.file /config/validator_config.json --http.port 8547 --http.api net,web3,arb,debug --ws.port 8548
     depends_on:
-      - sequencer
-      - validation_node
+      sequencer:
+        condition: service_healthy
+      validation_node:
+        condition: service_healthy
 
   l3node:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
+    restart: on-failure:3
     entrypoint: /usr/local/bin/nitro
+    healthcheck:
+      <<: *nitro-healthcheck
+      test: ["CMD-SHELL", "curl -sf -X POST -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_syncing\",\"params\":[],\"id\":1}' http://localhost:3347 | grep -q '\"result\":false'"]
     ports:
       - "127.0.0.1:3347:3347"
       - "127.0.0.1:3348:3348"
     volumes:
-      - "validator-data:/home/user/.arbitrum/local/nitro"
+      - "l3node-data:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
     command: --conf.file /config/l3node_config.json --http.port 3347 --http.api net,web3,arb,debug,eth --ws.port 3348
     depends_on:
-      - sequencer
-      - validation_node
+      sequencer:
+        condition: service_healthy
+      validation_node:
+        condition: service_healthy
 
   validation_node:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/nitro-val
+    healthcheck:
+      # validation_node uses JWT-auth RPC; expect 401 (unauthenticated request). 200 also accepted as fallback if auth is disabled.
+      test: ["CMD-SHELL", "curl -so /dev/null -w '%{http_code}' http://localhost:8549 | grep -qE '(200|401)'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     ports:
       - "127.0.0.1:8949:8549"
     volumes:
@@ -350,6 +434,7 @@ services:
   relay:
     pid: host
     image: nitro-node-dev-testnode
+    restart: on-failure:3
     entrypoint: /usr/local/bin/relay
     ports:
       - "127.0.0.1:9652:9652"
@@ -357,8 +442,10 @@ services:
 
   tokenbridge:
     depends_on:
-      - geth
-      - sequencer
+      geth:
+        condition: service_healthy
+      sequencer:
+        condition: service_healthy
     pid: host
     build:
       context: tokenbridge/
@@ -373,8 +460,8 @@ services:
 
   rollupcreator:
     depends_on:
-      - geth
-      - sequencer
+      geth:
+        condition: service_healthy
     pid: host
     build:
       context: rollupcreator/
@@ -401,6 +488,7 @@ services:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/daserver
+    healthcheck: *das-healthcheck
     ports:
       - "127.0.0.1:9876:9876"
       - "127.0.0.1:9877:9877"
@@ -414,6 +502,7 @@ services:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/daserver
+    healthcheck: *das-healthcheck
     ports:
       - "127.0.0.1:8876:9876"
       - "127.0.0.1:8877:9877"
@@ -427,6 +516,7 @@ services:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/daserver
+    healthcheck: *das-healthcheck
     ports:
       - "127.0.0.1:7877:9877"
     volumes:
@@ -439,6 +529,9 @@ services:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/daprovider
+    healthcheck:
+      <<: *das-healthcheck
+      test: ["CMD-SHELL", "curl -sfo /dev/null http://localhost:9880"]
     ports:
       - "127.0.0.1:9880:9880"
     volumes:
@@ -450,9 +543,16 @@ services:
       - --conf.file=/config/referenceda_provider.json
 
   timeboost-auctioneer:
-    pid: host # allow debugging
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/autonomous-auctioneer
+    healthcheck:
+      # auctioneer has no HTTP endpoint; liveness check only
+      # (PID 1 is the entrypoint; do NOT add pid:host or this check becomes meaningless)
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     volumes:
       - "config:/config"
       - "timeboost-auctioneer-data:/data"
@@ -460,12 +560,20 @@ services:
     command:
       - --conf.file=/config/autonomous_auctioneer_config.json
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 
   timeboost-bid-validator:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/autonomous-auctioneer
+    healthcheck:
+      # bid-validator exposes HTTP-RPC; accept 200 or 405 (GET to POST-only endpoint) to confirm the server is up
+      test: ["CMD-SHELL", "curl -so /dev/null -w '%{http_code}' http://localhost:8547 | grep -qE '(200|405)'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     ports:
       - "127.0.0.1:9372:8547"
     volumes:
@@ -478,7 +586,8 @@ services:
       - --http.api=auctioneer
       - --log-level=INFO
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 
   minio:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
@@ -492,15 +601,18 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
     command: server /data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      # minio image ships mc (not curl); credentials here must match MINIO_ROOT_USER/MINIO_ROOT_PASSWORD above
+      test: ["CMD-SHELL", "mc alias set local http://localhost:9000 minioadmin minioadmin >/dev/null 2>&1 && mc ready local"]
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   transaction-filterer:
     pid: host
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/transaction-filterer
+    healthcheck: *nitro-healthcheck
     ports:
       - "127.0.0.1:8549:8547"
     volumes:
@@ -509,7 +621,8 @@ services:
     command:
       - --conf.file=/config/transaction_filterer_config.json
     depends_on:
-      - sequencer
+      sequencer:
+        condition: service_healthy
 
 volumes:
   l1data:
@@ -521,6 +634,7 @@ volumes:
   seqdata_d:
   unsafestaker-data:
   validator-data:
+  l3node-data:
   poster-data:
   poster-data-b:
   poster-data-c:

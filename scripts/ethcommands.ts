@@ -6,112 +6,181 @@ import * as L1GatewayRouter from "@arbitrum/token-bridge-contracts/build/contrac
 import * as L1AtomicTokenBridgeCreator from "@arbitrum/token-bridge-contracts/build/contracts/contracts/tokenbridge/ethereum/L1AtomicTokenBridgeCreator.sol/L1AtomicTokenBridgeCreator.json";
 import * as ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
 import * as TestWETH9 from "@arbitrum/token-bridge-contracts/build/contracts/contracts/tokenbridge/test/TestWETH9.sol/TestWETH9.json";
-import * as fs from "fs";
-import { ARB_OWNER } from "./consts";
 import * as TransparentUpgradeableProxy from "@openzeppelin/contracts/build/contracts/TransparentUpgradeableProxy.json"
 import * as ExpressLaneAuctionContract from "@arbitrum/nitro-contracts/build/contracts/src/express-lane-auction/ExpressLaneAuction.sol/ExpressLaneAuction.json"
 import * as StylusDeployerContract from "@arbitrum/nitro-contracts/build/contracts/src/stylus/StylusDeployer.sol/StylusDeployer.json"
 
 const path = require("path");
 
+// ethers.js error codes that are non-transient: retrying with the same inputs will not resolve them.
+// CALL_EXCEPTION is included because it typically indicates a contract revert (e.g., a
+// failed require/assert), which suggests a logic error rather than a connectivity issue.
+const NON_TRANSIENT_ERROR_CODES: ReadonlySet<string> = new Set([
+    'INVALID_ARGUMENT',
+    'UNPREDICTABLE_GAS_LIMIT',
+    'CALL_EXCEPTION',
+    'INSUFFICIENT_FUNDS',
+    'NONCE_EXPIRED',
+    'NUMERIC_FAULT',
+    'BUFFER_OVERRUN',
+    'UNSUPPORTED_OPERATION',
+    'NOT_IMPLEMENTED',
+]);
+
+function readDeployJson(filename: string, hint: string, basePath: string = consts.configpath): Record<string, any> {
+    const filePath = path.join(basePath, filename);
+    const parsed = consts.readJsonFile(filePath, hint);
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        throw new Error(`Expected JSON object in ${filePath}, got ${Array.isArray(parsed) ? 'array' : typeof parsed}`);
+    }
+    return parsed;
+}
+
+function sleep(ms: number): Promise<void> {
+    return new Promise(r => setTimeout(r, ms));
+}
+
+// Checks conditionFn immediately, then re-checks after sleeping intervalMs milliseconds.
+// Throws with errorMsg if timeoutMs elapses without the condition returning true. Transient errors
+// from conditionFn are logged and retried; programming errors (TypeError,
+// ReferenceError, RangeError, SyntaxError) and known non-transient ethers.js
+// errors (see NON_TRANSIENT_ERROR_CODES) abort immediately.
+async function pollUntil(conditionFn: () => Promise<boolean>, intervalMs: number, timeoutMs: number, errorMsg: string): Promise<void> {
+    if (!Number.isFinite(intervalMs) || intervalMs <= 0) throw new Error(`pollUntil: intervalMs must be a positive finite number, got ${intervalMs}`);
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error(`pollUntil: timeoutMs must be a positive finite number, got ${timeoutMs}`);
+    const startTime = Date.now();
+    let lastError: any;
+    let lastErrorMsg: string | undefined;
+    while (true) {
+        try {
+            if (await conditionFn()) return;
+        } catch (e: any) {
+            // Abort immediately on programming errors (not transient)
+            if (e instanceof TypeError || e instanceof ReferenceError || e instanceof RangeError || e instanceof SyntaxError) {
+                throw new Error(`${errorMsg}: programming error: ${e.message}`, { cause: e });
+            }
+            // Abort immediately on errors that are clearly not transient
+            if (NON_TRANSIENT_ERROR_CODES.has(e.code)) {
+                throw new Error(`${errorMsg}: non-transient error: ${e.message}`, { cause: e });
+            }
+            // Log each distinct error as it occurs
+            if (e.message !== lastErrorMsg) {
+                console.warn(`pollUntil: transient error: ${e.message}`);
+                lastErrorMsg = e.message;
+            }
+            lastError = e;
+        }
+        if (Date.now() - startTime > timeoutMs) {
+            const msg = lastError ? `${errorMsg} (last error: ${lastError.message})` : errorMsg;
+            throw new Error(msg, lastError ? { cause: lastError } : undefined);
+        }
+        await sleep(intervalMs);
+    }
+}
+
 async function sendTransaction(argv: any, threadId: number) {
     const account = namedAccount(argv.from, threadId).connect(argv.provider)
     const startNonce = await account.getTransactionCount("pending")
     for (let index = 0; index < argv.times; index++) {
-        const response = await 
-            account.sendTransaction({
-                to: namedAddress(argv.to, threadId),
-                value: ethers.utils.parseEther(argv.ethamount),
-                data: argv.data,
-                nonce: startNonce + index,
-            })
-        console.log(response)
-        if (argv.wait) {
-          const receipt = await response.wait()
-          console.log(receipt)
-        }
-        if (argv.delay > 0) {
-            await new Promise(f => setTimeout(f, argv.delay));
+        try {
+            const response = await
+                account.sendTransaction({
+                    to: namedAddress(argv.to, threadId),
+                    value: ethers.utils.parseEther(argv.ethamount),
+                    data: argv.data,
+                    nonce: startNonce + index,
+                })
+            console.log(response)
+            if (argv.wait) {
+              const receipt = await response.wait()
+              console.log(receipt)
+            }
+            if (argv.delay > 0) {
+                await sleep(argv.delay);
+            }
+        } catch (e: any) {
+            throw new Error(`sendTransaction failed at iteration ${index + 1}/${argv.times}: ${e.message}`, { cause: e });
         }
     }
 }
 
 async function bridgeFunds(argv: any, parentChainUrl: string, chainUrl: string, inboxAddr: string) {
   argv.provider = new ethers.providers.WebSocketProvider(parentChainUrl);
+  try {
+    argv.to = "address_" + inboxAddr;
+    argv.data =
+      "0x0f4d14e9000000000000000000000000000000000000000000000000000082f79cd90000";
 
-  argv.to = "address_" + inboxAddr;
-  argv.data =
-    "0x0f4d14e9000000000000000000000000000000000000000000000000000082f79cd90000";
+    await runStress(argv, sendTransaction);
 
-  await runStress(argv, sendTransaction);
-
-  argv.provider.destroy();
-  if (argv.wait) {
-    const l2provider = new ethers.providers.WebSocketProvider(chainUrl);
-    const account = namedAccount(argv.from, argv.threadId).connect(l2provider)
-    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-    while (true) {
-      const balance = await account.getBalance()
-      if (balance.gte(ethers.utils.parseEther(argv.ethamount))) {
-        return
+    if (argv.wait) {
+      const l2provider = new ethers.providers.WebSocketProvider(chainUrl);
+      try {
+        const account = namedAccount(argv.from, argv.threadId).connect(l2provider)
+        await pollUntil(
+          async () => (await account.getBalance()).gte(ethers.utils.parseEther(argv.ethamount)),
+          100, 300000, `Timed out waiting for balance >= ${argv.ethamount} ETH after 300s`
+        );
+      } finally {
+        l2provider.destroy();
       }
-      await sleep(100)
     }
+  } finally {
+    argv.provider.destroy();
   }
 }
 
 async function bridgeNativeToken(argv: any, parentChainUrl: string, chainUrl: string, inboxAddr: string, token: string) {
-  argv.provider = new ethers.providers.WebSocketProvider(parentChainUrl);
+  let childProvider: ethers.providers.WebSocketProvider | undefined;
+  try {
+    argv.provider = new ethers.providers.WebSocketProvider(parentChainUrl);
+    childProvider = new ethers.providers.WebSocketProvider(chainUrl);
+    argv.to = "address_" + inboxAddr;
 
-  argv.to = "address_" + inboxAddr;
+    // snapshot balance before deposit
+    const bridger = namedAccount(argv.from, argv.threadId).connect(childProvider)
+    const bridgerBalanceBefore = await bridger.getBalance()
 
-  // snapshot balance before deposit
-  const childProvider = new ethers.providers.WebSocketProvider(chainUrl);
-  const bridger = namedAccount(argv.from, argv.threadId).connect(childProvider)
-  const bridgerBalanceBefore = await bridger.getBalance()
+    // get token contract
+    const bridgerParentChain = namedAccount(argv.from, argv.threadId).connect(argv.provider)
+    const nativeTokenContract = new ethers.Contract(token, ERC20.abi, bridgerParentChain)
 
-  // get token contract
-  const bridgerParentChain = namedAccount(argv.from, argv.threadId).connect(argv.provider)
-  const nativeTokenContract = new ethers.Contract(token, ERC20.abi, bridgerParentChain)
+    // scale deposit amount
+    const decimals = await nativeTokenContract.decimals()
+    const depositAmount = BigNumber.from(argv.amount).mul(BigNumber.from('10').pow(decimals))
 
-  // scale deposit amount
-  const decimals = await nativeTokenContract.decimals()
-  const depositAmount = BigNumber.from(argv.amount).mul(BigNumber.from('10').pow(decimals))
+    // approve inbox to use fee token
+    await nativeTokenContract.approve(inboxAddr, depositAmount)
 
-  /// approve inbox to use fee token
-  await nativeTokenContract.approve(inboxAddr, depositAmount)
+    // deposit fee token
+    const iface = new ethers.utils.Interface(["function depositERC20(uint256 amount)"])
+    argv.data = iface.encodeFunctionData("depositERC20", [depositAmount]);
 
-  /// deposit fee token
-  const iface = new ethers.utils.Interface(["function depositERC20(uint256 amount)"])
-  argv.data = iface.encodeFunctionData("depositERC20", [depositAmount]);
+    await runStress(argv, sendTransaction);
 
-  await runStress(argv, sendTransaction);
-
-  argv.provider.destroy();
-  if (argv.wait) {
-    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-    // calculate amount being minted on child chain
-    let expectedMintedAmount = depositAmount
-    if(decimals < 18) {
-      // inflate up to 18 decimals
-      expectedMintedAmount = depositAmount.mul(BigNumber.from('10').pow(18 - decimals))
-    } else if(decimals > 18) {
-      // deflate down to 18 decimals, rounding up
-      const quotient = BigNumber.from('10').pow(decimals - 18)
-      expectedMintedAmount = depositAmount.div(quotient)
-      if(expectedMintedAmount.mul(quotient).lt(depositAmount)) {
-        expectedMintedAmount = expectedMintedAmount.add(1)
+    if (argv.wait) {
+      // calculate amount being minted on child chain
+      let expectedMintedAmount = depositAmount
+      if(decimals < 18) {
+        // inflate up to 18 decimals
+        expectedMintedAmount = depositAmount.mul(BigNumber.from('10').pow(18 - decimals))
+      } else if(decimals > 18) {
+        // deflate down to 18 decimals, rounding up
+        const quotient = BigNumber.from('10').pow(decimals - 18)
+        expectedMintedAmount = depositAmount.div(quotient)
+        if(expectedMintedAmount.mul(quotient).lt(depositAmount)) {
+          expectedMintedAmount = expectedMintedAmount.add(1)
+        }
       }
-    }
 
-    while (true) {
-      const bridgerBalanceAfter = await bridger.getBalance()
-      if (bridgerBalanceAfter.sub(bridgerBalanceBefore).eq(expectedMintedAmount)) {
-        return
-      }
-      await sleep(100)
+      await pollUntil(
+        async () => (await bridger.getBalance()).sub(bridgerBalanceBefore).gte(expectedMintedAmount),
+        100, 300000, `Timed out waiting for native token bridge balance after 300s`
+      );
     }
+  } finally {
+    childProvider?.destroy();
+    argv.provider?.destroy();
   }
 }
 
@@ -190,13 +259,10 @@ async function deployWETHContract(deployerWallet: Wallet): Promise<string> {
 async function createStylusDeployer(deployerWallet: Wallet): Promise<string> {
   // this factory should be deployed by the rollupcreator when deploy helper is used
   const create2factory = '0x4e59b44847b379578588920ca78fbf26c0b4956c'
-  if (await deployerWallet.provider.getCode(create2factory) === '0x') {
-    // wait for 30 seconds, check again before throwing an error
-    await new Promise(resolve => setTimeout(resolve, 30000));
-    if (await deployerWallet.provider.getCode(create2factory) === '0x') {
-      throw new Error('Create2 factory not yet deployed')
-    }
-  }
+  await pollUntil(
+    async () => (await deployerWallet.provider.getCode(create2factory)) !== '0x',
+    10000, 50000, 'Create2 factory not deployed after 50s'
+  );
 
   const salt = ethers.constants.HashZero
   const stylusDeployerBytecode = StylusDeployerContract.bytecode
@@ -238,13 +304,9 @@ export const bridgeFundsCommand = {
     },
   },
   handler: async (argv: any) => {
-    const deploydata = JSON.parse(
-      fs
-        .readFileSync(path.join(consts.configpath, "deployment.json"))
-        .toString()
-    );
+    const deploydata = readDeployJson("deployment.json", "has the rollup been deployed with --init?");
     const inboxAddr = ethers.utils.hexlify(deploydata.inbox);
-  
+
     await bridgeFunds(argv, argv.l1url, argv.l2url, inboxAddr)
   },
 };
@@ -270,11 +332,7 @@ export const bridgeToL3Command = {
     },
   },
   handler: async (argv: any) => {
-    const deploydata = JSON.parse(
-      fs
-        .readFileSync(path.join(consts.configpath, "l3deployment.json"))
-        .toString()
-    );
+    const deploydata = readDeployJson("l3deployment.json", "has the L3 been deployed with --init --l3node?");
     const inboxAddr = ethers.utils.hexlify(deploydata.inbox);
 
     await bridgeFunds(argv, argv.l2url, argv.l3url, inboxAddr)
@@ -302,11 +360,7 @@ export const bridgeNativeTokenToL3Command = {
     },
   },
   handler: async (argv: any) => {
-    const deploydata = JSON.parse(
-      fs
-        .readFileSync(path.join(consts.configpath, "l3deployment.json"))
-        .toString()
-    );
+    const deploydata = readDeployJson("l3deployment.json", "has the L3 been deployed with --init --l3node?");
     const inboxAddr = ethers.utils.hexlify(deploydata.inbox);
     const nativeTokenAddr = ethers.utils.hexlify(deploydata["native-token"]);
 
@@ -330,38 +384,43 @@ export const transferL3ChainOwnershipCommand = {
     },
   },
   handler: async (argv: any) => {
-    // get inbox address from config file
-    const deploydata = JSON.parse(
-      fs
-        .readFileSync(path.join(consts.configpath, "l3deployment.json"))
-        .toString()
-    );
+    const deploydata = readDeployJson("l3deployment.json", "has the L3 been deployed with --init --l3node?");
     const inboxAddr = ethers.utils.hexlify(deploydata.inbox);
 
     // get L3 upgrade executor address from token bridge creator
     const l2provider = new ethers.providers.WebSocketProvider(argv.l2url);
-    const tokenBridgeCreator = new ethers.Contract(argv.creator, L1AtomicTokenBridgeCreator.abi, l2provider);
-    const [,,,,,,,l3UpgradeExecutorAddress,] = await tokenBridgeCreator.inboxToL2Deployment(inboxAddr);
+    let l3UpgradeExecutorAddress: string;
+    try {
+      const tokenBridgeCreator = new ethers.Contract(argv.creator, L1AtomicTokenBridgeCreator.abi, l2provider);
+      const deployment = await tokenBridgeCreator.inboxToL2Deployment(inboxAddr);
+      l3UpgradeExecutorAddress = deployment[7];
+      if (!l3UpgradeExecutorAddress || l3UpgradeExecutorAddress === ethers.constants.AddressZero) {
+        throw new Error(`Failed to get L3 UpgradeExecutor address from token bridge creator (inbox: ${inboxAddr})`);
+      }
+    } finally {
+      l2provider.destroy();
+    }
 
-    // set TX params
     argv.provider = new ethers.providers.WebSocketProvider(argv.l3url);
-    argv.to = "address_" + ARB_OWNER;
-    argv.from = "l3owner";
-    argv.ethamount = "0";
+    try {
+      argv.to = "address_" + consts.ARB_OWNER;
+      argv.from = "l3owner";
+      argv.ethamount = "0";
 
-    // add L3 UpgradeExecutor to chain owners
-    const arbOwnerIface = new ethers.utils.Interface([
-      "function addChainOwner(address newOwner) external",
-      "function removeChainOwner(address ownerToRemove) external"
-    ])
-    argv.data = arbOwnerIface.encodeFunctionData("addChainOwner", [l3UpgradeExecutorAddress]);
-    await runStress(argv, sendTransaction);
+      // add L3 UpgradeExecutor to chain owners
+      const arbOwnerIface = new ethers.utils.Interface([
+        "function addChainOwner(address newOwner) external",
+        "function removeChainOwner(address ownerToRemove) external"
+      ])
+      argv.data = arbOwnerIface.encodeFunctionData("addChainOwner", [l3UpgradeExecutorAddress]);
+      await runStress(argv, sendTransaction);
 
-    // remove L3 owner from chain owners
-    argv.data = arbOwnerIface.encodeFunctionData("removeChainOwner", [namedAccount("l3owner").address]);
-    await runStress(argv, sendTransaction);
-
-    argv.provider.destroy();
+      // remove L3 owner from chain owners
+      argv.data = arbOwnerIface.encodeFunctionData("removeChainOwner", [namedAccount("l3owner").address]);
+      await runStress(argv, sendTransaction);
+    } finally {
+      argv.provider.destroy();
+    }
   }
 };
 
@@ -383,9 +442,9 @@ export const createERC20Command = {
       describe: "if true, deploy on L1 only",
     },
     decimals: {
-      string: true,
+      number: true,
       describe: "number of decimals for token",
-      default: "18",
+      default: 18,
     },
   },
   handler: async (argv: any) => {
@@ -395,60 +454,62 @@ export const createERC20Command = {
 
       // deploy token on l1
       const l1provider = new ethers.providers.WebSocketProvider(argv.l1url);
-      const deployerWallet = namedAccount(argv.deployer).connect(l1provider);
+      try {
+        const deployerWallet = namedAccount(argv.deployer).connect(l1provider);
 
-      const tokenAddress = await deployERC20Contract(deployerWallet, argv.decimals);
-      const token = new ethers.Contract(tokenAddress, ERC20.abi, deployerWallet);
-      console.log("Contract deployed at L1 address:", token.address);
+        const tokenAddress = await deployERC20Contract(deployerWallet, argv.decimals);
+        const token = new ethers.Contract(tokenAddress, ERC20.abi, deployerWallet);
+        console.log("Contract deployed at L1 address:", token.address);
 
-      if (!argv.bridgeable) return;
-
-      // bridge to l2
-      const l2provider = new ethers.providers.WebSocketProvider(argv.l2url);
-      const l1l2tokenbridge = JSON.parse(
-        fs
-          .readFileSync(path.join(consts.tokenbridgedatapath, "l1l2_network.json"))
-          .toString()
-      );
-
-      const l1GatewayRouter = new ethers.Contract(l1l2tokenbridge.l2Network.tokenBridge.parentGatewayRouter, L1GatewayRouter.abi, deployerWallet);
-      await (await token.functions.approve(l1l2tokenbridge.l2Network.tokenBridge.parentErc20Gateway, ethers.constants.MaxUint256)).wait();
-      const supply = await token.totalSupply();
-      // transfer 90% of supply to l2
-      const transferAmount = supply.mul(9).div(10);
-      await (await l1GatewayRouter.functions.outboundTransfer(
-        token.address, deployerWallet.address, transferAmount, 100000000, 1000000000, "0x000000000000000000000000000000000000000000000000000fffffffffff0000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000", {
-          value: ethers.utils.parseEther("1"),
+        if (!argv.bridgeable) {
+          return;
         }
-      )).wait();
 
-      const tokenL2Addr = (await l1GatewayRouter.functions.calculateL2TokenAddress(token.address))[0];
-      // wait for l2 token to be deployed
-      for (let i = 0; i < 60; i++) {
-        if (await l2provider.getCode(tokenL2Addr) === "0x") {
-          await new Promise(f => setTimeout(f, 1000));
-        } else {
-          break;
+        // bridge to l2
+        const l2provider = new ethers.providers.WebSocketProvider(argv.l2url);
+        try {
+          const l1l2tokenbridge = readDeployJson(
+            "l1l2_network.json",
+            "has the token bridge been deployed with --tokenbridge?",
+            consts.tokenbridgedatapath
+          );
+
+          const l1GatewayRouter = new ethers.Contract(l1l2tokenbridge.l2Network.tokenBridge.parentGatewayRouter, L1GatewayRouter.abi, deployerWallet);
+          await (await token.functions.approve(l1l2tokenbridge.l2Network.tokenBridge.parentErc20Gateway, ethers.constants.MaxUint256)).wait();
+          const supply = await token.totalSupply();
+          // transfer 90% of supply to l2
+          const transferAmount = supply.mul(9).div(10);
+          await (await l1GatewayRouter.functions.outboundTransfer(
+            token.address, deployerWallet.address, transferAmount, 100000000, 1000000000, "0x000000000000000000000000000000000000000000000000000fffffffffff0000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000", {
+              value: ethers.utils.parseEther("1"),
+            }
+          )).wait();
+
+          const tokenL2Addr = (await l1GatewayRouter.functions.calculateL2TokenAddress(token.address))[0];
+          // wait for l2 token to be deployed
+          await pollUntil(
+            async () => (await l2provider.getCode(tokenL2Addr)) !== "0x",
+            1000, 60000, `Failed to bridge token to L2 (waited 60s for deployment at ${tokenL2Addr})`
+          );
+
+          console.log("Contract deployed at L2 address:", tokenL2Addr);
+        } finally {
+          l2provider.destroy();
         }
+      } finally {
+        l1provider.destroy();
       }
-      if (await l2provider.getCode(tokenL2Addr) === "0x") {
-        throw new Error("Failed to bridge token to L2");
-      }
-
-      console.log("Contract deployed at L2 address:", tokenL2Addr);
-
-      l1provider.destroy();
-      l2provider.destroy();
       return;
     }
 
-    // no l1-l2 token bridge, deploy token on l2 directly
     argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
-    const deployerWallet = namedAccount(argv.deployer).connect(argv.provider);
-    const tokenAddress = await deployERC20Contract(deployerWallet, argv.decimals);
-    console.log("Contract deployed at address:", tokenAddress);
-
-    argv.provider.destroy();
+    try {
+      const deployerWallet = namedAccount(argv.deployer).connect(argv.provider);
+      const tokenAddress = await deployERC20Contract(deployerWallet, argv.decimals);
+      console.log("Contract deployed at address:", tokenAddress);
+    } finally {
+      argv.provider.destroy();
+    }
   },
 };
 
@@ -465,14 +526,13 @@ export const createFeeTokenPricerCommand = {
     console.log("create-fee-token-pricer");
 
     argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
-    const deployerWallet = new Wallet(
-      ethers.utils.sha256(ethers.utils.toUtf8Bytes(argv.deployer)),
-      argv.provider
-    );
-    const feeTokenPricerAddress = await deployFeeTokenPricerContract(deployerWallet, BigNumber.from("15000000000000000000"));
-    console.log("Contract deployed at address:", feeTokenPricerAddress);
-
-    argv.provider.destroy();
+    try {
+      const deployerWallet = namedAccount(argv.deployer).connect(argv.provider);
+      const feeTokenPricerAddress = await deployFeeTokenPricerContract(deployerWallet, BigNumber.from("15000000000000000000"));
+      console.log("Contract deployed at address:", feeTokenPricerAddress);
+    } finally {
+      argv.provider.destroy();
+    }
   },
 };
 
@@ -494,45 +554,48 @@ export const deployExpressLaneAuctionContractCommand = {
   handler: async (argv: any) => {
     console.log("deploy ExpressLaneAuction contract");
     argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
-    const l2OwnerWallet = namedAccount("l2owner").connect(argv.provider)
-    const contractFactory = new ContractFactory(ExpressLaneAuctionContract.abi, ExpressLaneAuctionContract.bytecode, l2OwnerWallet)
+    try {
+      const l2OwnerWallet = namedAccount("l2owner").connect(argv.provider)
+      const contractFactory = new ContractFactory(ExpressLaneAuctionContract.abi, ExpressLaneAuctionContract.bytecode, l2OwnerWallet)
 
-    const contract = await contractFactory.deploy();
-    await contract.deployTransaction.wait();
-    console.log("ExpressLaneAuction contract deployed at address:", contract.address);
+      const contract = await contractFactory.deploy();
+      await contract.deployTransaction.wait();
+      console.log("ExpressLaneAuction contract deployed at address:", contract.address);
 
-    const auctioneerAddr = namedAddress(argv.auctioneer)
-    const initIface = new ethers.utils.Interface(["function initialize((address,address,address,(int64,uint64,uint64,uint64),uint256,address,address,address,address,address,address,address))"])
-    const initData = initIface.encodeFunctionData("initialize", [[
-      auctioneerAddr, //_auctioneer
-      argv.biddingToken, //_biddingToken
-      auctioneerAddr, //_beneficiary
-      [
-        Math.round(Date.now() / 60000) * 60,  // offsetTimestamp - most recent minute
-        60, // roundDurationSeconds
-        15, // auctionClosingSeconds
-        15  // reserveSubmissionSeconds
-      ],// RoundTiminginfo
-      1, // _minReservePrice
-      auctioneerAddr, //_auctioneerAdmin
-      auctioneerAddr, //_minReservePriceSetter,
-      auctioneerAddr, //_reservePriceSetter,
-      auctioneerAddr, //_reservePriceSetterAdmin,
-      auctioneerAddr, //_beneficiarySetter,
-      auctioneerAddr, //_roundTimingSetter,
-      auctioneerAddr //_masterAdmin
-    ]]);
+      const auctioneerAddr = namedAddress(argv.auctioneer)
+      const initIface = new ethers.utils.Interface(["function initialize((address,address,address,(int64,uint64,uint64,uint64),uint256,address,address,address,address,address,address,address))"])
+      const initData = initIface.encodeFunctionData("initialize", [[
+        auctioneerAddr, //_auctioneer
+        argv.biddingToken, //_biddingToken
+        auctioneerAddr, //_beneficiary
+        [
+          Math.round(Date.now() / 60000) * 60,  // offsetTimestamp - most recent minute
+          60, // roundDurationSeconds
+          15, // auctionClosingSeconds
+          15  // reserveSubmissionSeconds
+        ],// RoundTiminginfo
+        1, // _minReservePrice
+        auctioneerAddr, //_auctioneerAdmin
+        auctioneerAddr, //_minReservePriceSetter,
+        auctioneerAddr, //_reservePriceSetter,
+        auctioneerAddr, //_reservePriceSetterAdmin,
+        auctioneerAddr, //_beneficiarySetter,
+        auctioneerAddr, //_roundTimingSetter,
+        auctioneerAddr //_masterAdmin
+      ]]);
 
-    const proxyFactory = new ethers.ContractFactory(TransparentUpgradeableProxy.abi, TransparentUpgradeableProxy.bytecode, l2OwnerWallet)
-    const proxy = await proxyFactory.deploy(contract.address, namedAddress("l2owner"), initData)
-    await proxy.deployed()
-    console.log("Proxy(ExpressLaneAuction) contract deployed at address:", proxy.address);
-
-    argv.provider.destroy();
+      const proxyFactory = new ethers.ContractFactory(TransparentUpgradeableProxy.abi, TransparentUpgradeableProxy.bytecode, l2OwnerWallet)
+      const proxy = await proxyFactory.deploy(contract.address, namedAddress("l2owner"), initData)
+      await proxy.deployed()
+      console.log("Proxy(ExpressLaneAuction) contract deployed at address:", proxy.address);
+    } finally {
+      argv.provider.destroy();
+    }
   }
 };
 
 // Will revert if the keyset is already valid.
+// Note: this function mutates argv (sets from, to, data, ethamount).
 async function setValidKeyset(argv: any, upgradeExecutorAddr: string, sequencerInboxAddr: string, keyset: string){
     const innerIface = new ethers.utils.Interface(["function setValidKeyset(bytes)"])
     const innerData = innerIface.encodeFunctionData("setValidKeyset", [keyset]);
@@ -547,8 +610,6 @@ async function setValidKeyset(argv: any, upgradeExecutorAddr: string, sequencerI
     argv.ethamount = "0"
 
     await sendTransaction(argv, 0);
-
-    argv.provider.destroy();
 }
 
 export const transferERC20Command = {
@@ -579,17 +640,16 @@ export const transferERC20Command = {
   handler: async (argv: any) => {
     console.log("transfer-erc20");
 
-    if (argv.l1) {
-      argv.provider = new ethers.providers.WebSocketProvider(argv.l1url);
-    } else {
-      argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
+    argv.provider = new ethers.providers.WebSocketProvider(argv.l1 ? argv.l1url : argv.l2url);
+    try {
+      const account = namedAccount(argv.from).connect(argv.provider);
+      const tokenContract = new ethers.Contract(argv.token, ERC20.abi, account);
+      const tokenDecimals = await tokenContract.decimals();
+      const amountToTransfer = BigNumber.from(argv.amount).mul(BigNumber.from('10').pow(tokenDecimals));
+      await(await tokenContract.transfer(namedAccount(argv.to).address, amountToTransfer)).wait();
+    } finally {
+      argv.provider.destroy();
     }
-    const account = namedAccount(argv.from).connect(argv.provider);
-    const tokenContract = new ethers.Contract(argv.token, ERC20.abi, account);
-    const tokenDecimals = await tokenContract.decimals();
-    const amountToTransfer = BigNumber.from(argv.amount).mul(BigNumber.from('10').pow(tokenDecimals));
-    await(await tokenContract.transfer(namedAccount(argv.to).address, amountToTransfer)).wait();
-    argv.provider.destroy();
   },
 };
 
@@ -611,16 +671,20 @@ export const createWETHCommand = {
     console.log("create-weth");
 
     const l1provider = new ethers.providers.WebSocketProvider(argv.l1url);
-    const deployerWallet = namedAccount(argv.deployer).connect(l1provider);
+    try {
+      const deployerWallet = namedAccount(argv.deployer).connect(l1provider);
 
-    const wethAddress = await deployWETHContract(deployerWallet);
-    const weth = new ethers.Contract(wethAddress, TestWETH9.abi, deployerWallet);
-    console.log("WETH deployed at L1 address:", weth.address);
+      const wethAddress = await deployWETHContract(deployerWallet);
+      const weth = new ethers.Contract(wethAddress, TestWETH9.abi, deployerWallet);
+      console.log("WETH deployed at L1 address:", weth.address);
 
-    if (argv.deposit > 0) {
-      const amount = ethers.utils.parseEther(argv.deposit.toString());
-      const depositTx = await deployerWallet.sendTransaction({ to: wethAddress, value: amount, data:"0xd0e30db0" }); // deposit()
-      await depositTx.wait();
+      if (argv.deposit > 0) {
+        const amount = ethers.utils.parseEther(argv.deposit.toString());
+        const depositTx = await deployerWallet.sendTransaction({ to: wethAddress, value: amount, data:"0xd0e30db0" }); // deposit()
+        await depositTx.wait();
+      }
+    } finally {
+      l1provider.destroy();
     }
   },
 };
@@ -630,129 +694,52 @@ export const createStylusDeployerCommand = {
   describe: "deploys the stylus deployer contract",
   builder: {
     deployer: { string: true, describe: "account (see general help)" },
-    l3: { boolean: false, describe: "deploy on L3, otherwise deploy on L2" },
+    l3: { boolean: true, default: false, describe: "deploy on L3, otherwise deploy on L2" },
   },
   handler: async (argv: any) => {
     console.log("create-stylus-deployer");
 
     const provider = new ethers.providers.WebSocketProvider(argv.l3 ? argv.l3url : argv.l2url);
-    const deployerWallet = namedAccount(argv.deployer).connect(provider);
+    try {
+      const deployerWallet = namedAccount(argv.deployer).connect(provider);
 
-    const stylusDeployerAddress = await createStylusDeployer(deployerWallet);
-    if (argv.l3) {
-      console.log("Stylus deployer deployed at L3 address:", stylusDeployerAddress);
-    } else {
-      console.log("Stylus deployer deployed at L2 address:", stylusDeployerAddress);
+      const stylusDeployerAddress = await createStylusDeployer(deployerWallet);
+      const layer = argv.l3 ? "L3" : "L2";
+      console.log(`Stylus deployer deployed at ${layer} address:`, stylusDeployerAddress);
+    } finally {
+      provider.destroy();
     }
-
-    provider.destroy();
   }
 };
 
-export const sendL1Command = {
-  command: "send-l1",
-  describe: "sends funds between l1 accounts",
-  builder: {
-    ethamount: {
-      string: true,
-      describe: "amount to transfer (in eth)",
-      default: "10",
-    },
-    from: {
-      string: true,
-      describe: "account (see general help)",
-      default: "funnel",
-    },
-    to: {
-      string: true,
-      describe: "address (see general help)",
-      default: "funnel",
-    },
-    wait: {
-      boolean: true,
-      describe: "wait for transaction to complete",
-      default: false,
-    },
-    data: { string: true, describe: "data" },
-  },
-  handler: async (argv: any) => {
-    argv.provider = new ethers.providers.WebSocketProvider(argv.l1url);
-
-    await runStress(argv, sendTransaction);
-
-    argv.provider.destroy();
-  },
+const sendCommandBuilder = {
+  ethamount: { string: true, describe: "amount to transfer (in eth)", default: "10" },
+  from: { string: true, describe: "account (see general help)", default: "funnel" },
+  to: { string: true, describe: "address (see general help)", default: "funnel" },
+  wait: { boolean: true, describe: "wait for transaction to complete", default: false },
+  data: { string: true, describe: "data" },
 };
 
-export const sendL2Command = {
-  command: "send-l2",
-  describe: "sends funds between l2 accounts",
-  builder: {
-    ethamount: {
-      string: true,
-      describe: "amount to transfer (in eth)",
-      default: "10",
+// Factory for send-l1/l2/l3 commands (identical except for chain layer).
+function makeSendCommand(layer: "l1" | "l2" | "l3") {
+  return {
+    command: `send-${layer}`,
+    describe: `sends funds between ${layer} accounts`,
+    builder: sendCommandBuilder,
+    handler: async (argv: any) => {
+      argv.provider = new ethers.providers.WebSocketProvider(argv[`${layer}url`]);
+      try {
+        await runStress(argv, sendTransaction);
+      } finally {
+        argv.provider.destroy();
+      }
     },
-    from: {
-      string: true,
-      describe: "account (see general help)",
-      default: "funnel",
-    },
-    to: {
-      string: true,
-      describe: "address (see general help)",
-      default: "funnel",
-    },
-    wait: {
-      boolean: true,
-      describe: "wait for transaction to complete",
-      default: false,
-    },
-    data: { string: true, describe: "data" },
-  },
-  handler: async (argv: any) => {
-    argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
+  };
+}
 
-    await runStress(argv, sendTransaction);
-
-    argv.provider.destroy();
-  },
-};
-
-export const sendL3Command = {
-  command: "send-l3",
-  describe: "sends funds between l3 accounts",
-  builder: {
-    ethamount: {
-      string: true,
-      describe: "amount to transfer (in eth)",
-      default: "10",
-    },
-    from: {
-      string: true,
-      describe: "account (see general help)",
-      default: "funnel",
-    },
-    to: {
-      string: true,
-      describe: "address (see general help)",
-      default: "funnel",
-    },
-    wait: {
-      boolean: true,
-      describe: "wait for transaction to complete",
-      default: false,
-    },
-    data: { string: true, describe: "data" },
-  },
-  handler: async (argv: any) => {
-    argv.provider = new ethers.providers.WebSocketProvider(argv.l3url);
-
-    await runStress(argv, sendTransaction);
-
-    argv.provider.destroy();
-  },
-};
+export const sendL1Command = makeSendCommand("l1");
+export const sendL2Command = makeSendCommand("l2");
+export const sendL3Command = makeSendCommand("l3");
 
 export const sendRPCCommand = {
     command: "send-rpc",
@@ -764,8 +751,14 @@ export const sendRPCCommand = {
     },
     handler: async (argv: any) => {
         const rpcProvider = new ethers.providers.JsonRpcProvider(argv.url)
-
-        await rpcProvider.send(argv.method, argv.params)
+        try {
+            const result = await rpcProvider.send(argv.method, argv.params)
+            console.log(JSON.stringify(result, null, 2))
+        } catch (e: any) {
+            throw new Error(`RPC call ${argv.method} to ${argv.url} failed: ${e.message}`, { cause: e });
+        } finally {
+            rpcProvider.removeAllListeners();
+        }
     }
 }
 
@@ -774,19 +767,20 @@ export const setValidKeysetCommand = {
     describe: "sets the anytrust keyset",
     handler: async (argv: any) => {
         argv.provider = new ethers.providers.WebSocketProvider(argv.l1url);
-        const deploydata = JSON.parse(
-            fs
-                .readFileSync(path.join(consts.configpath, "deployment.json"))
-                .toString()
-        );
-        const sequencerInboxAddr = ethers.utils.hexlify(deploydata["sequencer-inbox"]);
-        const upgradeExecutorAddr = ethers.utils.hexlify(deploydata["upgrade-executor"]);
+        try {
+            const deploydata = readDeployJson("deployment.json", "has the rollup been deployed with --init?");
+            const sequencerInboxAddr = ethers.utils.hexlify(deploydata["sequencer-inbox"]);
+            const upgradeExecutorAddr = ethers.utils.hexlify(deploydata["upgrade-executor"]);
 
-        const keyset = fs
-            .readFileSync(path.join(consts.configpath, "l2_das_keyset.hex"))
-            .toString()
+            const keyset = consts.readFileString(
+                path.join(consts.configpath, "l2_das_keyset.hex"),
+                "has the AnyTrust keyset been generated with --init --l2-anytrust?"
+            );
 
-        await setValidKeyset(argv, upgradeExecutorAddr, sequencerInboxAddr, keyset)
+            await setValidKeyset(argv, upgradeExecutorAddr, sequencerInboxAddr, keyset)
+        } finally {
+            argv.provider.destroy();
+        }
     }
 };
 
@@ -798,14 +792,14 @@ export const waitForSyncCommand = {
   },
   handler: async (argv: any) => {
     const rpcProvider = new ethers.providers.JsonRpcProvider(argv.url)
-    let syncStatus;
-    do {
-        syncStatus = await rpcProvider.send("eth_syncing", [])
-        if (syncStatus !== false) {
-            // Wait for a short interval before checking again
-            await new Promise(resolve => setTimeout(resolve, 5000))
-        }
-    } while (syncStatus !== false)
+    try {
+      await pollUntil(
+        async () => (await rpcProvider.send("eth_syncing", [])) === false,
+        5000, 300000, `Timed out waiting for sync at ${argv.url} after 300s`
+      );
+    } finally {
+      rpcProvider.removeAllListeners();
+    }
   },
 };
 
@@ -814,17 +808,19 @@ export const grantFiltererRoleCommand = {
   describe: "grants TransactionFilterer role to the filterer account",
   handler: async (argv: any) => {
     argv.provider = new ethers.providers.WebSocketProvider(argv.l2url);
+    try {
+      const arbOwnerIface = new ethers.utils.Interface([
+        "function addTransactionFilterer(address filterer) external"
+      ]);
 
-    const arbOwnerIface = new ethers.utils.Interface([
-      "function addTransactionFilterer(address filterer) external"
-    ]);
+      argv.data = arbOwnerIface.encodeFunctionData("addTransactionFilterer", [namedAddress("filterer")]);
+      argv.from = "l2owner";
+      argv.to = "address_" + consts.ARB_OWNER;
+      argv.ethamount = "0";
 
-    argv.data = arbOwnerIface.encodeFunctionData("addTransactionFilterer", [namedAddress("filterer")]);
-    argv.from = "l2owner";
-    argv.to = "address_" + ARB_OWNER;
-    argv.ethamount = "0";
-
-    await runStress(argv, sendTransaction);
-    argv.provider.destroy();
+      await runStress(argv, sendTransaction);
+    } finally {
+      argv.provider.destroy();
+    }
   }
 };
