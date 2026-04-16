@@ -211,7 +211,7 @@ function createDataAvailabilityConfig(argv: any, anytrust: boolean) {
 }
 
 function applyTxFilteringConfig(config: any) {
-    config.execution.sequencer["transaction-filtering"] = {
+    config.execution["transaction-filtering"] = {
         "address-filter": {
             "enable": true,
             "s3": {
@@ -387,6 +387,9 @@ function writeConfigs(argv: any) {
         if (argv.txfiltering) {
             applyTxFilteringConfig(simpleConfig);
         }
+        if (argv.filteringreport) {
+            applyFilteringReportConfig(simpleConfig);
+        }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(simpleConfig))
     } else {
         let validatorConfig = JSON.parse(baseConfJSON)
@@ -412,6 +415,9 @@ function writeConfigs(argv: any) {
         }
         if (argv.txfiltering) {
             applyTxFilteringConfig(sequencerConfig);
+        }
+        if (argv.filteringreport) {
+            applyFilteringReportConfig(sequencerConfig);
         }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
 
@@ -740,6 +746,11 @@ export const writeConfigCommand = {
             describe: "enable transaction filtering mode",
             default: false
         },
+        filteringreport: {
+            boolean: true,
+            describe: "enable filtering report framework",
+            default: false
+        },
     },
     handler: (argv: any) => {
         writeConfigs(argv)
@@ -873,8 +884,10 @@ export const initTxFilteringMinioCommand = {
     command: "init-tx-filtering-minio",
     describe: "initializes MinIO bucket and empty address hash list",
     handler: async () => {
+        const id = crypto.randomUUID();
         const salt = crypto.randomUUID();
         const initialAddressList = {
+            "id": id,
             "salt": salt,
             "hashing_scheme": "Sha256",
             "address_hashes": []
@@ -1012,5 +1025,133 @@ export const removeFilteredAddressCommand = {
         } else {
             console.log("Address hash not in list:", hash);
         }
+    }
+}
+
+function writeElasticMQConfig() {
+    const elasticmqConf = `include classpath("application.conf")
+
+node-address {
+  protocol = http
+  host = "*"
+  port = 9324
+  context-path = ""
+}
+
+rest-sqs {
+  enabled = true
+  bind-port = 9324
+  bind-hostname = "0.0.0.0"
+  sqs-limits = strict
+}
+
+queues {
+  filtering-reports {
+    defaultVisibilityTimeout = 30 seconds
+    delay = 0 seconds
+    receiveMessageWait = 0 seconds
+  }
+}
+`;
+    fs.writeFileSync(path.join(consts.configpath, "elasticmq.conf"), elasticmqConf);
+}
+
+export const writeElasticMQConfigCommand = {
+    command: "write-elasticmq-config",
+    describe: "writes ElasticMQ config file for SQS emulation",
+    handler: () => {
+        writeElasticMQConfig();
+    }
+}
+
+function writeFilteringReportConfig() {
+    const config = {
+        "http": {
+            "addr": "0.0.0.0",
+            "port": 8547,
+            "vhosts": "*",
+            "corsdomain": "*",
+            "api": ["filteringreport"]
+        },
+        "ws": {
+            "addr": "0.0.0.0",
+            "port": 8548
+        },
+        "queue": {
+            "queue-url": "http://elasticmq:9324/000000000000/filtering-reports",
+            "sqs-client": {
+                "region": "us-east-1",
+                "endpoint": "http://elasticmq:9324",
+                "access-key": "elasticmq",
+                "secret-key": "elasticmq"
+            }
+        },
+        "report-forwarder": {
+            "workers": 1,
+            "poll-interval": "5s",
+            "sqs-wait-time-seconds": 5,
+            "external-endpoint": {
+                "url": "http://report-receiver:8080",
+                "timeout": "10s"
+            }
+        }
+    };
+    fs.writeFileSync(
+        path.join(consts.configpath, "filtering_report_config.json"),
+        JSON.stringify(config)
+    );
+}
+
+export const writeFilteringReportConfigCommand = {
+    command: "write-filtering-report-config",
+    describe: "writes filtering-report service config file",
+    handler: () => {
+        writeFilteringReportConfig();
+    }
+}
+
+function applyFilteringReportConfig(config: any) {
+    if (!config.execution["transaction-filtering"]) {
+        config.execution["transaction-filtering"] = {};
+    }
+    config.execution["transaction-filtering"]["filtering-report-rpc-client"] = {
+        "url": "http://filtering-report:8547"
+    };
+}
+
+export const serveReportReceiverCommand = {
+    command: "serve-report-receiver",
+    describe: "starts an HTTP server that receives and logs filtering reports",
+    handler: async () => {
+        const http = require('http');
+        const reports: any[] = [];
+        const server = http.createServer((req: any, res: any) => {
+            if (req.method === 'POST') {
+                let body = '';
+                req.on('data', (chunk: string) => body += chunk);
+                req.on('end', () => {
+                    console.log('Received report:', body);
+                    reports.push(JSON.parse(body));
+                    res.writeHead(200, {'Content-Type': 'application/json'});
+                    res.end(JSON.stringify({status: 'ok'}));
+                });
+            } else if (req.method === 'GET' && req.url === '/reports') {
+                res.writeHead(200, {'Content-Type': 'application/json'});
+                res.end(JSON.stringify(reports));
+            } else {
+                res.writeHead(200);
+                res.end('OK');
+            }
+        });
+        server.listen(8080, '0.0.0.0', () => {
+            console.log('Report receiver listening on :8080');
+        });
+        // Handler must be async and await a never-resolving promise so yargs
+        // does not return early. Without this, index.ts's
+        // `main().then(() => process.exit(0))` would terminate the process
+        // immediately after server.listen() starts, killing the server.
+        // SIGINT / SIGTERM from `docker compose down` will still terminate
+        // the container cleanly.
+        await new Promise<void>(() => {});
     }
 }

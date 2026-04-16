@@ -511,6 +511,39 @@ services:
     depends_on:
       - sequencer
 
+  elasticmq:
+    image: softwaremill/elasticmq-native:1.6.9
+    ports:
+      - "127.0.0.1:9324:9324"
+    volumes:
+      - "config:/config"
+    command: ["-Dconfig.file=/config/elasticmq.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9325 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  filtering-report:
+    pid: host
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/filtering-report
+    ports:
+      - "127.0.0.1:8550:8547"
+    volumes:
+      - "config:/config"
+    command:
+      - --conf.file=/config/filtering_report_config.json
+    depends_on:
+      - elasticmq
+      - sequencer
+
+  report-receiver:
+    build: scripts/
+    command: ["serve-report-receiver"]
+    ports:
+      - "127.0.0.1:9081:8080"
+
 volumes:
   l1data:
   consensus:
