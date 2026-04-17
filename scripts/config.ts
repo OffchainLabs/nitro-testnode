@@ -753,6 +753,9 @@ export const writeConfigCommand = {
         },
     },
     handler: (argv: any) => {
+        if (argv.filteringreport) {
+            argv.txfiltering = true;
+        }
         writeConfigs(argv)
     }
 }
@@ -1131,9 +1134,15 @@ export const serveReportReceiverCommand = {
                 req.on('data', (chunk: string) => body += chunk);
                 req.on('end', () => {
                     console.log('Received report:', body);
-                    reports.push(JSON.parse(body));
-                    res.writeHead(200, {'Content-Type': 'application/json'});
-                    res.end(JSON.stringify({status: 'ok'}));
+                    try {
+                        reports.push(JSON.parse(body));
+                        res.writeHead(200, {'Content-Type': 'application/json'});
+                        res.end(JSON.stringify({status: 'ok'}));
+                    } catch (err) {
+                        console.error('Failed to parse report body:', err);
+                        res.writeHead(400, {'Content-Type': 'application/json'});
+                        res.end(JSON.stringify({status: 'error', message: 'invalid JSON'}));
+                    }
                 });
             } else if (req.method === 'GET' && req.url === '/reports') {
                 res.writeHead(200, {'Content-Type': 'application/json'});
