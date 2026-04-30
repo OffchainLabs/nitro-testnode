@@ -94,6 +94,39 @@ def wins(nosync: float | None, sync: float | None, kind: str) -> str:
     return f"{ratio:.1f}×"
 
 
+def print_combined_table(cells: dict[str, dict[str, list[float]]]) -> None:
+    print("## Combined matrix")
+    print()
+    print("| metric | NoSync heavy | Sync heavy | wins by | NoSync light | Sync light | wins by |")
+    print("|---|---|---|---|---|---|---|")
+    for col, kind, label in METRICS:
+        vals = {cell_id: aggregate(cells[cell_id].get(col, []), kind) for cell_id, _ in CELLS}
+        print(
+            f"| {label} | {fmt(vals['nosync_heavy'], kind)} | {fmt(vals['sync_heavy'], kind)} | "
+            f"{wins(vals['nosync_heavy'], vals['sync_heavy'], kind)} | "
+            f"{fmt(vals['nosync_light'], kind)} | {fmt(vals['sync_light'], kind)} | "
+            f"{wins(vals['nosync_light'], vals['sync_light'], kind)} |"
+        )
+
+
+def print_split_table(
+    cells: dict[str, dict[str, list[float]]],
+    nosync_id: str,
+    sync_id: str,
+    title: str,
+) -> None:
+    print(f"## {title}")
+    print()
+    print("| metric | NoSync | Sync | wins by |")
+    print("|---|---|---|---|")
+    for col, kind, label in METRICS:
+        nosync = aggregate(cells[nosync_id].get(col, []), kind)
+        sync = aggregate(cells[sync_id].get(col, []), kind)
+        print(
+            f"| {label} | {fmt(nosync, kind)} | {fmt(sync, kind)} | {wins(nosync, sync, kind)} |"
+        )
+
+
 def main(csv_dir: Path) -> int:
     cells: dict[str, dict[str, list[float]]] = {}
     for cell_id, _ in CELLS:
@@ -104,20 +137,11 @@ def main(csv_dir: Path) -> int:
             continue
         cells[cell_id] = load_cell(path)
 
-    # Markdown table.
-    print("| metric | NoSync heavy | Sync heavy | wins by | NoSync light | Sync light | wins by |")
-    print("|---|---|---|---|---|---|---|")
-    for col, kind, label in METRICS:
-        vals = {
-            cell_id: aggregate(cells[cell_id].get(col, []), kind)
-            for cell_id, _ in CELLS
-        }
-        print(
-            f"| {label} | {fmt(vals['nosync_heavy'], kind)} | {fmt(vals['sync_heavy'], kind)} | "
-            f"{wins(vals['nosync_heavy'], vals['sync_heavy'], kind)} | "
-            f"{fmt(vals['nosync_light'], kind)} | {fmt(vals['sync_light'], kind)} | "
-            f"{wins(vals['nosync_light'], vals['sync_light'], kind)} |"
-        )
+    print_combined_table(cells)
+    print()
+    print_split_table(cells, "nosync_heavy", "sync_heavy", "Heavy workload (NoSync vs Sync)")
+    print()
+    print_split_table(cells, "nosync_light", "sync_light", "Light workload (NoSync vs Sync)")
     return 0
 
 
