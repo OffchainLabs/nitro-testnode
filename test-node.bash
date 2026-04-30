@@ -80,6 +80,9 @@ build_node_images=false
 l2_traffic=true
 l3_traffic=true
 
+# Pebble sync mode for the sequencer (false = NoSync / async WAL)
+pebble_sync_mode=false
+
 while [[ $# -gt 0 ]]; do
     case $1 in
         --init)
@@ -306,6 +309,15 @@ while [[ $# -gt 0 ]]; do
             l3_traffic=false
             shift
             ;;
+        --pebble-sync-mode|--pebble-sync-mode=*)
+            if [[ "$1" == --pebble-sync-mode=* ]]; then
+                pebble_sync_mode="${1#*=}"
+                shift
+            else
+                pebble_sync_mode="$2"
+                shift 2
+            fi
+            ;;
         *)
             echo Usage: $0 \[OPTIONS..]
             echo        $0 script [SCRIPT-ARGS]
@@ -336,6 +348,7 @@ while [[ $# -gt 0 ]]; do
             echo --no-run          does not launch nodes \(useful with build or init\)
             echo --no-l2-traffic   disables L2 spam transaction traffic \(default: enabled\)
             echo --no-l3-traffic   disables L3 spam transaction traffic \(default: enabled\)
+            echo --pebble-sync-mode VAL   set sequencer pebble sync-mode \(true=fsync per commit, false=async WAL\) \(default: false\)
             echo --no-simple       run a full configuration with separate sequencer/batch-poster/validator/relayer
             echo --build-dev-nitro     rebuild dev nitro docker image
             echo --no-build-dev-nitro  don\'t rebuild dev nitro docker image
@@ -349,6 +362,8 @@ while [[ $# -gt 0 ]]; do
             exit 0
     esac
 done
+
+export NITRO_PEBBLE_SYNC_MODE="$pebble_sync_mode"
 
 NODES="sequencer"
 INITIAL_SEQ_NODES="sequencer"
