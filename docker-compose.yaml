@@ -536,7 +536,6 @@ services:
       - --conf.file=/config/filtering_report_config.json
     depends_on:
       - elasticmq
-      - sequencer
 
   report-receiver:
     build: scripts/
