@@ -211,7 +211,7 @@ function createDataAvailabilityConfig(argv: any, anytrust: boolean) {
 }
 
 function applyTxFilteringConfig(config: any) {
-    config.execution.sequencer["transaction-filtering"] = {
+    config.execution["transaction-filtering"] = {
         "address-filter": {
             "enable": true,
             "s3": {
