@@ -971,6 +971,10 @@ export const addFilteredAddressCommand = {
         const hashWithPrefix = "0x" + hash;
 
         const addressListPath = path.join(consts.configpath, "initial_address_hashes.json");
+        if (!fs.existsSync(addressListPath)) {
+            console.error("Address hash list not found. Run init-tx-filtering-minio first.");
+            process.exit(1);
+        }
         const addressList = JSON.parse(fs.readFileSync(addressListPath).toString());
 
         if (!addressList.hashes.includes(hashWithPrefix)) {
@@ -1008,6 +1012,10 @@ export const removeFilteredAddressCommand = {
         const hashWithPrefix = "0x" + hash;
 
         const addressListPath = path.join(consts.configpath, "initial_address_hashes.json");
+        if (!fs.existsSync(addressListPath)) {
+            console.error("Address hash list not found. Run init-tx-filtering-minio first.");
+            process.exit(1);
+        }
         const addressList = JSON.parse(fs.readFileSync(addressListPath).toString());
 
         const index = addressList.hashes.indexOf(hashWithPrefix);
