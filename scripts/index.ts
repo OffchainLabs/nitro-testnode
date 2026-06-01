@@ -18,6 +18,9 @@ import {
   hashAddressCommand,
   addFilteredAddressCommand,
   removeFilteredAddressCommand,
+  writeElasticMQConfigCommand,
+  writeFilteringReportConfigCommand,
+  serveReportReceiverCommand,
 } from "./config";
 import {
   printAddressCommand,
@@ -88,6 +91,9 @@ async function main() {
     .command(hashAddressCommand)
     .command(addFilteredAddressCommand)
     .command(removeFilteredAddressCommand)
+    .command(writeElasticMQConfigCommand)
+    .command(writeFilteringReportConfigCommand)
+    .command(serveReportReceiverCommand)
     .command(grantFiltererRoleCommand)
     .command(printAddressCommand)
     .command(printPrivateKeyCommand)
@@ -97,7 +103,8 @@ async function main() {
     .strict()
     .demandCommand(1, "a command must be specified")
     .epilogue(namedAccountHelpString)
-    .help().argv;
+    .help()
+    .parseAsync();
 }
 
 main()

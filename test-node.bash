@@ -65,6 +65,7 @@ l2anytrust=false
 l2referenceda=false
 l2timeboost=false
 l2txfiltering=false
+l2filteringreport=false
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -290,6 +291,11 @@ while [[ $# -gt 0 ]]; do
             l2txfiltering=true
             shift
             ;;
+        --l2-filtering-report)
+            l2filteringreport=true
+            l2txfiltering=true
+            shift
+            ;;
         --redundantsequencers)
             simple=false
             redundantsequencers=$2
@@ -336,6 +342,7 @@ while [[ $# -gt 0 ]]; do
             echo --l2-referenceda  run the L2 with reference external data availability provider
             echo --l2-timeboost    run the L2 with Timeboost enabled, including auctioneer and bid validator
             echo --l2-tx-filtering  run the L2 with transaction filtering enabled
+            echo --l2-filtering-report  run the L2 with filtering report framework enabled \(implies --l2-tx-filtering\)
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
@@ -420,6 +427,10 @@ fi
 
 if $l2txfiltering; then
     NODES="$NODES minio transaction-filterer"
+fi
+
+if $l2filteringreport; then
+    NODES="$NODES elasticmq filtering-report report-receiver"
 fi
 
 if $dev_nitro && $build_dev_nitro; then
@@ -532,6 +543,14 @@ if $force_init; then
         run_script init-tx-filtering-minio
     fi
 
+    if $l2filteringreport; then
+        echo == Writing ElasticMQ config
+        run_script write-elasticmq-config
+
+        echo == Starting ElasticMQ
+        docker compose up --wait elasticmq
+    fi
+
     echo == Funding validator, sequencer and l2owner
     run_script send-l1 --ethamount 1000 --to validator --wait
     run_script send-l1 --ethamount 1000 --to sequencer --wait
@@ -588,6 +607,7 @@ anytrustNodeConfigLine=""
 referenceDaNodeConfigLine=""
 timeboostNodeConfigLine=""
 txFilteringNodeConfigLine=""
+filteringReportNodeConfigLine=""
 
 # Remaining init may require AnyTrust committee/mirrors to have been started
 if $l2anytrust; then
@@ -631,12 +651,15 @@ if $force_init; then
     if $l2txfiltering; then
         txFilteringNodeConfigLine="--txfiltering"
     fi
+    if $l2filteringreport; then
+        filteringReportNodeConfigLine="--filteringreport"
+    fi
 
     echo "== Writing configs"
     if $simple; then
-        run_script write-config --simple $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine
+        run_script write-config --simple $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine $filteringReportNodeConfigLine
     else
-        run_script write-config $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine
+        run_script write-config $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine $filteringReportNodeConfigLine
 
         echo == Initializing redis
         docker compose up --wait redis
@@ -682,6 +705,14 @@ if $force_init; then
 
         echo == Writing transaction-filterer service config
         run_script write-tx-filterer-config
+    fi
+
+    if $l2filteringreport; then
+        echo == Starting report receiver
+        docker compose up --wait report-receiver
+
+        echo == Writing filtering-report service config
+        run_script write-filtering-report-config
     fi
 
     if $tokenbridge; then
