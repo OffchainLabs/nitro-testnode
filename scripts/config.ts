@@ -887,13 +887,14 @@ export const initTxFilteringMinioCommand = {
     command: "init-tx-filtering-minio",
     describe: "initializes MinIO bucket and empty address hash list",
     handler: async () => {
-        const id = crypto.randomUUID();
         const salt = crypto.randomUUID();
         const initialAddressList = {
-            "id": id,
-            "salt": salt,
-            "hashing_scheme": "Sha256",
-            "address_hashes": []
+            id: crypto.randomUUID(),
+            extract_uuid: crypto.randomUUID(),
+            salt: salt,
+            issued_at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
+            hashing_scheme: "sha256-stringinput",
+            hashes: [] as string[],
         };
         fs.writeFileSync(path.join(consts.configpath, "initial_address_hashes.json"), JSON.stringify(initialAddressList, null, 2));
         fs.writeFileSync(path.join(consts.configpath, "tx_filtering_salt.hex"), salt);
@@ -981,18 +982,25 @@ export const addFilteredAddressCommand = {
         }
         const salt = fs.readFileSync(saltPath).toString().trim();
         const hash = computeAddressHash(argv.address, salt);
+        const hashWithPrefix = "0x" + hash;
 
         const addressListPath = path.join(consts.configpath, "initial_address_hashes.json");
+        if (!fs.existsSync(addressListPath)) {
+            console.error("Address hash list not found. Run init-tx-filtering-minio first.");
+            process.exit(1);
+        }
         const addressList = JSON.parse(fs.readFileSync(addressListPath).toString());
 
-        const exists = addressList.address_hashes.some((entry: any) => entry.hash === hash);
-        if (!exists) {
-            addressList.address_hashes.push({ hash: hash });
+        if (!addressList.hashes.includes(hashWithPrefix)) {
+            addressList.hashes.push(hashWithPrefix);
+            addressList.id = crypto.randomUUID();
+            addressList.extract_uuid = crypto.randomUUID();
+            addressList.issued_at = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
             fs.writeFileSync(addressListPath, JSON.stringify(addressList, null, 2));
-            console.log("Added address hash:", hash);
+            console.log("Added address hash:", hashWithPrefix);
             await uploadFilteredAddressesToMinio();
         } else {
-            console.log("Address hash already in list:", hash);
+            console.log("Address hash already in list:", hashWithPrefix);
         }
     }
 }
@@ -1015,18 +1023,26 @@ export const removeFilteredAddressCommand = {
         }
         const salt = fs.readFileSync(saltPath).toString().trim();
         const hash = computeAddressHash(argv.address, salt);
+        const hashWithPrefix = "0x" + hash;
 
         const addressListPath = path.join(consts.configpath, "initial_address_hashes.json");
+        if (!fs.existsSync(addressListPath)) {
+            console.error("Address hash list not found. Run init-tx-filtering-minio first.");
+            process.exit(1);
+        }
         const addressList = JSON.parse(fs.readFileSync(addressListPath).toString());
 
-        const index = addressList.address_hashes.findIndex((entry: any) => entry.hash === hash);
+        const index = addressList.hashes.indexOf(hashWithPrefix);
         if (index > -1) {
-            addressList.address_hashes.splice(index, 1);
+            addressList.hashes.splice(index, 1);
+            addressList.id = crypto.randomUUID();
+            addressList.extract_uuid = crypto.randomUUID();
+            addressList.issued_at = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
             fs.writeFileSync(addressListPath, JSON.stringify(addressList, null, 2));
-            console.log("Removed address hash:", hash);
+            console.log("Removed address hash:", hashWithPrefix);
             await uploadFilteredAddressesToMinio();
         } else {
-            console.log("Address hash not in list:", hash);
+            console.log("Address hash not in list:", hashWithPrefix);
         }
     }
 }
