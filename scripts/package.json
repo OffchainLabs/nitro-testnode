@@ -22,6 +22,11 @@
     "build": "tsc -p .",
     "postinstall": "echo 'Postinstall running without source available'"
   },
+  "resolutions": {
+    "axios": "^0.32.0",
+    "tmp": "^0.2.6",
+    "ws": "^8.18.0"
+  },
   "private": true,
   "devDependencies": {}
 }
