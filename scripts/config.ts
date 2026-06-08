@@ -893,7 +893,7 @@ export const initTxFilteringMinioCommand = {
             extract_uuid: crypto.randomUUID(),
             salt: salt,
             issued_at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
-            hashing_scheme: "sha256-stringinput",
+            hashing_scheme: "sha256-rawbytesinput",
             hashes: [] as string[],
         };
         fs.writeFileSync(path.join(consts.configpath, "initial_address_hashes.json"), JSON.stringify(initialAddressList, null, 2));
@@ -918,11 +918,26 @@ export const initTxFilteringMinioCommand = {
     }
 }
 
-function computeAddressHash(address: string, salt: string): string {
+function computeAddressHash(address: string, salt: string, scheme: string): string {
     const normalizedAddress = address.toLowerCase().replace('0x', '');
+    if (scheme === 'sha256-rawbytesinput') {
+        const saltBytes = Buffer.from(salt.replace(/-/g, ''), 'hex');
+        const addrBytes = Buffer.from(normalizedAddress, 'hex');
+        return crypto.createHash('sha256').update(Buffer.concat([saltBytes, addrBytes])).digest('hex');
+    }
     const hashInput = salt + '::0x' + normalizedAddress;
-    const hash = crypto.createHash('sha256').update(hashInput).digest('hex');
-    return hash;
+    return crypto.createHash('sha256').update(hashInput).digest('hex');
+}
+
+function readHashingScheme(): string {
+    const addressListPath = path.join(consts.configpath, "initial_address_hashes.json");
+    if (fs.existsSync(addressListPath)) {
+        const list = JSON.parse(fs.readFileSync(addressListPath).toString());
+        if (list.hashing_scheme) {
+            return list.hashing_scheme;
+        }
+    }
+    return "sha256-rawbytesinput";
 }
 
 async function uploadFilteredAddressesToMinio() {
@@ -959,7 +974,7 @@ export const hashAddressCommand = {
             process.exit(1);
         }
         const salt = fs.readFileSync(saltPath).toString().trim();
-        const hash = computeAddressHash(argv.address, salt);
+        const hash = computeAddressHash(argv.address, salt, readHashingScheme());
         console.log(hash);
     }
 }
@@ -981,7 +996,7 @@ export const addFilteredAddressCommand = {
             process.exit(1);
         }
         const salt = fs.readFileSync(saltPath).toString().trim();
-        const hash = computeAddressHash(argv.address, salt);
+        const hash = computeAddressHash(argv.address, salt, readHashingScheme());
         const hashWithPrefix = "0x" + hash;
 
         const addressListPath = path.join(consts.configpath, "initial_address_hashes.json");
@@ -1022,7 +1037,7 @@ export const removeFilteredAddressCommand = {
             process.exit(1);
         }
         const salt = fs.readFileSync(saltPath).toString().trim();
-        const hash = computeAddressHash(argv.address, salt);
+        const hash = computeAddressHash(argv.address, salt, readHashingScheme());
         const hashWithPrefix = "0x" + hash;
 
         const addressListPath = path.join(consts.configpath, "initial_address_hashes.json");
