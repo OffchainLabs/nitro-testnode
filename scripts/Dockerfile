@@ -1,8 +1,8 @@
 # Stage 1: Base build environment
-FROM node:18-bullseye-slim AS base
+FROM node:20-trixie-slim AS base
 WORKDIR /workspace
 COPY ./package.json ./yarn.lock ./
-RUN yarn
+RUN yarn install --frozen-lockfile
 
 # Stage 2: Copy files and run build
 FROM base AS pre-build

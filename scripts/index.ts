@@ -11,7 +11,16 @@ import {
   writeL2DASCommitteeConfigCommand,
   writeL2DASMirrorConfigCommand,
   writeL2DASKeysetConfigCommand,
-  writeTimeboostConfigsCommand
+  writeL2ReferenceDAConfigCommand,
+  writeTimeboostConfigsCommand,
+  writeTransactionFiltererConfigCommand,
+  initTxFilteringMinioCommand,
+  hashAddressCommand,
+  addFilteredAddressCommand,
+  removeFilteredAddressCommand,
+  writeElasticMQConfigCommand,
+  writeFilteringReportConfigCommand,
+  serveReportReceiverCommand,
 } from "./config";
 import {
   printAddressCommand,
@@ -26,6 +35,7 @@ import {
   createERC20Command,
   deployExpressLaneAuctionContractCommand,
   createWETHCommand,
+  createStylusDeployerCommand,
   transferERC20Command,
   sendL1Command,
   sendL2Command,
@@ -35,6 +45,7 @@ import {
   waitForSyncCommand,
   transferL3ChainOwnershipCommand,
   createFeeTokenPricerCommand,
+  grantFiltererRoleCommand,
 } from "./ethcommands";
 
 async function main() {
@@ -56,6 +67,7 @@ async function main() {
     .command(createFeeTokenPricerCommand)
     .command(deployExpressLaneAuctionContractCommand)
     .command(createWETHCommand)
+    .command(createStylusDeployerCommand)
     .command(transferERC20Command)
     .command(sendL1Command)
     .command(sendL2Command)
@@ -70,9 +82,19 @@ async function main() {
     .command(writeL2DASCommitteeConfigCommand)
     .command(writeL2DASMirrorConfigCommand)
     .command(writeL2DASKeysetConfigCommand)
+    .command(writeL2ReferenceDAConfigCommand)
     .command(writePrysmCommand)
     .command(writeAccountsCommand)
     .command(writeTimeboostConfigsCommand)
+    .command(writeTransactionFiltererConfigCommand)
+    .command(initTxFilteringMinioCommand)
+    .command(hashAddressCommand)
+    .command(addFilteredAddressCommand)
+    .command(removeFilteredAddressCommand)
+    .command(writeElasticMQConfigCommand)
+    .command(writeFilteringReportConfigCommand)
+    .command(serveReportReceiverCommand)
+    .command(grantFiltererRoleCommand)
     .command(printAddressCommand)
     .command(printPrivateKeyCommand)
     .command(redisReadCommand)
@@ -81,7 +103,8 @@ async function main() {
     .strict()
     .demandCommand(1, "a command must be specified")
     .epilogue(namedAccountHelpString)
-    .help().argv;
+    .help()
+    .parseAsync();
 }
 
 main()

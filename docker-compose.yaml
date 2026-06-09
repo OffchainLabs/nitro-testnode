@@ -4,7 +4,7 @@ services:
       - postgres
       - sequencer
     image: blockscout-testnode
-    restart: always
+    restart: unless-stopped
     container_name: 'blockscout'
     links:
       - postgres:database
@@ -30,7 +30,7 @@ services:
 
   postgres:
     image: postgres:13.6
-    restart: always
+    restart: unless-stopped
     container_name: 'postgres'
     environment:
         POSTGRES_PASSWORD: ''
@@ -47,7 +47,7 @@ services:
       - "127.0.0.1:6379:6379"
 
   geth:
-    image: ethereum/client-go:stable
+    image: ethereum/client-go:v1.16.4
     ports:
       - "127.0.0.1:8545:8545"
       - "127.0.0.1:8551:8551"
@@ -83,12 +83,13 @@ services:
       - --mine
       - --miner.etherbase=0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E
       - --gcmode=archive
+      - --rpc.allow-unprotected-txs
 
   # Creates a genesis state for the beacon chain using a YAML configuration file and
   # a deterministic set of validators
   # TODO: Make num validators customizable
   create_beacon_chain_genesis:
-    image: "gcr.io/prysmaticlabs/prysm/cmd/prysmctl:latest"
+    image: "gcr.io/prysmaticlabs/prysm/cmd/prysmctl:v6.1.1"
     command:
       - testnet
       - generate-genesis
@@ -107,7 +108,7 @@ services:
   # The account used in go-ethereum is set as the suggested fee recipient for transactions
   # proposed via the validators attached to the beacon node.
   prysm_beacon_chain:
-    image: "gcr.io/prysmaticlabs/prysm/beacon-chain:stable"
+    image: "gcr.io/prysmaticlabs/prysm/beacon-chain:v6.1.1"
     command:
       - --datadir=/consensus/beacondata
       - --rpc-port=5000
@@ -138,7 +139,7 @@ services:
   # We run a validator client with 64, deterministically-generated keys that match
   # The validator keys present in the beacon chain genesis state generated a few steps above.
   prysm_validator:
-    image: "gcr.io/prysmaticlabs/prysm/validator:stable"
+    image: "gcr.io/prysmaticlabs/prysm/validator:v6.1.1"
     command:
       - --beacon-rpc-provider=prysm_beacon_chain:5000
       - --datadir=/consensus/validatordata
@@ -370,26 +371,6 @@ services:
       - "tokenbridge-data:/workspace"
       - /var/run/docker.sock:/var/run/docker.sock
 
-  boldupgrader:
-    depends_on:
-      - geth
-      - sequencer
-    pid: host
-    build:
-      context: boldupgrader/
-      args:
-        BOLD_CONTRACTS_BRANCH: ${BOLD_CONTRACTS_BRANCH:-}
-    environment:
-      - L1_RPC_URL=http://geth:8545
-      - L1_PRIV_KEY=0xdc04c5399f82306ec4b4d654a342f40e2e0620fe39950d967e1e574b32d4dd36
-      - CONFIG_NETWORK_NAME=local
-      - DEPLOYED_CONTRACTS_DIR=./scripts/files/
-      - DISABLE_VERIFICATION=true
-    volumes:
-      - "config:/config"
-      - "boldupgrader-data:/workspace"
-      - /var/run/docker.sock:/var/run/docker.sock
-
   rollupcreator:
     depends_on:
       - geth
@@ -401,7 +382,10 @@ services:
         NITRO_CONTRACTS_BRANCH: ${NITRO_CONTRACTS_BRANCH:-}
     volumes:
       - "config:/config"
-      - /var/run/docker.sock:/var/run/docker.sock
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "contracts:/contracts"
+      - "contracts-local:/contracts-local"
+      - "referenceda-provider-data:/referenceda-provider"
 
   datool:
     image: nitro-node-dev-testnode
@@ -411,7 +395,7 @@ services:
       - "das-committee-a-data:/das-committee-a"
       - "das-committee-b-data:/das-committee-b"
       - "das-mirror-data:/das-mirror"
-    command:
+      - "referenceda-provider-data:/referenceda-provider"
 
   das-committee-a:
     pid: host # allow debugging
@@ -451,6 +435,20 @@ services:
     command:
       - --conf.file=/config/l2_das_mirror.json
 
+  referenceda-provider:
+    pid: host # allow debugging
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/daprovider
+    ports:
+      - "127.0.0.1:9880:9880"
+    volumes:
+      - "config:/config"
+      - "referenceda-provider-data:/data"
+      - "contracts:/contracts"
+      - "contracts-local:/contracts-local"
+    command:
+      - --conf.file=/config/referenceda_provider.json
+
   timeboost-auctioneer:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
@@ -482,6 +480,69 @@ services:
     depends_on:
       - redis
 
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - "minio-data:/data"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  transaction-filterer:
+    pid: host
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/transaction-filterer
+    ports:
+      - "127.0.0.1:8549:8547"
+    volumes:
+      - "config:/config"
+      - "l1keystore:/home/user/l1keystore"
+    command:
+      - --conf.file=/config/transaction_filterer_config.json
+    depends_on:
+      - sequencer
+
+  elasticmq:
+    image: softwaremill/elasticmq-native:1.6.9
+    ports:
+      - "127.0.0.1:9324:9324"
+    volumes:
+      - "config:/config"
+    command: ["-Dconfig.file=/config/elasticmq.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9325 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  filtering-report:
+    pid: host
+    image: nitro-node-dev-testnode
+    entrypoint: /usr/local/bin/filtering-report
+    ports:
+      - "127.0.0.1:8550:8547"
+    volumes:
+      - "config:/config"
+    command:
+      - --conf.file=/config/filtering_report_config.json
+    depends_on:
+      - elasticmq
+
+  report-receiver:
+    build: scripts/
+    command: ["serve-report-receiver"]
+    ports:
+      - "127.0.0.1:9081:8080"
+
 volumes:
   l1data:
   consensus:
@@ -501,5 +562,8 @@ volumes:
   das-committee-a-data:
   das-committee-b-data:
   das-mirror-data:
+  referenceda-provider-data:
   timeboost-auctioneer-data:
-  boldupgrader-data:
+  contracts:
+  contracts-local:
+  minio-data:

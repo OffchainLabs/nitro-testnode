@@ -1,9 +1,24 @@
 import * as fs from 'fs';
+import * as crypto from 'crypto';
 import * as consts from './consts'
 import { ethers } from "ethers";
-import { namedAccount, namedAddress } from './accounts'
+import { namedAddress } from './accounts'
+import { S3Client, PutObjectCommand, CreateBucketCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
 
 const path = require("path");
+
+const S3_CONFIG = {
+    endpoint: "http://minio:9000",
+    region: "us-east-1",
+    credentials: {
+        accessKeyId: "minioadmin",
+        secretAccessKey: "minioadmin",
+    },
+    forcePathStyle: true,
+};
+
+const S3_BUCKET = "tx-filtering";
+const S3_OBJECT_KEY = "address-hashes.json";
 
 function writePrysmConfig(argv: any) {
     const prysm = `
@@ -87,6 +102,7 @@ function writeGethGenesisConfig(argv: any) {
         "timestamp": "0x0",
         "gasLimit": "0x1C9C380",
         "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "baseFeePerGas": "0x3B9ACA00",
         "alloc": {
         "0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E": {
           "balance": "1000000000000000000000000000000000"
@@ -183,6 +199,58 @@ function getChainInfo(): ChainInfo {
     return chainInfo;
 }
 
+function createDataAvailabilityConfig(argv: any, anytrust: boolean) {
+    return {
+        "enable": anytrust,
+        "rpc-aggregator": dasBackendsJsonConfig(argv),
+        "rest-aggregator": {
+            "enable": true,
+            "urls": ["http://das-mirror:9877"],
+        },
+    }
+}
+
+function applyTxFilteringConfig(config: any) {
+    config.execution["transaction-filtering"] = {
+        "address-filter": {
+            "enable": true,
+            "s3": {
+                "access-key": "minioadmin",
+                "secret-key": "minioadmin",
+                "region": "us-east-1",
+                "endpoint": "http://minio:9000",
+                "bucket": "tx-filtering",
+                "object-key": "address-hashes.json"
+            },
+            "poll-interval": "30s"
+        },
+        "transaction-filterer-rpc-client": {
+            "url": "http://transaction-filterer:8547"
+        }
+    };
+}
+
+function generateL2GenesisJson() {
+    const chainConfigPath = path.join(consts.configpath, "l2_chain_config.json");
+    const chainConfigStr = fs.readFileSync(chainConfigPath).toString();
+
+    const genesis = {
+        "serializedChainConfig": chainConfigStr,
+        "arbOSInit": {
+            "transactionFilteringEnabled": true,
+            "nativeTokenSupplyManagementEnabled": false
+        },
+        "gasLimit": "0x0",
+        "difficulty": "0x0",
+        "alloc": {}
+    };
+
+    fs.writeFileSync(
+        path.join(consts.configpath, "l2_genesis.json"),
+        JSON.stringify(genesis)
+    );
+}
+
 function writeConfigs(argv: any) {
     const valJwtSecret = path.join(consts.configpath, "val_jwt.hex")
     const chainInfoFile = path.join(consts.configpath, "l2_chain_info.json")
@@ -198,6 +266,12 @@ function writeConfigs(argv: any) {
             "info-files": [chainInfoFile],
         },
         "node": {
+            "bold": {
+                "rpc-block-number": "latest",
+                "assertion-posting-interval": "10s",
+                "assertion-confirming-interval": "10s",
+                "parent-chain-block-time": 1,
+            },
             "staker": {
                 "dangerous": {
                     "without-block-validator": false
@@ -254,17 +328,7 @@ function writeConfigs(argv: any) {
                     "jwtsecret": valJwtSecret,
                 }
             },
-            "data-availability": {
-                "enable": argv.anytrust,
-                "rpc-aggregator": dasBackendsJsonConfig(argv),
-                "rest-aggregator": {
-                    "enable": true,
-                    "urls": ["http://das-mirror:9877"],
-                },
-                // TODO Fix das config to not need this redundant config
-                "parent-chain-node-url": argv.l1url,
-                "sequencer-inbox-address": "not_set"
-            }
+            "data-availability": createDataAvailabilityConfig(argv, argv.anytrust)
         },
         "execution": {
             "sequencer": {
@@ -285,7 +349,24 @@ function writeConfigs(argv: any) {
         },
     }
 
-    baseConfig.node["data-availability"]["sequencer-inbox-address"] = ethers.utils.hexlify(getChainInfo()[0]["rollup"]["sequencer-inbox"]);
+    if (argv.referenceDA) {
+        (baseConfig as any).node["da"] = {
+            "external-provider": {
+                "enable": true,
+                "with-writer": false,
+                "rpc": {
+                    "url": "http://referenceda-provider:9880"
+                }
+            }
+        }
+    }
+
+    if (argv.txfiltering) {
+        generateL2GenesisJson();
+        (baseConfig as any)["init"] = {
+            "genesis-json-file": "/config/l2_genesis.json"
+        };
+    }
 
     const baseConfJSON = JSON.stringify(baseConfig)
 
@@ -302,6 +383,12 @@ function writeConfigs(argv: any) {
         simpleConfig.execution["sequencer"].enable = true
         if (argv.anytrust) {
             simpleConfig.node["data-availability"]["rpc-aggregator"].enable = true
+        }
+        if (argv.txfiltering) {
+            applyTxFilteringConfig(simpleConfig);
+        }
+        if (argv.filteringreport) {
+            applyFilteringReportConfig(simpleConfig);
         }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(simpleConfig))
     } else {
@@ -321,11 +408,16 @@ function writeConfigs(argv: any) {
         sequencerConfig.execution["sequencer"].enable = true
         sequencerConfig.node["delayed-sequencer"].enable = true
         if (argv.timeboost) {
-          sequencerConfig.execution.sequencer.dangerous = {};
-          sequencerConfig.execution.sequencer.dangerous.timeboost = {
-             "enable": false, // Create it false initially, turn it on with sed in test-node.bash after contract setup.
-             "redis-url": argv.redisUrl
-          };
+            sequencerConfig.execution.sequencer.timeboost = {
+                "enable": false, // Create it false initially, turn it on with sed in test-node.bash after contract setup.
+                "redis-url": argv.redisUrl
+            };
+        }
+        if (argv.txfiltering) {
+            applyTxFilteringConfig(sequencerConfig);
+        }
+        if (argv.filteringreport) {
+            applyFilteringReportConfig(sequencerConfig);
         }
         fs.writeFileSync(path.join(consts.configpath, "sequencer_config.json"), JSON.stringify(sequencerConfig))
 
@@ -335,13 +427,19 @@ function writeConfigs(argv: any) {
         if (argv.anytrust) {
             posterConfig.node["data-availability"]["rpc-aggregator"].enable = true
         }
+        if (argv.referenceDA) {
+            posterConfig.node["da"]["external-provider"]["with-writer"] = true
+        }
         fs.writeFileSync(path.join(consts.configpath, "poster_config.json"), JSON.stringify(posterConfig))
     }
 
     let l3Config = JSON.parse(baseConfJSON)
+    delete l3Config["init"]
     l3Config["parent-chain"].connection.url = argv.l2url
-    l3Config.node.staker["parent-chain-wallet"].account = namedAddress("l3owner")
+    // use the same account for l2 and l3 staker
+    // l3Config.node.staker["parent-chain-wallet"].account = namedAddress("l3owner")
     l3Config.node["batch-poster"]["parent-chain-wallet"].account = namedAddress("l3sequencer")
+    l3Config.node["data-availability"] = createDataAvailabilityConfig(argv, false)
     l3Config.chain.id = 333333
     const l3ChainInfoFile = path.join(consts.configpath, "l3_chain_info.json")
     l3Config.chain["info-files"] = [l3ChainInfoFile]
@@ -403,7 +501,7 @@ function writeL2ChainConfig(argv: any) {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
             "DataAvailabilityCommittee": argv.anytrust,
-            "InitialArbOSVersion": 32, // TODO For Timeboost, this still needs to be set to 31
+            "InitialArbOSVersion": argv.txfiltering ? 60 : 40,
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
@@ -436,7 +534,7 @@ function writeL3ChainConfig(argv: any) {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
             "DataAvailabilityCommittee": false,
-            "InitialArbOSVersion": 31,
+            "InitialArbOSVersion": 40,
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
@@ -457,8 +555,10 @@ function writeL2DASCommitteeConfig(argv: any) {
                 "enable": true,
                 "enable-expiry": true
             },
-            "sequencer-inbox-address": sequencerInboxAddr,
-            "parent-chain-node-url": argv.l1url
+        },
+        "parent-chain": {
+            "node-url": argv.l1url,
+            "sequencer-inbox-address": sequencerInboxAddr
         },
         "enable-rest": true,
         "enable-rpc": true,
@@ -481,8 +581,6 @@ function writeL2DASMirrorConfig(argv: any, sequencerInboxAddr: string) {
                 "enable": true,
                 "enable-expiry": false
             },
-            "sequencer-inbox-address": sequencerInboxAddr,
-            "parent-chain-node-url": argv.l1url,
             "rest-aggregator": {
                 "enable": true,
                 "sync-to-storage": {
@@ -493,6 +591,10 @@ function writeL2DASMirrorConfig(argv: any, sequencerInboxAddr: string) {
                 },
                 "urls": ["http://das-committee-a:9877", "http://das-committee-b:9877"],
             }
+        },
+        "parent-chain": {
+            "node-url": argv.l1url,
+            "sequencer-inbox-address": sequencerInboxAddr
         },
         "enable-rest": true,
         "enable-rpc": false,
@@ -514,6 +616,26 @@ function writeL2DASKeysetConfig(argv: any) {
     fs.writeFileSync(path.join(consts.configpath, "l2_das_keyset.json"), l2DASKeysetConfigJSON)
 }
 
+function writeL2ReferenceDAConfig(argv: any) {
+    const l2ReferenceDAConfig = {
+        "mode": "referenceda",
+        "referenceda": {
+            "enable": true,
+            "signing-key": {
+                "key-file": "/data/keys/ecdsa"
+            },
+            "validator-contract": argv.validatorAddress,
+            "parent-chain-node-url": argv.l1url,
+        },
+        "provider-server": {
+            "addr": "0.0.0.0",
+            "enable-da-writer": true,
+        },
+    }
+    const l2ReferenceDAConfigJSON = JSON.stringify(l2ReferenceDAConfig)
+    fs.writeFileSync(path.join(consts.configpath, "referenceda_provider.json"), l2ReferenceDAConfigJSON)
+}
+
 function dasBackendsJsonConfig(argv: any) {
     const backends = {
         "enable": false,
@@ -533,56 +655,56 @@ function dasBackendsJsonConfig(argv: any) {
 }
 
 export const writeTimeboostConfigsCommand = {
-  command: "write-timeboost-configs",
-  describe: "writes configs for the timeboost autonomous auctioneer and bid validator",
-  builder: {
-    "auction-contract": {
-      string: true,
-      describe: "auction contract address",
-      demandOption: true
+    command: "write-timeboost-configs",
+    describe: "writes configs for the timeboost autonomous auctioneer and bid validator",
+    builder: {
+        "auction-contract": {
+            string: true,
+            describe: "auction contract address",
+            demandOption: true
+        },
     },
-  },
-  handler: (argv: any) => {
-    writeAutonomousAuctioneerConfig(argv)
-    writeBidValidatorConfig(argv)
-  }
+    handler: (argv: any) => {
+        writeAutonomousAuctioneerConfig(argv)
+        writeBidValidatorConfig(argv)
+    }
 }
 
 function writeAutonomousAuctioneerConfig(argv: any) {
-  const autonomousAuctioneerConfig = {
-    "auctioneer-server": {
-      "auction-contract-address": argv.auctionContract,
-      "db-directory": "/data",
-      "redis-url": "redis://redis:6379",
-      "use-redis-coordinator": true,
-      "redis-coordinator-url": "redis://redis:6379",
-      "wallet":  {
-        "account": namedAddress("auctioneer"),
-        "password": consts.l1passphrase,
-        "pathname": consts.l1keystore
-      },
-    },
-    "bid-validator": {
-      "enable": false
+    const autonomousAuctioneerConfig = {
+        "auctioneer-server": {
+            "auction-contract-address": argv.auctionContract,
+            "db-directory": "/data",
+            "redis-url": "redis://redis:6379",
+            "use-redis-coordinator": true,
+            "redis-coordinator-url": "redis://redis:6379",
+            "wallet": {
+                "account": namedAddress("auctioneer"),
+                "password": consts.l1passphrase,
+                "pathname": consts.l1keystore
+            },
+        },
+        "bid-validator": {
+            "enable": false
+        }
     }
-  }
-  const autonomousAuctioneerConfigJSON = JSON.stringify(autonomousAuctioneerConfig)
-  fs.writeFileSync(path.join(consts.configpath, "autonomous_auctioneer_config.json"), autonomousAuctioneerConfigJSON)
+    const autonomousAuctioneerConfigJSON = JSON.stringify(autonomousAuctioneerConfig)
+    fs.writeFileSync(path.join(consts.configpath, "autonomous_auctioneer_config.json"), autonomousAuctioneerConfigJSON)
 }
 
 function writeBidValidatorConfig(argv: any) {
-  const bidValidatorConfig = {
-    "auctioneer-server": {
-      "enable": false
-    },
-    "bid-validator": {
-      "auction-contract-address": argv.auctionContract,
-      "redis-url": "redis://redis:6379",
-      "sequencer-endpoint": "http://sequencer:8547"
+    const bidValidatorConfig = {
+        "auctioneer-server": {
+            "enable": false
+        },
+        "bid-validator": {
+            "auction-contract-address": argv.auctionContract,
+            "redis-url": "redis://redis:6379",
+            "sequencer-endpoint": "http://sequencer:8547"
+        }
     }
-  }
-  const bidValidatorConfigJSON = JSON.stringify(bidValidatorConfig)
-  fs.writeFileSync(path.join(consts.configpath, "bid_validator_config.json"), bidValidatorConfigJSON)
+    const bidValidatorConfigJSON = JSON.stringify(bidValidatorConfig)
+    fs.writeFileSync(path.join(consts.configpath, "bid_validator_config.json"), bidValidatorConfigJSON)
 }
 
 export const writeConfigCommand = {
@@ -609,13 +731,31 @@ export const writeConfigCommand = {
             describe: "DAS committee member B BLS pub key",
             default: ""
         },
+        referenceDA: {
+            boolean: true,
+            describe: "run nodes in reference DA mode",
+            default: false
+        },
         timeboost: {
             boolean: true,
             describe: "run sequencer in timeboost mode",
             default: false
         },
+        txfiltering: {
+            boolean: true,
+            describe: "enable transaction filtering mode",
+            default: false
+        },
+        filteringreport: {
+            boolean: true,
+            describe: "enable filtering report framework",
+            default: false
+        },
     },
     handler: (argv: any) => {
+        if (argv.filteringreport) {
+            argv.txfiltering = true;
+        }
         writeConfigs(argv)
     }
 }
@@ -645,6 +785,11 @@ export const writeL2ChainConfigCommand = {
             describe: "enable anytrust in chainconfig",
             default: false
         },
+        txfiltering: {
+            boolean: true,
+            describe: "enable transaction filtering (requires ArbOS version 60)",
+            default: false
+        }
     },
     handler: (argv: any) => {
         writeL2ChainConfig(argv)
@@ -696,3 +841,342 @@ export const writeL2DASKeysetConfigCommand = {
     }
 }
 
+export const writeL2ReferenceDAConfigCommand = {
+    command: "write-l2-referenceda-config",
+    describe: "writes reference DA config file",
+    builder: {
+        validatorAddress: {
+            string: true,
+            describe: "L2 validator contract address",
+            demandOption: true
+        },
+    },
+    handler: (argv: any) => {
+        writeL2ReferenceDAConfig(argv)
+    }
+}
+
+function writeTransactionFiltererConfig() {
+    const config = {
+        "chain-id": 412346,
+        "sequencer": {
+            "url": "http://sequencer:8547"
+        },
+        "wallet": {
+            "account": namedAddress("filterer"),
+            "password": consts.l1passphrase,
+            "pathname": consts.l1keystore
+        },
+        "http": {
+            "addr": "0.0.0.0",
+            "port": 8547
+        }
+    };
+    fs.writeFileSync(path.join(consts.configpath, "transaction_filterer_config.json"), JSON.stringify(config));
+}
+
+export const writeTransactionFiltererConfigCommand = {
+    command: "write-tx-filterer-config",
+    describe: "writes transaction-filterer service config file",
+    handler: () => {
+        writeTransactionFiltererConfig()
+    }
+}
+
+export const initTxFilteringMinioCommand = {
+    command: "init-tx-filtering-minio",
+    describe: "initializes MinIO bucket and empty address hash list",
+    handler: async () => {
+        const salt = crypto.randomUUID();
+        const initialAddressList = {
+            id: crypto.randomUUID(),
+            extract_uuid: crypto.randomUUID(),
+            salt: salt,
+            issued_at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
+            hashing_scheme: "sha256-stringinput",
+            hashes: [] as string[],
+        };
+        fs.writeFileSync(path.join(consts.configpath, "initial_address_hashes.json"), JSON.stringify(initialAddressList, null, 2));
+        fs.writeFileSync(path.join(consts.configpath, "tx_filtering_salt.hex"), salt);
+
+        const s3Client = new S3Client(S3_CONFIG);
+
+        try {
+            await s3Client.send(new HeadBucketCommand({ Bucket: S3_BUCKET }));
+            console.log("Bucket already exists:", S3_BUCKET);
+        } catch (err: any) {
+            if (err.name === "NotFound" || err.$metadata?.httpStatusCode === 404) {
+                await s3Client.send(new CreateBucketCommand({ Bucket: S3_BUCKET }));
+                console.log("Created bucket:", S3_BUCKET);
+            } else {
+                throw err;
+            }
+        }
+
+        await uploadFilteredAddressesToMinio();
+        console.log("Initialized tx-filtering bucket with empty address list.");
+    }
+}
+
+function computeAddressHash(address: string, salt: string): string {
+    const normalizedAddress = address.toLowerCase().replace('0x', '');
+    const hashInput = salt + '::0x' + normalizedAddress;
+    const hash = crypto.createHash('sha256').update(hashInput).digest('hex');
+    return hash;
+}
+
+async function uploadFilteredAddressesToMinio() {
+    console.log("Uploading address list to MinIO...");
+    const s3Client = new S3Client(S3_CONFIG);
+
+    const addressListPath = path.join(consts.configpath, "initial_address_hashes.json");
+    const content = fs.readFileSync(addressListPath).toString();
+
+    await s3Client.send(new PutObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: S3_OBJECT_KEY,
+        Body: content,
+        ContentType: "application/json",
+    }));
+
+    console.log("Upload complete.");
+}
+
+export const hashAddressCommand = {
+    command: "hash-address",
+    describe: "computes SHA256 hash for an address with salt",
+    builder: {
+        address: {
+            string: true,
+            describe: "address to hash",
+            demandOption: true
+        },
+    },
+    handler: (argv: any) => {
+        const saltPath = path.join(consts.configpath, "tx_filtering_salt.hex");
+        if (!fs.existsSync(saltPath)) {
+            console.error("Salt file not found. Run init-tx-filtering-minio first.");
+            process.exit(1);
+        }
+        const salt = fs.readFileSync(saltPath).toString().trim();
+        const hash = computeAddressHash(argv.address, salt);
+        console.log(hash);
+    }
+}
+
+export const addFilteredAddressCommand = {
+    command: "add-filtered-address",
+    describe: "adds an address hash to the S3 filter list",
+    builder: {
+        address: {
+            string: true,
+            describe: "address to add to filter list",
+            demandOption: true
+        },
+    },
+    handler: async (argv: any) => {
+        const saltPath = path.join(consts.configpath, "tx_filtering_salt.hex");
+        if (!fs.existsSync(saltPath)) {
+            console.error("Salt file not found. Run init-tx-filtering-minio first.");
+            process.exit(1);
+        }
+        const salt = fs.readFileSync(saltPath).toString().trim();
+        const hash = computeAddressHash(argv.address, salt);
+        const hashWithPrefix = "0x" + hash;
+
+        const addressListPath = path.join(consts.configpath, "initial_address_hashes.json");
+        if (!fs.existsSync(addressListPath)) {
+            console.error("Address hash list not found. Run init-tx-filtering-minio first.");
+            process.exit(1);
+        }
+        const addressList = JSON.parse(fs.readFileSync(addressListPath).toString());
+
+        if (!addressList.hashes.includes(hashWithPrefix)) {
+            addressList.hashes.push(hashWithPrefix);
+            addressList.id = crypto.randomUUID();
+            addressList.extract_uuid = crypto.randomUUID();
+            addressList.issued_at = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+            fs.writeFileSync(addressListPath, JSON.stringify(addressList, null, 2));
+            console.log("Added address hash:", hashWithPrefix);
+            await uploadFilteredAddressesToMinio();
+        } else {
+            console.log("Address hash already in list:", hashWithPrefix);
+        }
+    }
+}
+
+export const removeFilteredAddressCommand = {
+    command: "remove-filtered-address",
+    describe: "removes an address hash from the S3 filter list",
+    builder: {
+        address: {
+            string: true,
+            describe: "address to remove from filter list",
+            demandOption: true
+        },
+    },
+    handler: async (argv: any) => {
+        const saltPath = path.join(consts.configpath, "tx_filtering_salt.hex");
+        if (!fs.existsSync(saltPath)) {
+            console.error("Salt file not found. Run init-tx-filtering-minio first.");
+            process.exit(1);
+        }
+        const salt = fs.readFileSync(saltPath).toString().trim();
+        const hash = computeAddressHash(argv.address, salt);
+        const hashWithPrefix = "0x" + hash;
+
+        const addressListPath = path.join(consts.configpath, "initial_address_hashes.json");
+        if (!fs.existsSync(addressListPath)) {
+            console.error("Address hash list not found. Run init-tx-filtering-minio first.");
+            process.exit(1);
+        }
+        const addressList = JSON.parse(fs.readFileSync(addressListPath).toString());
+
+        const index = addressList.hashes.indexOf(hashWithPrefix);
+        if (index > -1) {
+            addressList.hashes.splice(index, 1);
+            addressList.id = crypto.randomUUID();
+            addressList.extract_uuid = crypto.randomUUID();
+            addressList.issued_at = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+            fs.writeFileSync(addressListPath, JSON.stringify(addressList, null, 2));
+            console.log("Removed address hash:", hashWithPrefix);
+            await uploadFilteredAddressesToMinio();
+        } else {
+            console.log("Address hash not in list:", hashWithPrefix);
+        }
+    }
+}
+
+function writeElasticMQConfig() {
+    const elasticmqConf = `include classpath("application.conf")
+
+node-address {
+  protocol = http
+  host = "*"
+  port = 9324
+  context-path = ""
+}
+
+rest-sqs {
+  enabled = true
+  bind-port = 9324
+  bind-hostname = "0.0.0.0"
+  sqs-limits = strict
+}
+
+queues {
+  filtering-reports {
+    defaultVisibilityTimeout = 30 seconds
+    delay = 0 seconds
+    receiveMessageWait = 0 seconds
+  }
+}
+`;
+    fs.writeFileSync(path.join(consts.configpath, "elasticmq.conf"), elasticmqConf);
+}
+
+export const writeElasticMQConfigCommand = {
+    command: "write-elasticmq-config",
+    describe: "writes ElasticMQ config file for SQS emulation",
+    handler: () => {
+        writeElasticMQConfig();
+    }
+}
+
+function writeFilteringReportConfig() {
+    const config = {
+        "http": {
+            "addr": "0.0.0.0",
+            "port": 8547,
+            "vhosts": "*",
+            "corsdomain": "*",
+            "api": ["filteringreport"]
+        },
+        "ws": {
+            "addr": "0.0.0.0",
+            "port": 8548
+        },
+        "queue": {
+            "queue-url": "http://elasticmq:9324/000000000000/filtering-reports",
+            "sqs-client": {
+                "region": "us-east-1",
+                "endpoint": "http://elasticmq:9324",
+                "access-key": "elasticmq",
+                "secret-key": "elasticmq"
+            }
+        },
+        "report-forwarder": {
+            "workers": 1,
+            "poll-interval": "5s",
+            "sqs-wait-time-seconds": 5,
+            "external-endpoint": {
+                "url": "http://report-receiver:8080",
+                "timeout": "10s"
+            }
+        }
+    };
+    fs.writeFileSync(
+        path.join(consts.configpath, "filtering_report_config.json"),
+        JSON.stringify(config)
+    );
+}
+
+export const writeFilteringReportConfigCommand = {
+    command: "write-filtering-report-config",
+    describe: "writes filtering-report service config file",
+    handler: () => {
+        writeFilteringReportConfig();
+    }
+}
+
+function applyFilteringReportConfig(config: any) {
+    if (!config.execution["transaction-filtering"]) {
+        config.execution["transaction-filtering"] = {};
+    }
+    config.execution["transaction-filtering"]["filtering-report-rpc-client"] = {
+        "url": "http://filtering-report:8547"
+    };
+}
+
+export const serveReportReceiverCommand = {
+    command: "serve-report-receiver",
+    describe: "starts an HTTP server that receives and logs filtering reports",
+    handler: async () => {
+        const http = require('http');
+        const reports: any[] = [];
+        const server = http.createServer((req: any, res: any) => {
+            if (req.method === 'POST') {
+                let body = '';
+                req.on('data', (chunk: string) => body += chunk);
+                req.on('end', () => {
+                    console.log('Received report:', body);
+                    try {
+                        reports.push(JSON.parse(body));
+                        res.writeHead(200, {'Content-Type': 'application/json'});
+                        res.end(JSON.stringify({status: 'ok'}));
+                    } catch (err) {
+                        console.error('Failed to parse report body:', err);
+                        res.writeHead(400, {'Content-Type': 'application/json'});
+                        res.end(JSON.stringify({status: 'error', message: 'invalid JSON'}));
+                    }
+                });
+            } else if (req.method === 'GET' && req.url === '/reports') {
+                res.writeHead(200, {'Content-Type': 'application/json'});
+                res.end(JSON.stringify(reports));
+            } else {
+                res.writeHead(200);
+                res.end('OK');
+            }
+        });
+        server.listen(8080, '0.0.0.0', () => {
+            console.log('Report receiver listening on :8080');
+        });
+        // Handler must be async and await a never-resolving promise so yargs
+        // does not return early. Without this, index.ts's
+        // `main().then(() => process.exit(0))` would terminate the process
+        // immediately after server.listen() starts, killing the server.
+        // SIGINT / SIGTERM from `docker compose down` will still terminate
+        // the container cleanly.
+        await new Promise<void>(() => {});
+    }
+}
