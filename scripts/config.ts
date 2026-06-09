@@ -1112,6 +1112,9 @@ function writeFilteringReportConfig() {
             "external-endpoint": {
                 "url": "http://report-receiver:8080",
                 "timeout": "10s"
+            },
+            "signer": {
+                "pem-file": consts.filteringReportSignerPemPath
             }
         }
     };
@@ -1138,17 +1141,80 @@ function applyFilteringReportConfig(config: any) {
     };
 }
 
+// Self-signed Ed25519 cert (testnode skips the production CA chain): combined PEM for the forwarder, cert-only for the receiver to pin.
+async function initFilteringReportSigner() {
+    require("reflect-metadata"); // required by @peculiar/x509's DI container; must load first
+    const x509 = require("@peculiar/x509");
+    const webcrypto = require("crypto").webcrypto;
+    x509.cryptoProvider.set(webcrypto);
+
+    const keys = await webcrypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
+    const cert = await x509.X509CertificateGenerator.createSelfSigned({
+        serialNumber: "01",
+        name: "CN=filtering-report",
+        notBefore: new Date(Date.now() - 24 * 60 * 60 * 1000), // backdated to absorb clock skew
+        notAfter: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000), // far future so it never expires
+        keys,
+    });
+
+    const pkcs8 = await webcrypto.subtle.exportKey("pkcs8", keys.privateKey);
+    const keyPem = x509.PemConverter.encode(pkcs8, "PRIVATE KEY");
+    fs.writeFileSync(consts.filteringReportSignerPemPath, keyPem + "\n" + cert.toString("pem") + "\n");
+    fs.writeFileSync(consts.filteringReportSignerPubPath, cert.toString("pem") + "\n");
+    console.log("Generated filtering-report signing cert in", consts.configpath);
+}
+
+export const initFilteringReportSignerCommand = {
+    command: "init-filtering-report-signer",
+    describe: "generates the Ed25519 signing cert for filtering-report report forwarding",
+    handler: async () => {
+        await initFilteringReportSigner();
+    }
+}
+
+// Confirms the report was signed by filtering-report's pinned key over "<timestamp>.<body>". Throws on failure.
+const REPORT_SIGNATURE_SKEW_MS = 5 * 60 * 1000;
+
+function verifyReportSignature(req: any, rawBody: Buffer, signerKey: crypto.KeyObject) {
+    const sigHeader = req.headers['x-signature'] as string;
+    const tsHeader = req.headers['x-signature-timestamp'] as string;
+    if (!sigHeader || !tsHeader) {
+        throw new Error('missing signature headers');
+    }
+
+    const tsSeconds = Number(tsHeader);
+    if (!Number.isFinite(tsSeconds) || Math.abs(Date.now() - tsSeconds * 1000) > REPORT_SIGNATURE_SKEW_MS) {
+        throw new Error('timestamp outside tolerance');
+    }
+
+    const payload = Buffer.concat([Buffer.from(`${tsHeader}.`), rawBody] as Uint8Array[]);
+    if (!crypto.verify(null, payload as Uint8Array, signerKey, Buffer.from(sigHeader, 'base64') as Uint8Array)) {
+        throw new Error('signature verification failed');
+    }
+}
+
 export const serveReportReceiverCommand = {
     command: "serve-report-receiver",
-    describe: "starts an HTTP server that receives and logs filtering reports",
+    describe: "starts an HTTP server that verifies signatures on and logs filtering reports",
     handler: async () => {
         const http = require('http');
+        const signerKey = new crypto.X509Certificate(fs.readFileSync(consts.filteringReportSignerPubPath) as Uint8Array).publicKey;
         const reports: any[] = [];
         const server = http.createServer((req: any, res: any) => {
             if (req.method === 'POST') {
-                let body = '';
-                req.on('data', (chunk: string) => body += chunk);
+                const chunks: Buffer[] = [];
+                req.on('data', (chunk: Buffer) => chunks.push(chunk));
                 req.on('end', () => {
+                    const rawBody = Buffer.concat(chunks as Uint8Array[]);
+                    try {
+                        verifyReportSignature(req, rawBody, signerKey);
+                    } catch (err: any) {
+                        console.error('Rejected report with invalid signature:', err.message);
+                        res.writeHead(401, {'Content-Type': 'application/json'});
+                        res.end(JSON.stringify({status: 'error', message: 'signature verification failed'}));
+                        return;
+                    }
+                    const body = rawBody.toString();
                     console.log('Received report:', body);
                     try {
                         reports.push(JSON.parse(body));
