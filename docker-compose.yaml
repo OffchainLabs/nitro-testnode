@@ -246,9 +246,12 @@ services:
       - "config:/config"
     command: --conf.file /config/unsafe_staker_config.json
     depends_on:
-      - sequencer
-      - redis
-      - validation_node
+      sequencer:
+        condition: service_started
+      redis:
+        condition: service_started
+      validation_node:
+        condition: service_healthy
 
   poster:
     pid: host # allow debugging
@@ -311,8 +314,10 @@ services:
       - "config:/config"
     command: --conf.file /config/validator_config.json --http.port 8547 --http.api net,web3,arb,debug --ws.port 8548
     depends_on:
-      - sequencer
-      - validation_node
+      sequencer:
+        condition: service_started
+      validation_node:
+        condition: service_healthy
 
   l3node:
     pid: host # allow debugging
@@ -327,18 +332,28 @@ services:
       - "config:/config"
     command: --conf.file /config/l3node_config.json --http.port 3347 --http.api net,web3,arb,debug,eth --ws.port 3348
     depends_on:
-      - sequencer
-      - validation_node
+      sequencer:
+        condition: service_started
+      validation_node:
+        condition: service_healthy
 
   validation_node:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
-    entrypoint: /usr/local/bin/nitro-val
+    entrypoint: /usr/local/bin/validator
     ports:
-      - "127.0.0.1:8949:8549"
+      - "127.0.0.1:8949:4141"
     volumes:
       - "config:/config"
-    command: --conf.file /config/validation_node_config.json
+    environment:
+      - RUST_LOG=tower_http=debug,info
+    command: --address 0.0.0.0:4141 --root-path /home/user/target/machines
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-X", "POST", "-H", "Content-Type: application/json", "-d", '{"jsonrpc":"2.0","id":1,"method":"validation_name","params":[]}', "http://localhost:4141"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 
   scripts:
     build: scripts/

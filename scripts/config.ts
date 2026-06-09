@@ -325,7 +325,6 @@ function writeConfigs(argv: any) {
             "block-validator": {
                 "validation-server": {
                     "url": argv.validationNodeUrl,
-                    "jwtsecret": valJwtSecret,
                 }
             },
             "data-availability": createDataAvailabilityConfig(argv, argv.anytrust)
