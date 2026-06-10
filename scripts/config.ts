@@ -893,7 +893,7 @@ export const initTxFilteringMinioCommand = {
             extract_uuid: crypto.randomUUID(),
             salt: salt,
             issued_at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
-            hashing_scheme: "sha256-stringinput",
+            hashing_scheme: "sha256-rawbytesinput",
             hashes: [] as string[],
         };
         fs.writeFileSync(path.join(consts.configpath, "initial_address_hashes.json"), JSON.stringify(initialAddressList, null, 2));
@@ -920,9 +920,9 @@ export const initTxFilteringMinioCommand = {
 
 function computeAddressHash(address: string, salt: string): string {
     const normalizedAddress = address.toLowerCase().replace('0x', '');
-    const hashInput = salt + '::0x' + normalizedAddress;
-    const hash = crypto.createHash('sha256').update(hashInput).digest('hex');
-    return hash;
+    const saltBytes = Buffer.from(salt.replace(/-/g, ''), 'hex');
+    const addrBytes = Buffer.from(normalizedAddress, 'hex');
+    return crypto.createHash('sha256').update(Buffer.concat([saltBytes, addrBytes])).digest('hex');
 }
 
 async function uploadFilteredAddressesToMinio() {
