@@ -922,7 +922,7 @@ function computeAddressHash(address: string, salt: string): string {
     const normalizedAddress = address.toLowerCase().replace('0x', '');
     const saltBytes = Buffer.from(salt.replace(/-/g, ''), 'hex');
     const addrBytes = Buffer.from(normalizedAddress, 'hex');
-    return crypto.createHash('sha256').update(Buffer.concat([saltBytes, addrBytes])).digest('hex');
+    return crypto.createHash('sha256').update(Buffer.concat([saltBytes, addrBytes] as Uint8Array[]) as Uint8Array).digest('hex');
 }
 
 async function uploadFilteredAddressesToMinio() {
@@ -1176,9 +1176,9 @@ export const initFilteringReportSignerCommand = {
 const REPORT_SIGNATURE_SKEW_MS = 5 * 60 * 1000;
 
 function verifyReportSignature(req: any, rawBody: Buffer, signerKey: crypto.KeyObject) {
-    const sigHeader = req.headers['x-signature'] as string;
-    const tsHeader = req.headers['x-signature-timestamp'] as string;
-    if (!sigHeader || !tsHeader) {
+    const sigHeader = req.headers['x-signature'];
+    const tsHeader = req.headers['x-signature-timestamp'];
+    if (typeof sigHeader !== 'string' || typeof tsHeader !== 'string') {
         throw new Error('missing signature headers');
     }
 
@@ -1198,6 +1198,9 @@ export const serveReportReceiverCommand = {
     describe: "starts an HTTP server that verifies signatures on and logs filtering reports",
     handler: async () => {
         const http = require('http');
+        if (!fs.existsSync(consts.filteringReportSignerPubPath)) {
+            throw new Error(`signing cert not found at ${consts.filteringReportSignerPubPath}; run init-filtering-report-signer first`);
+        }
         const signerKey = new crypto.X509Certificate(fs.readFileSync(consts.filteringReportSignerPubPath) as Uint8Array).publicKey;
         const reports: any[] = [];
         const server = http.createServer((req: any, res: any) => {
