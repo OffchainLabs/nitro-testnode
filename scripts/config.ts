@@ -1143,7 +1143,7 @@ function applyFilteringReportConfig(config: any) {
 
 // Self-signed Ed25519 cert (testnode skips the production CA chain): combined PEM for the forwarder, cert-only for the receiver to pin.
 async function initFilteringReportSigner() {
-    require("reflect-metadata"); // required by @peculiar/x509's DI container; must load first
+    require("reflect-metadata"); // @peculiar/x509 uses decorator metadata internally; must load first
     const x509 = require("@peculiar/x509");
     const webcrypto = require("crypto").webcrypto;
     x509.cryptoProvider.set(webcrypto);
@@ -1172,7 +1172,6 @@ export const initFilteringReportSignerCommand = {
     }
 }
 
-// Confirms the report was signed by filtering-report's pinned key over "<timestamp>.<body>". Throws on failure.
 const REPORT_SIGNATURE_SKEW_MS = 5 * 60 * 1000;
 
 function verifyReportSignature(req: any, rawBody: Buffer, signerKey: crypto.KeyObject) {
