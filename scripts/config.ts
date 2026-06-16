@@ -1206,6 +1206,11 @@ export const serveReportReceiverCommand = {
             if (req.method === 'POST') {
                 const chunks: Buffer[] = [];
                 req.on('data', (chunk: Buffer) => chunks.push(chunk));
+                req.on('error', (err: any) => {
+                    console.error('Request stream error:', err.message);
+                    res.writeHead(400, {'Content-Type': 'application/json'});
+                    res.end(JSON.stringify({status: 'error', message: 'request stream error'}));
+                });
                 req.on('end', () => {
                     const rawBody = Buffer.concat(chunks as Uint8Array[]);
                     try {
