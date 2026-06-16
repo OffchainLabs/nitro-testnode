@@ -685,6 +685,9 @@ if $force_init; then
     fi
 
     if $l2filteringreport; then
+        echo == Generating filtering-report signing PKI
+        run_script init-filtering-report-signer
+
         echo == Starting report receiver
         docker compose up --wait report-receiver
 

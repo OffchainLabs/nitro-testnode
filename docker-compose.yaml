@@ -540,6 +540,8 @@ services:
   report-receiver:
     build: scripts/
     command: ["serve-report-receiver"]
+    volumes:
+      - "config:/config"
     ports:
       - "127.0.0.1:9081:8080"
 

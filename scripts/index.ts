@@ -20,6 +20,7 @@ import {
   removeFilteredAddressCommand,
   writeElasticMQConfigCommand,
   writeFilteringReportConfigCommand,
+  initFilteringReportSignerCommand,
   serveReportReceiverCommand,
 } from "./config";
 import {
@@ -93,6 +94,7 @@ async function main() {
     .command(removeFilteredAddressCommand)
     .command(writeElasticMQConfigCommand)
     .command(writeFilteringReportConfigCommand)
+    .command(initFilteringReportSignerCommand)
     .command(serveReportReceiverCommand)
     .command(grantFiltererRoleCommand)
     .command(printAddressCommand)
