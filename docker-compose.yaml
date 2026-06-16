@@ -162,6 +162,7 @@ services:
       - "127.0.0.1:8547:8547"
       - "127.0.0.1:8548:8548"
       - "127.0.0.1:9642:9642"
+      - "127.0.0.1:6070:6070"
     volumes:
       - "seqdata:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
@@ -176,6 +177,10 @@ services:
       - --graphql.enable
       - --graphql.vhosts=*
       - --graphql.corsdomain=*
+      - --persistent.pebble.sync-mode=${NITRO_PEBBLE_SYNC_MODE:-false}
+      - --metrics
+      - --metrics-server.addr=0.0.0.0
+      - --metrics-server.port=6070
     depends_on:
       - geth
 
