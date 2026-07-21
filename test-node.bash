@@ -446,7 +446,7 @@ if $build_utils; then
     if $force_build_utils; then
       UTILS_NOCACHE="--no-cache"
     fi
-    docker compose build --no-rm $UTILS_NOCACHE $LOCAL_BUILD_NODES
+    docker compose build $UTILS_NOCACHE $LOCAL_BUILD_NODES
   fi
 fi
 
@@ -467,7 +467,7 @@ if $blockscout; then
 fi
 
 if $build_node_images; then
-    docker compose build --no-rm $NODES
+    docker compose build $NODES
 fi
 
 if $force_init; then
