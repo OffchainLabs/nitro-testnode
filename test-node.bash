@@ -604,7 +604,7 @@ if $l2anytrust; then
         das_bls_b=`docker compose run --rm --entrypoint sh datool -c "cat /das-committee-b/keys/das_bls.pub"`
 
         run_script write-l2-das-keyset-config --dasBlsA $das_bls_a --dasBlsB $das_bls_b
-        docker compose run --rm --entrypoint sh datool -c "/usr/local/bin/datool dumpkeyset --conf.file /config/l2_das_keyset.json | grep 'Keyset: ' | awk '{ printf \"%s\", \$2 }' > /config/l2_das_keyset.hex"
+        docker compose run --rm --entrypoint sh datool -c "/usr/local/bin/anytrusttool dumpkeyset --conf.file /config/l2_das_keyset.json | grep 'Keyset: ' | awk '{ printf \"%s\", \$2 }' > /config/l2_das_keyset.hex"
         run_script set-valid-keyset
 
         anytrustNodeConfigLine="--anytrust --dasBlsA $das_bls_a --dasBlsB $das_bls_b"
