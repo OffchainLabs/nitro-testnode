@@ -328,7 +328,9 @@ function writeConfigs(argv: any) {
                     "jwtsecret": valJwtSecret,
                 }
             },
-            "data-availability": createDataAvailabilityConfig(argv, argv.anytrust)
+            "da": {
+                "anytrust": createDataAvailabilityConfig(argv, argv.anytrust)
+            }
         },
         "execution": {
             "sequencer": {
@@ -350,13 +352,12 @@ function writeConfigs(argv: any) {
     }
 
     if (argv.referenceDA) {
-        (baseConfig as any).node["da"] = {
-            "external-provider": {
-                "enable": true,
-                "with-writer": false,
-                "rpc": {
-                    "url": "http://referenceda-provider:9880"
-                }
+        // Assign into node.da rather than replacing it, so the anytrust config set above survives.
+        (baseConfig as any).node["da"]["external-provider"] = {
+            "enable": true,
+            "with-writer": false,
+            "rpc": {
+                "url": "http://referenceda-provider:9880"
             }
         }
     }
@@ -382,7 +383,7 @@ function writeConfigs(argv: any) {
         simpleConfig.node["batch-poster"]["redis-url"] = ""
         simpleConfig.execution["sequencer"].enable = true
         if (argv.anytrust) {
-            simpleConfig.node["data-availability"]["rpc-aggregator"].enable = true
+            simpleConfig.node["da"]["anytrust"]["rpc-aggregator"].enable = true
         }
         if (argv.txfiltering) {
             applyTxFilteringConfig(simpleConfig);
@@ -425,7 +426,7 @@ function writeConfigs(argv: any) {
         posterConfig.node["seq-coordinator"].enable = true
         posterConfig.node["batch-poster"].enable = true
         if (argv.anytrust) {
-            posterConfig.node["data-availability"]["rpc-aggregator"].enable = true
+            posterConfig.node["da"]["anytrust"]["rpc-aggregator"].enable = true
         }
         if (argv.referenceDA) {
             posterConfig.node["da"]["external-provider"]["with-writer"] = true
@@ -439,7 +440,7 @@ function writeConfigs(argv: any) {
     // use the same account for l2 and l3 staker
     // l3Config.node.staker["parent-chain-wallet"].account = namedAddress("l3owner")
     l3Config.node["batch-poster"]["parent-chain-wallet"].account = namedAddress("l3sequencer")
-    l3Config.node["data-availability"] = createDataAvailabilityConfig(argv, false)
+    l3Config.node["da"]["anytrust"] = createDataAvailabilityConfig(argv, false)
     l3Config.chain.id = 333333
     const l3ChainInfoFile = path.join(consts.configpath, "l3_chain_info.json")
     l3Config.chain["info-files"] = [l3ChainInfoFile]

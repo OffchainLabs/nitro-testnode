@@ -389,7 +389,7 @@ services:
 
   datool:
     image: nitro-node-dev-testnode
-    entrypoint: /usr/local/bin/datool
+    entrypoint: /usr/local/bin/anytrusttool
     volumes:
       - "config:/config"
       - "das-committee-a-data:/das-committee-a"
@@ -400,7 +400,7 @@ services:
   das-committee-a:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
-    entrypoint: /usr/local/bin/daserver
+    entrypoint: /usr/local/bin/anytrustserver
     ports:
       - "127.0.0.1:9876:9876"
       - "127.0.0.1:9877:9877"
@@ -413,7 +413,7 @@ services:
   das-committee-b:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
-    entrypoint: /usr/local/bin/daserver
+    entrypoint: /usr/local/bin/anytrustserver
     ports:
       - "127.0.0.1:8876:9876"
       - "127.0.0.1:8877:9877"
@@ -426,7 +426,7 @@ services:
   das-mirror:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
-    entrypoint: /usr/local/bin/daserver
+    entrypoint: /usr/local/bin/anytrustserver
     ports:
       - "127.0.0.1:7877:9877"
     volumes:
