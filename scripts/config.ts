@@ -212,8 +212,8 @@ function createDataAvailabilityConfig(argv: any, anytrust: boolean) {
 
 function applyTxFilteringConfig(config: any) {
     config.execution["transaction-filtering"] = {
+        "enable": true,
         "address-filter": {
-            "enable": true,
             "s3": {
                 "access-key": "minioadmin",
                 "secret-key": "minioadmin",
