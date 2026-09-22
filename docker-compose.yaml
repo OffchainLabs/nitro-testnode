@@ -481,7 +481,14 @@ services:
       - redis
 
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
+    # MinIO deleted the minio/minio and minio/mc repositories from Docker Hub on
+    # 2026-09-11. quay.io/minio is MinIO's own namespace and still serves these
+    # releases. Their container docs referenced quay.io/minio/minio before
+    # min.io replaced every community page with the licensed AIStor product.
+    #
+    # https://github.com/minio/minio/blob/master/helm/minio/values.yaml
+    # https://web.archive.org/web/20250515164950/https://min.io/docs/minio/container/index.html
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
