@@ -48,6 +48,7 @@ import {
   createFeeTokenPricerCommand,
   grantFiltererRoleCommand,
 } from "./ethcommands";
+import { mixedLoadCommand } from "./mixedLoad";
 
 async function main() {
   await Yargs(hideBin(process.argv))
@@ -102,6 +103,7 @@ async function main() {
     .command(redisReadCommand)
     .command(redisInitCommand)
     .command(waitForSyncCommand)
+    .command(mixedLoadCommand)
     .strict()
     .demandCommand(1, "a command must be specified")
     .epilogue(namedAccountHelpString)
