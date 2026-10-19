@@ -8,19 +8,20 @@ RUN git checkout ${NITRO_CONTRACTS_BRANCH}
 RUN git submodule update --init --recursive
 RUN yarn install && yarn cache clean
 ENV PATH="${PATH}:/root/.foundry/bin"
-RUN foundryup_version=v0.0.8 && \
+RUN foundry_version=v1.0.0 && \
     arch=$(dpkg --print-architecture) && \
     case "$arch" in \
-      amd64) foundryup_sha256=6ff7da0c8ad82b138c9e37b7598e65f99878bda7522aede4617f585bda0d846f ;; \
-      arm64) foundryup_sha256=60d5170d91409d144492778ea982266e746419abcbf7ac117a08ee93ee01e032 ;; \
-      *) echo "no foundryup checksum for $arch" >&2; exit 1 ;; \
+      amd64) foundry_sha256=8c078eaced6bfce76af902def65e36db677842ffbf53f76730647082a5b1e45a ;; \
+      arm64) foundry_sha256=79967815024de284265b9e82b75498b46357e597b93b481b9f4abe88a53eade6 ;; \
+      *) echo "no Foundry checksum for $arch" >&2; exit 1 ;; \
     esac && \
+    tarball=foundry_${foundry_version}_linux_${arch}.tar.gz && \
+    curl --proto '=https' --tlsv1.2 -fsSL --retry 3 -o "/tmp/$tarball" \
+      "https://github.com/foundry-rs/foundry/releases/download/${foundry_version}/$tarball" && \
+    echo "${foundry_sha256}  /tmp/$tarball" | sha256sum -c - && \
     mkdir -p /root/.foundry/bin && \
-    curl --proto '=https' --tlsv1.2 -fsSL --retry 3 -o /root/.foundry/bin/foundryup \
-      "https://github.com/foundry-rs/foundryup/releases/download/${foundryup_version}/foundryup_linux_${arch}" && \
-    echo "${foundryup_sha256}  /root/.foundry/bin/foundryup" | sha256sum -c - && \
-    chmod +x /root/.foundry/bin/foundryup && \
-    foundryup --install 1.0.0
+    tar -xzf "/tmp/$tarball" -C /root/.foundry/bin && \
+    rm "/tmp/$tarball"
 RUN touch scripts/config.ts
 RUN yarn build:all
 ENTRYPOINT ["yarn"]
