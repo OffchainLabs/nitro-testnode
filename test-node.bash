@@ -2,13 +2,13 @@
 
 set -eu
 
-: ${NITRO_NODE_VERSION:=offchainlabs/nitro-node:v3.11.3-beb2108}
+: ${NITRO_NODE_VERSION:=offchainlabs/nitro-node:v3.12.2-5f02f3f}
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
 # nitro-contract workaround for testnode
 # 1. authorizing validator signer key since validator wallet is buggy
 #    - gas estimation sent from 0x0000 lead to balance and permission error
-DEFAULT_NITRO_CONTRACTS_VERSION="v3.1.0"
+DEFAULT_NITRO_CONTRACTS_VERSION="v3.2.0"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.5"
 
 # Set default versions if not overriden by provided env vars
