@@ -61,7 +61,6 @@ l1chainid=1337
 simple=true
 l2anytrust=false
 l2referenceda=false
-l2timeboost=false
 l2txfiltering=false
 l2filteringreport=false
 
@@ -273,10 +272,6 @@ while [[ $# -gt 0 ]]; do
             l2referenceda=true
             shift
             ;;
-        --l2-timeboost)
-            l2timeboost=true
-            shift
-            ;;
         --l2-tx-filtering)
             l2txfiltering=true
             shift
@@ -330,7 +325,6 @@ while [[ $# -gt 0 ]]; do
             echo --l3-token-bridge Deploy L2-L3 token bridge. Only valid if also '--l3node' is provided
             echo --l2-anytrust     run the L2 as an AnyTrust chain
             echo --l2-referenceda  run the L2 with reference external data availability provider
-            echo --l2-timeboost    run the L2 with Timeboost enabled, including auctioneer and bid validator
             echo --l2-tx-filtering  run the L2 with transaction filtering enabled
             echo --l2-filtering-report  run the L2 with filtering report framework enabled \(implies --l2-tx-filtering\)
             echo --batchposters    batch posters [0-3]
@@ -399,10 +393,6 @@ if $l3node; then
 fi
 if $blockscout; then
     NODES="$NODES blockscout"
-fi
-
-if $l2timeboost; then
-    NODES="$NODES timeboost-auctioneer timeboost-bid-validator"
 fi
 
 if $l2txfiltering; then
@@ -559,11 +549,7 @@ if $force_init; then
 
     echo "== Deploying L2 chain"
     docker compose run --rm -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
-    if $l2timeboost; then
-        docker compose run --rm --entrypoint sh rollupcreator -c 'jq ".[] | .\"track-block-metadata-from\"=1 | [.]" /config/deployed_chain_info.json > /config/l2_chain_info.json'
-    else
-        docker compose run --rm --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
-    fi
+    docker compose run --rm --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_chain_info.json > /config/l2_chain_info.json"
 
     if $l2referenceda; then
         docker compose run --rm --entrypoint sh referenceda-provider -c "true" # Noop to mount shared volumes with contracts for manual build and deployment
@@ -585,7 +571,6 @@ fi # $force_init
 
 anytrustNodeConfigLine=""
 referenceDaNodeConfigLine=""
-timeboostNodeConfigLine=""
 txFilteringNodeConfigLine=""
 filteringReportNodeConfigLine=""
 
@@ -622,9 +607,6 @@ if $l2referenceda && $run; then
 fi
 
 if $force_init; then
-    if $l2timeboost; then
-        timeboostNodeConfigLine="--timeboost"
-    fi
     if $l2referenceda; then
         referenceDaNodeConfigLine="--referenceDA"
     fi
@@ -637,9 +619,9 @@ if $force_init; then
 
     echo "== Writing configs"
     if $simple; then
-        run_script write-config --simple $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine $filteringReportNodeConfigLine
+        run_script write-config --simple $anytrustNodeConfigLine $referenceDaNodeConfigLine $txFilteringNodeConfigLine $filteringReportNodeConfigLine
     else
-        run_script write-config $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine $filteringReportNodeConfigLine
+        run_script write-config $anytrustNodeConfigLine $referenceDaNodeConfigLine $txFilteringNodeConfigLine $filteringReportNodeConfigLine
 
         echo == Initializing redis
         docker compose up --wait redis
@@ -652,26 +634,6 @@ if $force_init; then
     run_script bridge-funds --ethamount 100000 --wait
     run_script send-l2 --ethamount 100 --to l2owner --wait
     rollupAddress=`docker compose run --rm --entrypoint sh poster -c "jq -r '.[0].rollup.rollup' /config/deployed_chain_info.json | tail -n 1 | tr -d '\r\n'"`
-
-    if $l2timeboost; then
-        run_script send-l2 --ethamount 100 --to auctioneer --wait
-        biddingTokenAddress=`run_script create-erc20 --deployer auctioneer | tail -n 1 | awk '{ print $NF }'`
-        auctionContractAddress=`run_script deploy-express-lane-auction --bidding-token $biddingTokenAddress | tail -n 1 | awk '{ print $NF }'`
-        auctioneerAddress=`run_script print-address --account auctioneer | tail -n1 | tr -d '\r\n'`
-        echo == Starting up Timeboost auctioneer and bid validator.
-        echo == Bidding token: $biddingTokenAddress, auction contract $auctionContractAddress
-        run_script write-timeboost-configs --auction-contract $auctionContractAddress
-        docker compose run --rm --user root --entrypoint sh timeboost-auctioneer -c "chown -R 1000:1000 /data"
-
-        echo == Funding alice and bob user accounts for timeboost testing
-        run_script send-l2 --ethamount 10 --to user_alice --wait
-        run_script send-l2 --ethamount 10 --to user_bob --wait
-        run_script transfer-erc20 --token $biddingTokenAddress --amount 10000 --from auctioneer --to user_alice
-        run_script transfer-erc20 --token $biddingTokenAddress --amount 10000 --from auctioneer --to user_bob
-
-        docker compose run --rm --entrypoint sh scripts -c "sed -i 's/\(\"execution\":{\"sequencer\":{\"enable\":true,\"timeboost\":{\"enable\":\)false/\1true,\"auction-contract-address\":\"$auctionContractAddress\",\"auctioneer-address\":\"$auctioneerAddress\"/' /config/sequencer_config.json" --wait
-        docker compose restart $INITIAL_SEQ_NODES
-    fi
 
     if $l2txfiltering; then
         echo == Funding transaction filterer account
