@@ -64,6 +64,7 @@ l2referenceda=false
 l2timeboost=false
 l2txfiltering=false
 l2filteringreport=false
+mel=false
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -286,6 +287,10 @@ while [[ $# -gt 0 ]]; do
             l2txfiltering=true
             shift
             ;;
+        --mel)
+            mel=true
+            shift
+            ;;
         --redundantsequencers)
             simple=false
             redundantsequencers=$2
@@ -333,6 +338,7 @@ while [[ $# -gt 0 ]]; do
             echo --l2-timeboost    run the L2 with Timeboost enabled, including auctioneer and bid validator
             echo --l2-tx-filtering  run the L2 with transaction filtering enabled
             echo --l2-filtering-report  run the L2 with filtering report framework enabled \(implies --l2-tx-filtering\)
+            echo --mel             run the L2 \(and L3\) rollups under MEL: mel0 wasm module root, proof data providers for validators, arbitrator validation
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
@@ -391,11 +397,17 @@ fi
 
 if $validate; then
     NODES="$NODES validator"
+    if $mel; then
+        NODES="$NODES mel_provider_l2"
+    fi
 elif ! $simple; then
     NODES="$NODES staker-unsafe"
 fi
 if $l3node; then
     NODES="$NODES l3node"
+    if $mel; then
+        NODES="$NODES mel_provider_l3"
+    fi
 fi
 if $blockscout; then
     NODES="$NODES blockscout"
@@ -455,6 +467,13 @@ if $dev_nitro; then
 else
   docker pull $NITRO_NODE_VERSION
   docker tag $NITRO_NODE_VERSION nitro-node-dev-testnode
+fi
+
+if $mel; then
+    if ! docker run --rm --entrypoint sh nitro-node-dev-testnode -c 'cd /home/user/target/machines/mel0 && test -f latest/machine.v2.wavm.br && test -d "$(cat latest/module-root.txt)" && test -x /usr/local/bin/mel-provider'; then
+        echo "--mel needs a nitro image that ships target/machines/mel0 (latest and <root>) and mel-provider"
+        exit 1
+    fi
 fi
 
 if $blockscout; then
@@ -555,7 +574,11 @@ if $force_init; then
 
     sequenceraddress=`run_script print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
     l2ownerKey=`run_script print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
-    wasmroot=`docker compose run --rm --entrypoint sh sequencer -c "cat /home/user/target/machines/latest/module-root.txt"`
+    machinesDir=/home/user/target/machines
+    if $mel; then
+        machinesDir=$machinesDir/mel0
+    fi
+    wasmroot=`docker compose run --rm --entrypoint sh sequencer -c "cat $machinesDir/latest/module-root.txt"`
 
     echo "== Deploying L2 chain"
     docker compose run --rm -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
@@ -588,6 +611,7 @@ referenceDaNodeConfigLine=""
 timeboostNodeConfigLine=""
 txFilteringNodeConfigLine=""
 filteringReportNodeConfigLine=""
+melNodeConfigLine=""
 
 # Remaining init may require AnyTrust committee/mirrors to have been started
 if $l2anytrust; then
@@ -634,12 +658,15 @@ if $force_init; then
     if $l2filteringreport; then
         filteringReportNodeConfigLine="--filteringreport"
     fi
+    if $mel; then
+        melNodeConfigLine="--mel"
+    fi
 
     echo "== Writing configs"
     if $simple; then
-        run_script write-config --simple $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine $filteringReportNodeConfigLine
+        run_script write-config --simple $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine $filteringReportNodeConfigLine $melNodeConfigLine
     else
-        run_script write-config $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine $filteringReportNodeConfigLine
+        run_script write-config $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine $filteringReportNodeConfigLine $melNodeConfigLine
 
         echo == Initializing redis
         docker compose up --wait redis
@@ -761,7 +788,11 @@ if $force_init; then
         docker compose run --rm --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
         echo == Funding l3 funnel and dev key
-        docker compose up --wait l3node sequencer
+        l3Nodes="l3node sequencer"
+        if $mel; then
+            l3Nodes="$l3Nodes mel_provider_l3"
+        fi
+        docker compose up --wait $l3Nodes
         sleep 45 # in case we need to create a smart contract wallet, allow for parent chain to recieve the contract creation tx and process it
 
         if $l3_token_bridge; then

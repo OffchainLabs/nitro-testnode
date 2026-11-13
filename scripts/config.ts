@@ -388,6 +388,9 @@ function writeConfigs(argv: any) {
         if (argv.anytrust) {
             simpleConfig.node["da"]["anytrust"]["rpc-aggregator"].enable = true
         }
+        if (argv.mel) {
+            simpleConfig.execution["caching"] = { "archive": true }
+        }
         if (argv.txfiltering) {
             applyTxFilteringConfig(simpleConfig);
         }
@@ -400,7 +403,10 @@ function writeConfigs(argv: any) {
         validatorConfig.node.staker.enable = true
         validatorConfig.node.staker["use-smart-contract-wallet"] = true
         let validconfJSON = JSON.stringify(validatorConfig)
-        fs.writeFileSync(path.join(consts.configpath, "validator_config.json"), validconfJSON)
+        if (argv.mel) {
+            validatorConfig.node["mel"] = { "client": { "url": "http://mel_provider_l2:8549" } }
+        }
+        fs.writeFileSync(path.join(consts.configpath, "validator_config.json"), JSON.stringify(validatorConfig))
 
         let unsafeStakerConfig = JSON.parse(validconfJSON)
         unsafeStakerConfig.node.staker.dangerous["without-block-validator"] = true
@@ -416,6 +422,9 @@ function writeConfigs(argv: any) {
                 "enable": false, // Create it false initially, turn it on with sed in test-node.bash after contract setup.
                 "redis-url": argv.redisUrl
             };
+        }
+        if (argv.mel) {
+            sequencerConfig.execution["caching"] = { "archive": true }
         }
         if (argv.txfiltering) {
             applyTxFilteringConfig(sequencerConfig);
@@ -449,6 +458,9 @@ function writeConfigs(argv: any) {
     l3Config.chain["info-files"] = [l3ChainInfoFile]
     l3Config.node.staker.enable = true
     l3Config.node.staker["use-smart-contract-wallet"] = true
+    if (argv.mel) {
+        l3Config.node["mel"] = { "client": { "url": "http://mel_provider_l3:8549" } }
+    }
     l3Config.node.sequencer = true
     l3Config.execution["sequencer"].enable = true
     l3Config.node["dangerous"]["no-sequencer-coordinator"] = true
@@ -478,6 +490,9 @@ function writeConfigs(argv: any) {
             "addr": "0.0.0.0",
         },
     }))
+    if (argv.mel) {
+        validationNodeConfig.validation["use-jit"] = false
+    }
     fs.writeFileSync(path.join(consts.configpath, "validation_node_config.json"), JSON.stringify(validationNodeConfig))
 }
 
@@ -753,6 +768,11 @@ export const writeConfigCommand = {
         filteringreport: {
             boolean: true,
             describe: "enable filtering report framework",
+            default: false
+        },
+        mel: {
+            boolean: true,
+            describe: "chains run MEL: proof data providers for validators, arbitrator validation",
             default: false
         },
     },
