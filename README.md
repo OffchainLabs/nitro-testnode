@@ -44,6 +44,16 @@ Initialize the node in dev-mode (this will build the docker images from source)
 ```
 To see more options, use `--help`.
 
+## Running under MEL
+
+Pass `--mel` to create the L2 (and L3) chains with MEL enabled. Each node that validates (the `--validate` L2 validator and the `--l3node` node) gets a proof data provider (`mel_provider_l2`, `mel_provider_l3`), and validation runs on the arbitrator instead of the JIT.
+
+```bash
+./test-node.bash --init --dev --mel --l3node --validate
+```
+
+> Notice: `--mel` needs a nitro image that ships `target/machines/mel0` and `mel-provider` (a MEL-aware nitro built with `--dev`, or a matching `NITRO_NODE_VERSION`) and a `NITRO_CONTRACTS_BRANCH` that supports MEL.
+
 ## Further information
 
 ### Branch Selection Guide (for devs working *on* nitro-testnode)
