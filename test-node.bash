@@ -2,7 +2,7 @@
 
 set -eu
 
-: ${NITRO_NODE_VERSION:=offchainlabs/nitro-node:v3.11.3-beb2108}
+: ${NITRO_NODE_VERSION:=offchainlabs/nitro-node:v3.12.2-5f02f3f}
 BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 
 # nitro-contract workaround for testnode

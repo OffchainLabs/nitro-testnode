@@ -337,6 +337,9 @@ function writeConfigs(argv: any) {
                 "enable": false
             },
             "forwarding-target": "null",
+            "stylus-target": {
+                "allow-offchain-activation": true
+            },
         },
         "persistent": {
             "chain": "local"
