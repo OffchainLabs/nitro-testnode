@@ -22,7 +22,6 @@ echo "Using TOKEN_BRIDGE_BRANCH: $TOKEN_BRIDGE_BRANCH"
 
 mydir=`dirname $0`
 cd "$mydir"
-project=$(basename "$PWD")
 
 run_script() {
   docker compose run --rm scripts "$@"
@@ -34,7 +33,15 @@ if [[ $# -gt 0 ]] && [[ $1 == "script" ]]; then
     exit $?
 fi
 
-num_volumes=`docker volume ls --filter label=com.docker.compose.project=$project -q | wc -l`
+# Env files are skipped since blockscout's is missing when its submodule isn't checked out; compose before v2.35 has
+# no flag for that and needs the submodule. Compose quotes project names that look like numbers or booleans
+project=$({ docker compose config --no-env-resolution 2>/dev/null || docker compose config; } | sed -n 's/^name: //p' | tr -d '"')
+if [ -z "$project" ]; then
+    echo "Error: could not determine the docker compose project name"
+    exit 1
+fi
+
+num_volumes=`docker volume ls --filter "label=com.docker.compose.project=$project" -q | wc -l`
 
 if [[ $num_volumes -eq 0 ]]; then
     force_init=true
@@ -474,12 +481,12 @@ fi
 if $force_init; then
     echo == Removing old data..
     docker compose down --remove-orphans --timeout 10 2>/dev/null || true
-    leftoverContainers=`docker container ls -a --filter label=com.docker.compose.project=$project -q | xargs echo`
+    leftoverContainers=`docker container ls -a --filter "label=com.docker.compose.project=$project" -q | xargs echo`
     if [ `echo $leftoverContainers | wc -w` -gt 0 ]; then
         docker rm -f $leftoverContainers
     fi
-    docker volume prune -f --filter label=com.docker.compose.project=$project
-    leftoverVolumes=`docker volume ls --filter label=com.docker.compose.project=$project -q | xargs echo`
+    docker volume prune -f --filter "label=com.docker.compose.project=$project"
+    leftoverVolumes=`docker volume ls --filter "label=com.docker.compose.project=$project" -q | xargs echo`
     if [ `echo $leftoverVolumes | wc -w` -gt 0 ]; then
         docker volume rm -f $leftoverVolumes
     fi
@@ -556,8 +563,13 @@ if $force_init; then
 
     sequenceraddress=`run_script print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
     l2ownerKey=`run_script print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
-    # WASM_MODULE_ROOT sets the rollup's initial root, which otherwise is the image's latest machine
-    wasmroot=${WASM_MODULE_ROOT:-`docker compose run --rm --entrypoint sh sequencer -c "cat /home/user/target/machines/latest/module-root.txt"`}
+    # WASM_MODULE_ROOT sets the initial root of the L2 and L3 rollups, which otherwise is the image's latest machine
+    if [ -n "${WASM_MODULE_ROOT:-}" ]; then
+        wasmroot=$WASM_MODULE_ROOT
+        docker compose run --rm --entrypoint sh sequencer -c 'grep -qsxiF "$1" /home/user/target/machines/*/module-root.txt /home/user/nitro-legacy/machines/*/module-root.txt' sh "$wasmroot" || { echo "Error: WASM_MODULE_ROOT $wasmroot is not a machine of the nitro image"; exit 1; }
+    else
+        wasmroot=`docker compose run --rm --entrypoint sh sequencer -c "cat /home/user/target/machines/latest/module-root.txt"`
+    fi
 
     echo "== Deploying L2 chain"
     docker compose run --rm -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
@@ -647,11 +659,6 @@ if $force_init; then
         docker compose up --wait redis
         run_script redis-init --redundancy $redundantsequencers
     fi
-
-    # The validation node serves the machines of one directory, so link the image's legacy and current machines into one.
-    # That way it can validate a rollup that starts on an older root, and the consensus-v61 root after an upgrade
-    echo == Linking legacy and current machines for the validation node
-    docker compose run --rm --entrypoint sh validation_node -c "mkdir -p /config/machines && ln -sfn /home/user/nitro-legacy/machines/0x* /home/user/target/machines/* /config/machines/"
 
     echo == Funding l2 funnel and dev key
     docker compose up --wait $INITIAL_SEQ_NODES
