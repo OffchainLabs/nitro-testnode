@@ -171,7 +171,7 @@ services:
       - --conf.file=/config/sequencer_config.json
       - --node.feed.output.enable
       - --node.feed.output.port=9642
-      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
+      - --http.api=net,web3,eth,txpool,debug
       - --node.seq-coordinator.my-url=http://sequencer:8547
       - --graphql.enable
       - --graphql.vhosts=*
@@ -192,7 +192,7 @@ services:
     command:
       - --conf.file=/config/sequencer_config.json
       - --node.seq-coordinator.my-url=http://sequencer_b:8547
-      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
+      - --http.api=net,web3,eth,txpool,debug
     depends_on:
       - geth
       - redis
@@ -210,7 +210,7 @@ services:
     command:
       - --conf.file=/config/sequencer_config.json
       - --node.seq-coordinator.my-url=http://sequencer_c:8547
-      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
+      - --http.api=net,web3,eth,txpool,debug
     depends_on:
       - geth
       - redis
@@ -228,7 +228,7 @@ services:
     command:
       - --conf.file=/config/sequencer_config.json
       - --node.seq-coordinator.my-url=http://sequencer_d:8547
-      - --http.api=net,web3,eth,txpool,debug,timeboost,auctioneer
+      - --http.api=net,web3,eth,txpool,debug
     depends_on:
       - geth
       - redis
@@ -449,37 +449,6 @@ services:
     command:
       - --conf.file=/config/referenceda_provider.json
 
-  timeboost-auctioneer:
-    pid: host # allow debugging
-    image: nitro-node-dev-testnode
-    entrypoint: /usr/local/bin/autonomous-auctioneer
-    volumes:
-      - "config:/config"
-      - "timeboost-auctioneer-data:/data"
-      - "l1keystore:/home/user/l1keystore"
-    command:
-      - --conf.file=/config/autonomous_auctioneer_config.json
-    depends_on:
-      - redis
-
-  timeboost-bid-validator:
-    pid: host # allow debugging
-    image: nitro-node-dev-testnode
-    entrypoint: /usr/local/bin/autonomous-auctioneer
-    ports:
-      - "127.0.0.1:9372:8547"
-    volumes:
-      - "config:/config"
-    command:
-      - --conf.file=/config/bid_validator_config.json
-      - --http.addr=0.0.0.0
-      - --http.vhosts=*
-      - --http.corsdomain=*
-      - --http.api=auctioneer
-      - --log-level=INFO
-    depends_on:
-      - redis
-
   minio:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
     ports:
@@ -565,7 +534,6 @@ volumes:
   das-committee-b-data:
   das-mirror-data:
   referenceda-provider-data:
-  timeboost-auctioneer-data:
   contracts:
   contracts-local:
   minio-data:

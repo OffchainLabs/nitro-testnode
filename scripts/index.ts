@@ -12,7 +12,6 @@ import {
   writeL2DASMirrorConfigCommand,
   writeL2DASKeysetConfigCommand,
   writeL2ReferenceDAConfigCommand,
-  writeTimeboostConfigsCommand,
   writeTransactionFiltererConfigCommand,
   initTxFilteringMinioCommand,
   hashAddressCommand,
@@ -34,7 +33,6 @@ import {
   bridgeNativeTokenToL3Command,
   bridgeToL3Command,
   createERC20Command,
-  deployExpressLaneAuctionContractCommand,
   createWETHCommand,
   createStylusDeployerCommand,
   transferERC20Command,
@@ -66,7 +64,6 @@ async function main() {
     .command(bridgeNativeTokenToL3Command)
     .command(createERC20Command)
     .command(createFeeTokenPricerCommand)
-    .command(deployExpressLaneAuctionContractCommand)
     .command(createWETHCommand)
     .command(createStylusDeployerCommand)
     .command(transferERC20Command)
@@ -86,7 +83,6 @@ async function main() {
     .command(writeL2ReferenceDAConfigCommand)
     .command(writePrysmCommand)
     .command(writeAccountsCommand)
-    .command(writeTimeboostConfigsCommand)
     .command(writeTransactionFiltererConfigCommand)
     .command(initTxFilteringMinioCommand)
     .command(hashAddressCommand)
