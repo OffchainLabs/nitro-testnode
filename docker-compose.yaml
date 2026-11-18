@@ -334,7 +334,8 @@ services:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
     # Serve the image's legacy and current machines from one directory, so the node can validate a rollup that starts
-    # on an older root and the latest root after an upgrade. Built on every start, so it follows the image
+    # on an older root and the latest root after an upgrade. Legacy machines lack machine.v2.wavm.br, so they only
+    # validate through JIT and can't run challenges. Built on every start, so it follows the image
     entrypoint: ["sh", "-c", "mkdir -p /tmp/machines && ln -sfn /home/user/nitro-legacy/machines/0x* /home/user/target/machines/* /tmp/machines/ && exec /usr/local/bin/nitro-val \"$$@\"", "--"]
     ports:
       - "127.0.0.1:8949:8549"
