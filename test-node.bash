@@ -33,7 +33,12 @@ if [[ $# -gt 0 ]] && [[ $1 == "script" ]]; then
     exit $?
 fi
 
-num_volumes=`docker volume ls --filter label=com.docker.compose.project=nitro-testnode -q | wc -l`
+# Env files are skipped since blockscout's is missing when its submodule isn't checked out; compose before v2.35 has
+# no flag for that and needs the submodule. Compose quotes project names that look like numbers or booleans
+project=$({ docker compose config --no-env-resolution 2>/dev/null || docker compose config; } | sed -n 's/^name: //p' | tr -d "\"'")
+project_filter="label=com.docker.compose.project=$project"
+
+num_volumes=`docker volume ls --filter "$project_filter" -q | wc -l`
 
 if [[ $num_volumes -eq 0 ]]; then
     force_init=true
@@ -64,6 +69,7 @@ l2referenceda=false
 l2timeboost=false
 l2txfiltering=false
 l2filteringreport=false
+wasmroot=""
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -312,6 +318,15 @@ while [[ $# -gt 0 ]]; do
             l3_traffic=false
             shift
             ;;
+        --wasm-module-root)
+            wasmroot=${2-}
+            if ! [[ $wasmroot =~ ^0x[0-9a-fA-F]{64}$ ]]; then
+                echo "Error: --wasm-module-root must be 0x followed by 64 hex characters."
+                exit 1
+            fi
+            shift
+            shift
+            ;;
         *)
             echo Usage: $0 \[OPTIONS..]
             echo        $0 script [SCRIPT-ARGS]
@@ -351,11 +366,24 @@ while [[ $# -gt 0 ]]; do
             echo --build-utils         rebuild scripts, rollupcreator, token bridge docker images
             echo --no-build-utils      don\'t rebuild scripts, rollupcreator, token bridge docker images
             echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_BRANCH or TOKEN_BRIDGE_BRANCH changes
+            echo --wasm-module-root initial WASM module root of the L2 and L3 rollups, one of the nitro image\'s machines \(default: the latest\). Needs an init, and a machine that supports the ArbOS version the chains start on. The nitro-legacy machines can\'t run challenges
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
             exit 0
     esac
 done
+
+# Project is checked here to allow showing the --help information even when the project name can't be found
+if [ -z "$project" ]; then
+    echo "Error: could not determine the docker compose project name"
+    exit 1
+fi
+
+# Wasm module root can only be set when initializing
+if [ -n "$wasmroot" ] && ! $force_init; then
+    echo "Error: --wasm-module-root only applies when initializing."
+    exit 1
+fi
 
 NODES="sequencer"
 INITIAL_SEQ_NODES="sequencer"
@@ -457,6 +485,15 @@ else
   docker tag $NITRO_NODE_VERSION nitro-node-dev-testnode
 fi
 
+# Validate the specified Wasm module root against the available machines in the nitro image
+if [ -n "$wasmroot" ]; then
+    image_roots=`docker run --rm --entrypoint sh nitro-node-dev-testnode -c "cat /home/user/*/machines/*/module-root.txt"`
+    if ! grep -qxiF "$wasmroot" <<< "$image_roots"; then
+        echo "Error: $wasmroot is not a machine of the nitro image."
+        exit 1
+    fi
+fi
+
 if $blockscout; then
   if $dev_blockscout; then
     docker tag blockscout:latest blockscout-testnode
@@ -473,12 +510,12 @@ fi
 if $force_init; then
     echo == Removing old data..
     docker compose down --remove-orphans --timeout 10 2>/dev/null || true
-    leftoverContainers=`docker container ls -a --filter label=com.docker.compose.project=nitro-testnode -q | xargs echo`
+    leftoverContainers=`docker container ls -a --filter "$project_filter" -q | xargs echo`
     if [ `echo $leftoverContainers | wc -w` -gt 0 ]; then
         docker rm -f $leftoverContainers
     fi
-    docker volume prune -f --filter label=com.docker.compose.project=nitro-testnode
-    leftoverVolumes=`docker volume ls --filter label=com.docker.compose.project=nitro-testnode -q | xargs echo`
+    docker volume prune -f --filter "$project_filter"
+    leftoverVolumes=`docker volume ls --filter "$project_filter" -q | xargs echo`
     if [ `echo $leftoverVolumes | wc -w` -gt 0 ]; then
         docker volume rm -f $leftoverVolumes
     fi
@@ -555,7 +592,9 @@ if $force_init; then
 
     sequenceraddress=`run_script print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
     l2ownerKey=`run_script print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
-    wasmroot=`docker compose run --rm --entrypoint sh sequencer -c "cat /home/user/target/machines/latest/module-root.txt"`
+    if [ -z "$wasmroot" ]; then
+        wasmroot=`docker compose run --rm --entrypoint sh sequencer -c "cat /home/user/target/machines/latest/module-root.txt"`
+    fi
 
     echo "== Deploying L2 chain"
     docker compose run --rm -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
