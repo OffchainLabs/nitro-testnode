@@ -265,6 +265,11 @@ function writeConfigs(argv: any) {
             "id": 412346,
             "info-files": [chainInfoFile],
         },
+        "validation": {
+            "wasm": {
+                "allowed-wasm-module-roots": ["/home/user/nitro-legacy/machines", "/home/user/target/machines"]
+            }
+        },
         "node": {
             "bold": {
                 "rpc-block-number": "latest",
