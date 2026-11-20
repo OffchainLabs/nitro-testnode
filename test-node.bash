@@ -8,7 +8,7 @@ BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 # nitro-contract workaround for testnode
 # 1. authorizing validator signer key since validator wallet is buggy
 #    - gas estimation sent from 0x0000 lead to balance and permission error
-DEFAULT_NITRO_CONTRACTS_VERSION="v3.2.0"
+DEFAULT_NITRO_CONTRACTS_VERSION="feat/mel-0-melconfig-contract"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.5"
 
 # Set default versions if not overriden by provided env vars
@@ -366,7 +366,7 @@ while [[ $# -gt 0 ]]; do
             echo --build-utils         rebuild scripts, rollupcreator, token bridge docker images
             echo --no-build-utils      don\'t rebuild scripts, rollupcreator, token bridge docker images
             echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_BRANCH or TOKEN_BRIDGE_BRANCH changes
-            echo --wasm-module-root initial WASM module root of the L2 and L3 rollups, one of the nitro image\'s machines \(default: the latest\). Needs an init, and a machine that supports the ArbOS version the chains start on. The nitro-legacy machines can\'t run challenges
+            echo --wasm-module-root initial WASM module root of the L2 and L3 rollups, one of the machines in the nitro image\'s target/machines \(default: the latest mel0 machine\). Needs an init, a machine that supports the ArbOS version the chains start on, and contracts of the same kind: a classic root for pre-MEL contracts, a mel0 root for MEL contracts
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
             exit 0
@@ -485,13 +485,17 @@ else
   docker tag $NITRO_NODE_VERSION nitro-node-dev-testnode
 fi
 
-# Validate the specified Wasm module root against the available machines in the nitro image
+# Validate the wasm module root against the image's target/machines (the arbitrator can't load the nitro-legacy ones),
+# or default to its latest mel0 machine
 if [ -n "$wasmroot" ]; then
-    image_roots=`docker run --rm --entrypoint sh nitro-node-dev-testnode -c "cat /home/user/*/machines/*/module-root.txt"`
+    image_roots=`docker run --rm --entrypoint sh nitro-node-dev-testnode -c "find /home/user/target/machines -name module-root.txt -exec cat {} +"`
     if ! grep -qxiF "$wasmroot" <<< "$image_roots"; then
-        echo "Error: $wasmroot is not a machine of the nitro image."
+        echo "Error: $wasmroot is not a machine in target/machines of the nitro image."
         exit 1
     fi
+elif $force_init; then
+    # Read before the old data is removed, so an image without the mel0 machine fails first
+    wasmroot=`docker run --rm --entrypoint sh nitro-node-dev-testnode -c "cat /home/user/target/machines/mel0/latest/module-root.txt"`
 fi
 
 if $blockscout; then
@@ -592,9 +596,6 @@ if $force_init; then
 
     sequenceraddress=`run_script print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
     l2ownerKey=`run_script print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
-    if [ -z "$wasmroot" ]; then
-        wasmroot=`docker compose run --rm --entrypoint sh sequencer -c "cat /home/user/target/machines/latest/module-root.txt"`
-    fi
 
     echo "== Deploying L2 chain"
     docker compose run --rm -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
