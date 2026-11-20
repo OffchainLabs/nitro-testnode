@@ -8,7 +8,7 @@ BLOCKSCOUT_VERSION=offchainlabs/blockscout:v1.1.0-0e716c8
 # nitro-contract workaround for testnode
 # 1. authorizing validator signer key since validator wallet is buggy
 #    - gas estimation sent from 0x0000 lead to balance and permission error
-DEFAULT_NITRO_CONTRACTS_VERSION="v3.2.0"
+DEFAULT_NITRO_CONTRACTS_VERSION="feat/mel-0-melconfig-contract"
 DEFAULT_TOKEN_BRIDGE_VERSION="v1.2.5"
 
 # Set default versions if not overriden by provided env vars
@@ -70,7 +70,6 @@ l2timeboost=false
 l2txfiltering=false
 l2filteringreport=false
 wasmroot=""
-mel=false
 
 # Use the dev versions of nitro/blockscout
 dev_nitro=false
@@ -293,10 +292,6 @@ while [[ $# -gt 0 ]]; do
             l2txfiltering=true
             shift
             ;;
-        --mel)
-            mel=true
-            shift
-            ;;
         --redundantsequencers)
             simple=false
             redundantsequencers=$2
@@ -353,7 +348,6 @@ while [[ $# -gt 0 ]]; do
             echo --l2-timeboost    run the L2 with Timeboost enabled, including auctioneer and bid validator
             echo --l2-tx-filtering  run the L2 with transaction filtering enabled
             echo --l2-filtering-report  run the L2 with filtering report framework enabled \(implies --l2-tx-filtering\)
-            echo --mel             run the L2 \(and L3\) rollups under MEL: mel0 wasm module root, proof data providers for validators, arbitrator validation
             echo --batchposters    batch posters [0-3]
             echo --redundantsequencers redundant sequencers [0-3]
             echo --detach          detach from nodes after running them
@@ -372,7 +366,7 @@ while [[ $# -gt 0 ]]; do
             echo --build-utils         rebuild scripts, rollupcreator, token bridge docker images
             echo --no-build-utils      don\'t rebuild scripts, rollupcreator, token bridge docker images
             echo --force-build-utils   force rebuilding utils, useful if NITRO_CONTRACTS_BRANCH or TOKEN_BRIDGE_BRANCH changes
-            echo --wasm-module-root initial WASM module root of the L2 and L3 rollups, one of the nitro image\'s machines \(default: the latest\). Needs an init, and a machine that supports the ArbOS version the chains start on. The nitro-legacy machines can\'t run challenges
+            echo --wasm-module-root initial WASM module root of the L2 and L3 rollups, one of the machines in the nitro image\'s target/machines \(default: the latest mel0 machine\). Needs an init, a machine that supports the ArbOS version the chains start on, and contracts of the same kind: a classic root for pre-MEL contracts, a mel0 root for MEL contracts
             echo
             echo script runs inside a separate docker. For SCRIPT-ARGS, run $0 script --help
             exit 0
@@ -425,17 +419,11 @@ fi
 
 if $validate; then
     NODES="$NODES validator"
-    if $mel; then
-        NODES="$NODES mel_provider_l2"
-    fi
 elif ! $simple; then
     NODES="$NODES staker-unsafe"
 fi
 if $l3node; then
     NODES="$NODES l3node"
-    if $mel; then
-        NODES="$NODES mel_provider_l3"
-    fi
 fi
 if $blockscout; then
     NODES="$NODES blockscout"
@@ -497,20 +485,16 @@ else
   docker tag $NITRO_NODE_VERSION nitro-node-dev-testnode
 fi
 
-# Validate the specified Wasm module root against the available machines in the nitro image
+# Validate the specified Wasm module root against the available machines in the nitro image, or default to its latest machine
 if [ -n "$wasmroot" ]; then
-    image_roots=`docker run --rm --entrypoint sh nitro-node-dev-testnode -c "cat /home/user/*/machines/*/module-root.txt"`
+    image_roots=`docker run --rm --entrypoint sh nitro-node-dev-testnode -c "find /home/user/target/machines -name module-root.txt -exec cat {} +"`
     if ! grep -qxiF "$wasmroot" <<< "$image_roots"; then
-        echo "Error: $wasmroot is not a machine of the nitro image."
+        echo "Error: $wasmroot is not a machine in target/machines of the nitro image."
         exit 1
     fi
-fi
-
-if $mel; then
-    if ! docker run --rm --entrypoint sh nitro-node-dev-testnode -c 'cd /home/user/target/machines/mel0 && test -f latest/machine.v2.wavm.br && test -d "$(cat latest/module-root.txt)" && test -x /usr/local/bin/mel-provider'; then
-        echo "--mel needs a nitro image that ships target/machines/mel0 (latest and <root>) and mel-provider"
-        exit 1
-    fi
+elif $force_init; then
+    # Read before the old data is removed, so an image without the mel0 machine fails first
+    wasmroot=`docker run --rm --entrypoint sh nitro-node-dev-testnode -c "cat /home/user/target/machines/mel0/latest/module-root.txt"`
 fi
 
 if $blockscout; then
@@ -611,13 +595,6 @@ if $force_init; then
 
     sequenceraddress=`run_script print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
     l2ownerKey=`run_script print-private-key --account l2owner | tail -n 1 | tr -d '\r\n'`
-    if [ -z "$wasmroot" ]; then
-        machinesDir=/home/user/target/machines
-        if $mel; then
-            machinesDir=$machinesDir/mel0
-        fi
-        wasmroot=`docker compose run --rm --entrypoint sh sequencer -c "cat $machinesDir/latest/module-root.txt"`
-    fi
 
     echo "== Deploying L2 chain"
     docker compose run --rm -e PARENT_CHAIN_RPC="http://geth:8545" -e DEPLOYER_PRIVKEY=$l2ownerKey -e PARENT_CHAIN_ID=$l1chainid -e CHILD_CHAIN_NAME="arb-dev-test" -e MAX_DATA_SIZE=117964 -e OWNER_ADDRESS=$l2ownerAddress -e WASM_MODULE_ROOT=$wasmroot -e SEQUENCER_ADDRESS=$sequenceraddress -e AUTHORIZE_VALIDATORS=10 -e CHILD_CHAIN_CONFIG_PATH="/config/l2_chain_config.json" -e CHAIN_DEPLOYMENT_INFO="/config/deployment.json" -e CHILD_CHAIN_INFO="/config/deployed_chain_info.json" rollupcreator create-rollup-testnode
@@ -650,7 +627,6 @@ referenceDaNodeConfigLine=""
 timeboostNodeConfigLine=""
 txFilteringNodeConfigLine=""
 filteringReportNodeConfigLine=""
-melNodeConfigLine=""
 
 # Remaining init may require AnyTrust committee/mirrors to have been started
 if $l2anytrust; then
@@ -697,15 +673,12 @@ if $force_init; then
     if $l2filteringreport; then
         filteringReportNodeConfigLine="--filteringreport"
     fi
-    if $mel; then
-        melNodeConfigLine="--mel"
-    fi
 
     echo "== Writing configs"
     if $simple; then
-        run_script write-config --simple $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine $filteringReportNodeConfigLine $melNodeConfigLine
+        run_script write-config --simple $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine $filteringReportNodeConfigLine
     else
-        run_script write-config $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine $filteringReportNodeConfigLine $melNodeConfigLine
+        run_script write-config $anytrustNodeConfigLine $referenceDaNodeConfigLine $timeboostNodeConfigLine $txFilteringNodeConfigLine $filteringReportNodeConfigLine
 
         echo == Initializing redis
         docker compose up --wait redis
@@ -827,11 +800,7 @@ if $force_init; then
         docker compose run --rm --entrypoint sh rollupcreator -c "jq [.[]] /config/deployed_l3_chain_info.json > /config/l3_chain_info.json"
 
         echo == Funding l3 funnel and dev key
-        l3Nodes="l3node sequencer"
-        if $mel; then
-            l3Nodes="$l3Nodes mel_provider_l3"
-        fi
-        docker compose up --wait $l3Nodes
+        docker compose up --wait l3node sequencer
         sleep 45 # in case we need to create a smart contract wallet, allow for parent chain to recieve the contract creation tx and process it
 
         if $l3_token_bridge; then

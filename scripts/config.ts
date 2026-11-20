@@ -265,11 +265,6 @@ function writeConfigs(argv: any) {
             "id": 412346,
             "info-files": [chainInfoFile],
         },
-        "validation": {
-            "wasm": {
-                "allowed-wasm-module-roots": ["/home/user/nitro-legacy/machines", "/home/user/target/machines"]
-            }
-        },
         "node": {
             "bold": {
                 "rpc-block-number": "latest",
@@ -390,11 +385,10 @@ function writeConfigs(argv: any) {
         simpleConfig.node["batch-poster"].enable = true
         simpleConfig.node["batch-poster"]["redis-url"] = ""
         simpleConfig.execution["sequencer"].enable = true
+        // mel_provider_l3 requests proofs at past blocks of this chain, so this node has to keep their state
+        simpleConfig.execution["caching"] = { "archive": true }
         if (argv.anytrust) {
             simpleConfig.node["da"]["anytrust"]["rpc-aggregator"].enable = true
-        }
-        if (argv.mel) {
-            simpleConfig.execution["caching"] = { "archive": true }
         }
         if (argv.txfiltering) {
             applyTxFilteringConfig(simpleConfig);
@@ -408,10 +402,7 @@ function writeConfigs(argv: any) {
         validatorConfig.node.staker.enable = true
         validatorConfig.node.staker["use-smart-contract-wallet"] = true
         let validconfJSON = JSON.stringify(validatorConfig)
-        if (argv.mel) {
-            validatorConfig.node["mel"] = { "client": { "url": "http://mel_provider_l2:8549" } }
-        }
-        fs.writeFileSync(path.join(consts.configpath, "validator_config.json"), JSON.stringify(validatorConfig))
+        fs.writeFileSync(path.join(consts.configpath, "validator_config.json"), validconfJSON)
 
         let unsafeStakerConfig = JSON.parse(validconfJSON)
         unsafeStakerConfig.node.staker.dangerous["without-block-validator"] = true
@@ -422,14 +413,13 @@ function writeConfigs(argv: any) {
         sequencerConfig.node["seq-coordinator"].enable = true
         sequencerConfig.execution["sequencer"].enable = true
         sequencerConfig.node["delayed-sequencer"].enable = true
+        // mel_provider_l3 requests proofs at past blocks of this chain, so this node has to keep their state
+        sequencerConfig.execution["caching"] = { "archive": true }
         if (argv.timeboost) {
             sequencerConfig.execution.sequencer.timeboost = {
                 "enable": false, // Create it false initially, turn it on with sed in test-node.bash after contract setup.
                 "redis-url": argv.redisUrl
             };
-        }
-        if (argv.mel) {
-            sequencerConfig.execution["caching"] = { "archive": true }
         }
         if (argv.txfiltering) {
             applyTxFilteringConfig(sequencerConfig);
@@ -463,9 +453,6 @@ function writeConfigs(argv: any) {
     l3Config.chain["info-files"] = [l3ChainInfoFile]
     l3Config.node.staker.enable = true
     l3Config.node.staker["use-smart-contract-wallet"] = true
-    if (argv.mel) {
-        l3Config.node["mel"] = { "client": { "url": "http://mel_provider_l3:8549" } }
-    }
     l3Config.node.sequencer = true
     l3Config.execution["sequencer"].enable = true
     l3Config.node["dangerous"]["no-sequencer-coordinator"] = true
@@ -489,15 +476,13 @@ function writeConfigs(argv: any) {
         "validation": {
             "api-auth": true,
             "api-public": false,
+            "use-jit": false    // The image's mel0 machine lacks the wasm libraries the JIT needs
         },
         "auth": {
             "jwtsecret": valJwtSecret,
             "addr": "0.0.0.0",
         },
     }))
-    if (argv.mel) {
-        validationNodeConfig.validation["use-jit"] = false
-    }
     fs.writeFileSync(path.join(consts.configpath, "validation_node_config.json"), JSON.stringify(validationNodeConfig))
 }
 
@@ -525,7 +510,7 @@ function writeL2ChainConfig(argv: any) {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
             "DataAvailabilityCommittee": argv.anytrust,
-            "InitialArbOSVersion": argv.txfiltering ? 60 : 40,
+            "InitialArbOSVersion": 61,
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
@@ -558,7 +543,7 @@ function writeL3ChainConfig(argv: any) {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
             "DataAvailabilityCommittee": false,
-            "InitialArbOSVersion": 40,
+            "InitialArbOSVersion": 61,
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
@@ -773,11 +758,6 @@ export const writeConfigCommand = {
         filteringreport: {
             boolean: true,
             describe: "enable filtering report framework",
-            default: false
-        },
-        mel: {
-            boolean: true,
-            describe: "chains run MEL: proof data providers for validators, arbitrator validation",
             default: false
         },
     },

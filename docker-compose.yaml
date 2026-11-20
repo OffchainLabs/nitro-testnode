@@ -309,10 +309,11 @@ services:
       - "validator-data:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
-    command: --conf.file /config/validator_config.json --http.port 8547 --http.api net,web3,arb,debug --ws.port 8548
+    command: --conf.file /config/validator_config.json --http.port 8547 --http.api net,web3,arb,debug --ws.port 8548 --node.mel.client.url http://mel_provider_l2:8549
     depends_on:
       - sequencer
       - validation_node
+      - mel_provider_l2
 
   l3node:
     pid: host # allow debugging
@@ -325,16 +326,18 @@ services:
       - "l3-validator-data:/home/user/.arbitrum/local/nitro"
       - "l1keystore:/home/user/l1keystore"
       - "config:/config"
-    command: --conf.file /config/l3node_config.json --http.port 3347 --http.api net,web3,arb,debug,eth --ws.port 3348
+    command: --conf.file /config/l3node_config.json --http.port 3347 --http.api net,web3,arb,debug,eth --ws.port 3348 --node.mel.client.url http://mel_provider_l3:8549
     depends_on:
       - sequencer
       - validation_node
+      - mel_provider_l3
 
   # MEL proof data providers (nitro-reth mel-provider)
   mel_provider_l2:
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/mel-provider
     command: --parent-chain-rpc-url http://geth:8545 --rpc-addr 0.0.0.0:8549
+    stop_signal: SIGINT
     depends_on:
       - geth
 
@@ -342,21 +345,19 @@ services:
     image: nitro-node-dev-testnode
     entrypoint: /usr/local/bin/mel-provider
     command: --parent-chain-rpc-url http://sequencer:8547 --rpc-addr 0.0.0.0:8549
+    stop_signal: SIGINT
     depends_on:
       - sequencer
 
   validation_node:
     pid: host # allow debugging
     image: nitro-node-dev-testnode
-    # Serve the image's legacy and current machines from one directory, so the node can validate a rollup that starts
-    # on an older root and the latest root after an upgrade. Legacy machines lack machine.v2.wavm.br, so they only
-    # validate through JIT and can't run challenges. Built on every start, so it follows the image
-    entrypoint: ["sh", "-c", "mkdir -p /tmp/machines && ln -sfn /home/user/nitro-legacy/machines/0x* /home/user/target/machines/* /tmp/machines/ && exec /usr/local/bin/nitro-val \"$$@\"", "--"]
+    entrypoint: /usr/local/bin/nitro-val
     ports:
       - "127.0.0.1:8949:8549"
     volumes:
       - "config:/config"
-    command: --conf.file /config/validation_node_config.json --validation.wasm.root-path /tmp/machines
+    command: --conf.file /config/validation_node_config.json --validation.wasm.root-path /home/user/target/machines
 
   scripts:
     build: scripts/

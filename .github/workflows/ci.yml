@@ -26,6 +26,12 @@ jobs:
         l3node: [l3node, l3node-token-6, no-l3node]
         tokenbridge: [tokenbridge, no-tokenbridge]
         simple: [simple, no-simple]
+        include:
+          # One extra job that starts pre-MEL chains. Its l3node value is not in the list above, so it is added as a new job
+          - pos: no-pos
+            l3node: l3node-pre-mel
+            tokenbridge: no-tokenbridge
+            simple: simple
 
     steps:
       - name: Checkout
@@ -46,4 +52,7 @@ jobs:
           restore-keys: ${{ runner.os }}-buildx-
 
       - name: Startup Nitro testnode
-        run: ${{ github.workspace }}/.github/workflows/testnode.bash --init-force ${{ (matrix.l3node == 'l3node' && '--l3node') || (matrix.l3node == 'l3node-token-6' && '--l3node --l3-fee-token --l3-token-bridge --l3-fee-token-decimals 6') || '' }} ${{ matrix.tokenbridge == 'tokenbridge' && '--tokenbridge' || '--no-tokenbridge' }} --detach ${{ matrix.pos == 'pos' && '--pos' || '' }} --simple ${{ (matrix.simple == 'simple' && '--simple') || (matrix.simple == 'no-simple' && '--no-simple') || '' }}
+        env:
+          # Empty keeps the testnode's default contracts
+          NITRO_CONTRACTS_BRANCH: ${{ matrix.l3node == 'l3node-pre-mel' && 'v3.2.0' || '' }}
+        run: ${{ github.workspace }}/.github/workflows/testnode.bash --init-force ${{ (matrix.l3node == 'l3node' && '--l3node') || (matrix.l3node == 'l3node-token-6' && '--l3node --l3-fee-token --l3-token-bridge --l3-fee-token-decimals 6') || (matrix.l3node == 'l3node-pre-mel' && '--l3node --wasm-module-root 0xc10cd7ec6acaf1c441a3f6bd0900ad20f15855ba775a96f1939118cbc629dc97') || '' }} ${{ matrix.tokenbridge == 'tokenbridge' && '--tokenbridge' || '--no-tokenbridge' }} --detach ${{ matrix.pos == 'pos' && '--pos' || '' }} --simple ${{ (matrix.simple == 'simple' && '--simple') || (matrix.simple == 'no-simple' && '--no-simple') || '' }}
