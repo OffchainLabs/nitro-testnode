@@ -485,7 +485,8 @@ else
   docker tag $NITRO_NODE_VERSION nitro-node-dev-testnode
 fi
 
-# Validate the specified Wasm module root against the available machines in the nitro image, or default to its latest machine
+# Validate the wasm module root against the image's target/machines (the arbitrator can't load the nitro-legacy ones),
+# or default to its latest mel0 machine
 if [ -n "$wasmroot" ]; then
     image_roots=`docker run --rm --entrypoint sh nitro-node-dev-testnode -c "find /home/user/target/machines -name module-root.txt -exec cat {} +"`
     if ! grep -qxiF "$wasmroot" <<< "$image_roots"; then

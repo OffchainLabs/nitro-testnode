@@ -265,6 +265,11 @@ function writeConfigs(argv: any) {
             "id": 412346,
             "info-files": [chainInfoFile],
         },
+        "validation": {
+            "wasm": {
+                "allowed-wasm-module-roots": ["/home/user/nitro-legacy/machines", "/home/user/target/machines"]
+            }
+        },
         "node": {
             "bold": {
                 "rpc-block-number": "latest",
@@ -510,7 +515,7 @@ function writeL2ChainConfig(argv: any) {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
             "DataAvailabilityCommittee": argv.anytrust,
-            "InitialArbOSVersion": 61,
+            "InitialArbOSVersion": argv.txfiltering ? 60 : 40,
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
@@ -543,7 +548,7 @@ function writeL3ChainConfig(argv: any) {
             "EnableArbOS": true,
             "AllowDebugPrecompiles": true,
             "DataAvailabilityCommittee": false,
-            "InitialArbOSVersion": 61,
+            "InitialArbOSVersion": 40,
             "InitialChainOwner": argv.l2owner,
             "GenesisBlockNum": 0
         }
