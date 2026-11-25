@@ -480,8 +480,7 @@ function writeConfigs(argv: any) {
         },
         "validation": {
             "api-auth": true,
-            "api-public": false,
-            "use-jit": false    // The image's mel0 machine lacks the wasm libraries the JIT needs
+            "api-public": false
         },
         "auth": {
             "jwtsecret": valJwtSecret,
