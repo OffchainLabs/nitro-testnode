@@ -390,6 +390,8 @@ function writeConfigs(argv: any) {
         simpleConfig.node["batch-poster"].enable = true
         simpleConfig.node["batch-poster"]["redis-url"] = ""
         simpleConfig.execution["sequencer"].enable = true
+        // mel_provider_l3 requests proofs at past blocks of this chain, so this node has to keep their state
+        simpleConfig.execution["caching"] = { "archive": true }
         if (argv.anytrust) {
             simpleConfig.node["da"]["anytrust"]["rpc-aggregator"].enable = true
         }
@@ -416,6 +418,8 @@ function writeConfigs(argv: any) {
         sequencerConfig.node["seq-coordinator"].enable = true
         sequencerConfig.execution["sequencer"].enable = true
         sequencerConfig.node["delayed-sequencer"].enable = true
+        // mel_provider_l3 requests proofs at past blocks of this chain, so this node has to keep their state
+        sequencerConfig.execution["caching"] = { "archive": true }
         if (argv.timeboost) {
             sequencerConfig.execution.sequencer.timeboost = {
                 "enable": false, // Create it false initially, turn it on with sed in test-node.bash after contract setup.
@@ -476,7 +480,7 @@ function writeConfigs(argv: any) {
         },
         "validation": {
             "api-auth": true,
-            "api-public": false,
+            "api-public": false
         },
         "auth": {
             "jwtsecret": valJwtSecret,

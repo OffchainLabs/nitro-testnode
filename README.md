@@ -44,6 +44,14 @@ Initialize the node in dev-mode (this will build the docker images from source)
 ```
 To see more options, use `--help`.
 
+## Starting a pre-MEL chain
+
+The chains are created with MEL enabled. To create chains that start before MEL, pass pre-MEL contracts together with a pre-MEL root from the image's `target/machines`. The following example uses the wasm module root of ArbOS v61:
+
+```bash
+NITRO_CONTRACTS_BRANCH=v3.2.0 ./test-node.bash --init --l3node --wasm-module-root 0xc10cd7ec6acaf1c441a3f6bd0900ad20f15855ba775a96f1939118cbc629dc97
+```
+
 ## Further information
 
 ### Branch Selection Guide (for devs working *on* nitro-testnode)
