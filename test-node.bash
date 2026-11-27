@@ -38,6 +38,27 @@ fi
 project=$({ docker compose config --no-env-resolution 2>/dev/null || docker compose config; } | sed -n 's/^name: //p' | tr -d "\"'")
 project_filter="label=com.docker.compose.project=$project"
 
+# `docker compose run` containers stay attached to the project network. `compose down`
+# does not stop them, so network removal fails with "has active endpoints".
+stop_project_containers() {
+    local ids
+    ids=$(
+        {
+            docker container ls -aq --filter "$project_filter"
+            docker container ls -aq --filter "ancestor=${project}-scripts"
+        } | awk 'NF && !seen[$0]++'
+    )
+    if [ -n "$ids" ]; then
+        docker rm -f $ids
+    fi
+}
+
+if [[ $# -gt 0 && $1 == "down" ]]; then
+    stop_project_containers
+    docker compose down --remove-orphans --timeout 10
+    exit $?
+fi
+
 num_volumes=`docker volume ls --filter "$project_filter" -q | wc -l`
 
 if [[ $num_volumes -eq 0 ]]; then
@@ -330,6 +351,7 @@ while [[ $# -gt 0 ]]; do
         *)
             echo Usage: $0 \[OPTIONS..]
             echo        $0 script [SCRIPT-ARGS]
+            echo        $0 down
             echo
             echo OPTIONS:
             echo --build           rebuild docker images
@@ -509,7 +531,8 @@ fi
 
 if $force_init; then
     echo == Removing old data..
-    docker compose down --remove-orphans --timeout 10 2>/dev/null || true
+    stop_project_containers
+    docker compose down --remove-orphans --timeout 10
     leftoverContainers=`docker container ls -a --filter "$project_filter" -q | xargs echo`
     if [ `echo $leftoverContainers | wc -w` -gt 0 ]; then
         docker rm -f $leftoverContainers
