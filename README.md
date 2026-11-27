@@ -27,6 +27,12 @@ Initialize the node
 ```
 To see more options, use `--help`.
 
+Stop the node, including one-off scripts containers that keep the Docker network from being removed:
+
+```bash
+./test-node.bash down
+```
+
 ## Using current nitro code (local compilation)
 
 Check out the nitro repository. Use the test-node submodule of nitro repository.
